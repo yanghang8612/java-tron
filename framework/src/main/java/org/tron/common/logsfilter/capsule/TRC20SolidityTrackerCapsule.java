@@ -1,6 +1,5 @@
 package org.tron.common.logsfilter.capsule;
 
-import com.alibaba.fastjson.JSONObject;
 import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
@@ -35,8 +34,7 @@ public class TRC20SolidityTrackerCapsule extends TriggerCapsule {
       trc20TrackerTrigger.setAssetStatusList(assetStatusPojos);
 
     }
-    logger.info("---------------------trc20SolidityTrigger------------------------{}",
-        JSONObject.toJSONString(trc20TrackerTrigger));
+    //logger.info("---------------------trc20SolidityTrigger------------------------{}",JSONObject.toJSONString(trc20TrackerTrigger));
 
 
   }

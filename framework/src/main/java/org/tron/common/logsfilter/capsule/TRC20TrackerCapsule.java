@@ -1,6 +1,5 @@
 package org.tron.common.logsfilter.capsule;
 
-import com.alibaba.fastjson.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
@@ -42,8 +41,7 @@ public class TRC20TrackerCapsule extends TriggerCapsule {
           .parseTrc20AssetStatusPojo(block, logInfos);
       trc20TrackerTrigger.setAssetStatusList(assetStatusPojos);
     }
-    logger.info("---------------------trc20TrackerTrigger------------------------{}",
-        JSONObject.toJSONString(trc20TrackerTrigger));
+    //logger.info("---------------------trc20TrackerTrigger------------------------{}", JSONObject.toJSONString(trc20TrackerTrigger));
   }
 
   @Override
