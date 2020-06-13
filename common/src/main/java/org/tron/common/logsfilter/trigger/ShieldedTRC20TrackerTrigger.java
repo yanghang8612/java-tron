@@ -54,6 +54,7 @@ public class ShieldedTRC20TrackerTrigger extends Trigger {
 
   public void solidityType() {
     setTriggerName(Trigger.SHIELDED_TRC20SOLIDITYTRACKER_TRIGGER_NAME);
+    solidity = true;
   }
 
 

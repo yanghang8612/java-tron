@@ -1847,11 +1847,12 @@ public class Manager {
       if (trc20TrackerCapsule.getTrc20TrackerTrigger() != null) {
         trc20TrackerCapsule.processTrigger();
       }
-
-    } else if (eventPluginLoaded &&
+    }
+    if (eventPluginLoaded &&
         EventPluginLoader.getInstance().isShieldedTRC20TrackerTriggerEnable()) {
       ShieldedTRC20TrackerCapsule shieldedTRC20TrackerCapsule = new ShieldedTRC20TrackerCapsule(
           blockCapsule, getTransactionPojos(blockCapsule));
+      shieldedTRC20TrackerCapsule.processTrigger();
     }
   }
 
@@ -1875,6 +1876,7 @@ public class Manager {
             if (EventPluginLoader.getInstance().isShieldedTRC20TrackerSolidityTriggerEnable()) {
               ShieldedTRC20SolidityTrackerCapsule shieldedTRC20SolidityTrackerCapsule =
                   new ShieldedTRC20SolidityTrackerCapsule(solidBlock);
+              shieldedTRC20SolidityTrackerCapsule.processTrigger();
             }
           }
 
