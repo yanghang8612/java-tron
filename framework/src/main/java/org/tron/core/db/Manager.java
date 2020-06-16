@@ -79,7 +79,6 @@ import org.tron.consensus.Consensus;
 import org.tron.consensus.base.Param.Miner;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.Constant;
-import org.tron.core.Wallet;
 import org.tron.core.actuator.AbstractActuator;
 import org.tron.core.actuator.ActuatorCreator;
 import org.tron.core.capsule.AccountCapsule;
@@ -2096,7 +2095,7 @@ public class Manager {
     int type = getShieldedTRC20LogType(log.getTopicsList());
     if (type > 0) {
       LogPojo ret = new LogPojo();
-      ret.setType(Wallet.getShieldedTRC20LogType(log.getTopicsList()));
+      ret.setType(type);
       ret.setAddress(WalletUtil.encode58Check(log.getAddress().toByteArray()));
       ret.setData(Hex.toHexString(log.getData().toByteArray()));
       for (ByteString b : log.getTopicsList()) {

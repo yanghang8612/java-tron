@@ -3538,17 +3538,5 @@ public class Wallet {
   }
 
 
-  public static int getShieldedTRC20LogType(List<ByteString> logTopicsList) {
-    byte[] topicsBytes = new byte[0];
-    for (ByteString bs : logTopicsList) {
-      topicsBytes = ByteUtil.merge(topicsBytes, bs.toByteArray());
-    }
-    if (Arrays.equals(topicsBytes, SHIELDED_TRC20_LOG_TOPICS)) {
-      return 1;
-    } else if (Arrays.equals(topicsBytes, SHIELDED_TRC20_LOG_TOPICS_FOR_BURN)) {
-      return 2;
-    }
-    return 0;
-  }
 }
 
