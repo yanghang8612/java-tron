@@ -71,6 +71,7 @@ import org.tron.common.utils.ForkController;
 import org.tron.common.utils.Pair;
 import org.tron.common.utils.SessionOptional;
 import org.tron.common.utils.Sha256Hash;
+import org.tron.common.utils.ShieldedTRC20EventsEnum;
 import org.tron.common.utils.StringUtil;
 import org.tron.common.utils.WalletUtil;
 import org.tron.common.zksnark.MerkleContainer;
@@ -162,6 +163,7 @@ import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
 @Slf4j(topic = "DB")
 @Component
 public class Manager {
+
 
   private static final int SHIELDED_TRANS_IN_BLOCK_COUNTS = 1;
   private final int SHIELDED_TRANS_IN_PENDING_MAX_COUNTS = Args.getInstance()
@@ -2067,10 +2069,7 @@ public class Manager {
     List<TransactionInfo.Log> logList = transactionInfo.getLogList();
     List<LogPojo> logPojos = new ArrayList<>();
     for (TransactionInfo.Log log : logList) {
-      //if (Wallet.getShieldedTRC20LogType(log.getTopicsList())!= 0) {
-      if (true) {
-        logPojos.add(toLogPojo(log));
-      }
+      addLogPojo(logPojos, log);
     }
     if (logPojos.size() > 0 && list != null) {
       TransactionPojo transactionPojo = new TransactionPojo();
@@ -2093,15 +2092,18 @@ public class Manager {
   }
 
 
-  private static LogPojo toLogPojo(TransactionInfo.Log log) {
-    LogPojo ret = new LogPojo();
-    ret.setType(Wallet.getShieldedTRC20LogType(log.getTopicsList()));
-    ret.setAddress(WalletUtil.encode58Check(log.getAddress().toByteArray()));
-    ret.setData(Hex.toHexString(log.getData().toByteArray()));
-    for (ByteString b : log.getTopicsList()) {
-      ret.getTopics().add(Hex.toHexString(b.toByteArray()));
+  private static void addLogPojo(List<LogPojo> logPojos, TransactionInfo.Log log) {
+    int type = getShieldedTRC20LogType(log.getTopicsList());
+    if (type > 0) {
+      LogPojo ret = new LogPojo();
+      ret.setType(Wallet.getShieldedTRC20LogType(log.getTopicsList()));
+      ret.setAddress(WalletUtil.encode58Check(log.getAddress().toByteArray()));
+      ret.setData(Hex.toHexString(log.getData().toByteArray()));
+      for (ByteString b : log.getTopicsList()) {
+        ret.getTopics().add(Hex.toHexString(b.toByteArray()));
+      }
+      logPojos.add(ret);
     }
-    return ret;
   }
 
   private static byte[] getTriggerDataFromTransaction(TransactionCapsule transactionCapsule) {
@@ -2136,6 +2138,16 @@ public class Manager {
       insertTransactionPojo(transactionPojos, info, inputMap);
     }
     return transactionPojos;
+  }
+
+
+  public static int getShieldedTRC20LogType(List<ByteString> logTopicsList) {
+    if (logTopicsList != null && logTopicsList.size() > 0) {
+      return ShieldedTRC20EventsEnum
+          .getShieldedTRC20EventsTypeIdByTopicBytes(logTopicsList.get(0).toByteArray());
+    } else {
+      return 0;
+    }
   }
 
 }
