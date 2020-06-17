@@ -13,6 +13,7 @@ public class ShieldedTRC20TrackerTrigger extends Trigger {
   public static class LogPojo {
 
     private int type;
+    private long index;
     private String address;
     private List<String> topics = new ArrayList<>();
     private String data;
