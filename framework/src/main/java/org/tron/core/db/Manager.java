@@ -2069,7 +2069,7 @@ public class Manager {
     List<LogPojo> logPojos = new ArrayList<>();
     for (int index = 0; index < logList.size(); index++) {
       TransactionInfo.Log log = logList.get(index);
-      addLogPojo(logPojos, log, index);
+      addLogPojo(logPojos, log);
     }
     if (logPojos.size() > 0 && list != null) {
       TransactionPojo transactionPojo = new TransactionPojo();
@@ -2092,12 +2092,12 @@ public class Manager {
   }
 
 
-  private static void addLogPojo(List<LogPojo> logPojos, TransactionInfo.Log log, long index) {
+  private static void addLogPojo(List<LogPojo> logPojos, TransactionInfo.Log log) {
     int type = getShieldedTRC20LogType(log.getTopicsList());
     if (type > 0) {
       LogPojo ret = new LogPojo();
       ret.setType(type);
-      ret.setIndex(index);
+      ret.setIndex(logPojos.size());
       ret.setAddress(WalletUtil.encode58Check(log.getAddress().toByteArray()));
       ret.setData(Hex.toHexString(log.getData().toByteArray()));
       for (ByteString b : log.getTopicsList()) {
