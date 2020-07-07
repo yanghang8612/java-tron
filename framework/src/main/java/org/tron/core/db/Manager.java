@@ -150,6 +150,7 @@ import org.tron.core.store.WitnessScheduleStore;
 import org.tron.core.store.WitnessStore;
 import org.tron.core.store.ZKProofStore;
 import org.tron.core.utils.TransactionRegister;
+import org.tron.core.vm.utils.MUtil;
 import org.tron.protos.Protocol.AccountType;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract;
@@ -2075,7 +2076,8 @@ public class Manager {
       TransactionPojo transactionPojo = new TransactionPojo();
       transactionPojo.setTxId(Hex.toHexString(transactionInfo.getId().toByteArray()));
       transactionPojo.setContractAddress(
-          WalletUtil.encode58Check(transactionInfo.getContractAddress().toByteArray()));
+          WalletUtil.encode58Check(
+              MUtil.convertToTronAddress(transactionInfo.getContractAddress().toByteArray())));
       transactionPojo.setLogList(logPojos);
       transactionPojo.setEnergyFee(transactionInfo.getReceipt().getEnergyFee());
       transactionPojo.setEnergyUsage(transactionInfo.getReceipt().getEnergyUsage());
