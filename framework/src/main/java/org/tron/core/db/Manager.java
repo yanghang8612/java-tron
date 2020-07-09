@@ -938,6 +938,10 @@ public class Manager {
       TransactionExpirationException, TooBigTransactionException, DupTransactionException,
       TaposException, ValidateScheduleException, ReceiptCheckErrException,
       VMIllegalException, TooBigTransactionResultException, ZksnarkException, BadBlockException {
+
+    boolean record = eventPluginLoaded && EventPluginLoader.getInstance().isTrc20TrackerTriggerEnable();
+    getAccountStore().startRecord(record);
+
     processBlock(block);
     this.blockStore.put(block.getBlockId().getBytes(), block);
     this.blockIndexStore.put(block.getBlockId());
@@ -1843,7 +1847,8 @@ public class Manager {
   private void postTRC20Trigger(BlockCapsule blockCapsule) {
     if (eventPluginLoaded &&
         EventPluginLoader.getInstance().isTrc20TrackerTriggerEnable()) {
-      TRC20TrackerCapsule trc20TrackerCapsule = new TRC20TrackerCapsule(blockCapsule);
+      TRC20TrackerCapsule trc20TrackerCapsule = new TRC20TrackerCapsule(blockCapsule,
+              getAccountStore().getTempAccountMap());
       if (trc20TrackerCapsule.getTrc20TrackerTrigger() != null) {
         trc20TrackerCapsule.processTrigger();
       }
