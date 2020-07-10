@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.tron.common.utils.Commons;
+import org.tron.common.utils.WalletUtil;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.db.TronStoreWithRevoking;
 import org.tron.core.db.accountstate.AccountStateCallBackUtils;
@@ -183,9 +184,8 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
 
     public static AccountInfo of(AccountCapsule account) {
       AccountInfo info = new AccountInfo();
-
-      // todo chuanqiang 确定address
-      info.setAccountAddress(account.getAddress().toString());
+      final String address = WalletUtil.encode58Check(account.getAddress().toByteArray());
+      info.setAccountAddress(address);
       info.setAdd(true);
 
       setBalance(info, account);
@@ -203,8 +203,8 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
     // 检查余额是否有变动，没有变动 return null.
     public static AccountInfo of(AccountCapsule oldAccount, AccountCapsule newAccount) {
       AccountInfo info = new AccountInfo();
-
-      info.setAccountAddress(newAccount.getAddress().toString());
+      final String address = WalletUtil.encode58Check(newAccount.getAddress().toByteArray());
+      info.setAccountAddress(address);
       info.setAdd(false);
 
       setBalance(info, newAccount);
