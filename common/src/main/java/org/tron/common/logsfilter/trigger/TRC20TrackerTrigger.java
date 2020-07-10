@@ -30,6 +30,7 @@ public class TRC20TrackerTrigger extends Trigger {
   @Data
   public static class TrxStatusPojo {
     private String accountAddress;
+    private Boolean add;
 
     private String balance;
     private String frozenBalance;
