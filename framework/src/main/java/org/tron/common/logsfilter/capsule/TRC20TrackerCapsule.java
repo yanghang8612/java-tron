@@ -2,6 +2,7 @@ package org.tron.common.logsfilter.capsule;
 
 import com.alibaba.fastjson.JSONObject;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -47,11 +48,19 @@ public class TRC20TrackerCapsule extends TriggerCapsule {
     }
 
     // todo chuanqiang 通过accountInfoMap 处理得到list
+    List<TRC20TrackerTrigger.Trc10StatusPojo> trc10StatusList = new LinkedList<>();
+    List<TRC20TrackerTrigger.TrxStatusPojo> trxStatusList = new LinkedList<>();
+    handlerTrxAndTrc10(accountInfoMap, trxStatusList, trc10StatusList);
 //    final AccountStore.AccountInfo accountInfo = accountInfoMap.get(null);
 //    accountInfo.getAccountAddress();
 
+
     logger.info("---------------------trc20TrackerTrigger------------------------{}",
         JSONObject.toJSONString(trc20TrackerTrigger));
+  }
+
+  private void handlerTrxAndTrc10(Map<byte[], AccountStore.AccountInfo> accountInfoMap, List<TRC20TrackerTrigger.TrxStatusPojo> trxStatusList, List<TRC20TrackerTrigger.Trc10StatusPojo> trc10StatusList) {
+
   }
 
   @Override

@@ -74,7 +74,7 @@ public class TRC20TrackerTrigger extends Trigger {
 
   private List<Trc10StatusPojo> trc10StatusList = new ArrayList<>();
 
-  private List<AssetStatusPojo> TrxStatusPojo = new ArrayList<>();
+  private List<TrxStatusPojo> trxStatusList = new ArrayList<>();
 
   public TRC20TrackerTrigger() {
     super();
