@@ -111,7 +111,12 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
       return;
     }
 
-    final AccountInfo inMapInfo = tempAccountMap.get(oldAccount.getAddress().toByteArray());
+    // 如果是null, 表示balance没有变动，则直接返回
+    if (accountInfo == null) {
+      return;
+    }
+
+    final AccountInfo inMapInfo = tempAccountMap.get(key);
 
     if (inMapInfo == null) {
       tempAccountMap.put(key, accountInfo);
@@ -195,6 +200,7 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
       return info;
     }
 
+    // 检查余额是否有变动，没有变动 return null.
     public static AccountInfo of(AccountCapsule oldAccount, AccountCapsule newAccount) {
       AccountInfo info = new AccountInfo();
 
@@ -210,6 +216,17 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
       info.setIncrementDelegatedFrozenBalanceForBandwidth(newAccount.getDelegatedFrozenBalanceForBandwidth() - oldAccount.getDelegatedFrozenBalanceForBandwidth());
 
       info.setTrc10Map(Trc10Info.of(oldAccount.getAssetMapV2(), newAccount.getAssetMapV2()));
+
+      // 检查余额是否有变动，没有变动 return null.
+      if (info.getIncrementBalance() == 0
+              && info.getIncrementFrozenBalance() == 0
+              && info.getIncrementEnergyFrozenBalance() == 0
+              && info.getIncrementDelegatedFrozenBalanceForEnergy() == 0
+              && info.getIncrementDelegatedFrozenBalanceForBandwidth() == 0
+              && info.getTrc10Map() == null) {
+        return null;
+      }
+
       return info;
     }
 
@@ -251,19 +268,23 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
         else {
           trc10Info = of(key, val, 0);
         }
-        trc10Map.put(key, trc10Info);
+
+        if (trc10Info != null) {
+          trc10Map.put(key, trc10Info);
+        }
       });
 
       return trc10Map;
     }
 
+    // if not change return null;
     public static Map<String, Trc10Info> of(Map<String, Long> oldAssetMapV2, Map<String, Long> newAssetMapV2) {
-      Map<String, Trc10Info> trc10Map = new HashMap<>();
       final boolean oldEmpty = CollectionUtils.isEmpty(oldAssetMapV2);
       final boolean newEmpty = CollectionUtils.isEmpty(newAssetMapV2);
 
+      // trc10 没有修改的， return null
       if (oldEmpty && newEmpty) {
-        return trc10Map;
+        return null;
       }
 
       if (oldEmpty) {
@@ -274,18 +295,31 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
         return of(oldAssetMapV2, false);
       }
 
+      Map<String, Trc10Info> trc10Map = new HashMap<>();
       newAssetMapV2.forEach((key, val) -> {
         Long oldVal = oldAssetMapV2.get(key);
         oldVal = oldVal == null ? 0L : oldVal;
         final Trc10Info trc10Info = of(key, oldVal, val);
-        trc10Map.put(key, trc10Info);
+
+        if (trc10Info != null) {
+          trc10Map.put(key, trc10Info);
+        }
+
         oldAssetMapV2.remove(key);
       });
 
       oldAssetMapV2.forEach((key, oldVal) -> {
         final Trc10Info trc10Info = of(key, oldVal, 0);
-        trc10Map.put(key, trc10Info);
+
+        if (trc10Info != null) {
+          trc10Map.put(key, trc10Info);
+        }
       });
+
+      // trc10 没有修改的， return null
+      if (CollectionUtils.isEmpty(trc10Map)) {
+        return null;
+      }
 
       return trc10Map;
     }
@@ -303,6 +337,11 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
       info.setTokenId(tokenId);
       info.setBalance(val);
       info.setIncrementBalance(val - oldVal);
+
+      // not change
+      if (info.getIncrementBalance() == 0) {
+        return null;
+      }
       return info;
     }
   }
