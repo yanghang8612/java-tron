@@ -298,14 +298,19 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
       Map<String, Trc10Info> trc10Map = new HashMap<>();
       newAssetMapV2.forEach((key, val) -> {
         Long oldVal = oldAssetMapV2.get(key);
-        oldVal = oldVal == null ? 0L : oldVal;
+
+        if (oldVal == null) {
+          oldVal = 0L;
+        }
+        else {
+          oldAssetMapV2.remove(key);
+        }
+
         final Trc10Info trc10Info = of(key, oldVal, val);
 
         if (trc10Info != null) {
           trc10Map.put(key, trc10Info);
         }
-
-        oldAssetMapV2.remove(key);
       });
 
       oldAssetMapV2.forEach((key, oldVal) -> {
