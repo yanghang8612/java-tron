@@ -13,6 +13,7 @@ public class ShieldedTRC20TrackerTrigger extends Trigger {
   public static class LogPojo {
 
     private int type;
+    private long index;
     private String address;
     private List<String> topics = new ArrayList<>();
     private String data;
@@ -54,6 +55,7 @@ public class ShieldedTRC20TrackerTrigger extends Trigger {
 
   public void solidityType() {
     setTriggerName(Trigger.SHIELDED_TRC20SOLIDITYTRACKER_TRIGGER_NAME);
+    solidity = true;
   }
 
 

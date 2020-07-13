@@ -1,6 +1,5 @@
 package org.tron.common.logsfilter.capsule;
 
-import com.alibaba.fastjson.JSONObject;
 import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
@@ -29,8 +28,7 @@ public class ShieldedTRC20TrackerCapsule extends TriggerCapsule {
     if (transactionList != null && transactionList.size() > 0) {
       shieldedTRC20TrackerTrigger.setTransactionList(transactionList);
     }
-    logger.info("---------------------shieldedTRC20TrackerTrigger------------------------{}",
-        JSONObject.toJSONString(shieldedTRC20TrackerTrigger));
+    //logger.info("---------------------shieldedTRC20TrackerTrigger------------------------{}", JSONObject.toJSONString(shieldedTRC20TrackerTrigger));
 
   }
 

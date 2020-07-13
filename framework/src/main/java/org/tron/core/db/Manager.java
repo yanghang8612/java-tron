@@ -71,6 +71,7 @@ import org.tron.common.utils.ForkController;
 import org.tron.common.utils.Pair;
 import org.tron.common.utils.SessionOptional;
 import org.tron.common.utils.Sha256Hash;
+import org.tron.common.utils.ShieldedTRC20EventsEnum;
 import org.tron.common.utils.StringUtil;
 import org.tron.common.utils.WalletUtil;
 import org.tron.common.zksnark.MerkleContainer;
@@ -78,7 +79,6 @@ import org.tron.consensus.Consensus;
 import org.tron.consensus.base.Param.Miner;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.Constant;
-import org.tron.core.Wallet;
 import org.tron.core.actuator.AbstractActuator;
 import org.tron.core.actuator.ActuatorCreator;
 import org.tron.core.capsule.AccountCapsule;
@@ -150,6 +150,7 @@ import org.tron.core.store.WitnessScheduleStore;
 import org.tron.core.store.WitnessStore;
 import org.tron.core.store.ZKProofStore;
 import org.tron.core.utils.TransactionRegister;
+import org.tron.core.vm.utils.MUtil;
 import org.tron.protos.Protocol.AccountType;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract;
@@ -162,6 +163,7 @@ import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
 @Slf4j(topic = "DB")
 @Component
 public class Manager {
+
 
   private static final int SHIELDED_TRANS_IN_BLOCK_COUNTS = 1;
   private final int SHIELDED_TRANS_IN_PENDING_MAX_COUNTS = Args.getInstance()
@@ -1852,11 +1854,12 @@ public class Manager {
       if (trc20TrackerCapsule.getTrc20TrackerTrigger() != null) {
         trc20TrackerCapsule.processTrigger();
       }
-
-    } else if (eventPluginLoaded &&
+    }
+    if (eventPluginLoaded &&
         EventPluginLoader.getInstance().isShieldedTRC20TrackerTriggerEnable()) {
       ShieldedTRC20TrackerCapsule shieldedTRC20TrackerCapsule = new ShieldedTRC20TrackerCapsule(
           blockCapsule, getTransactionPojos(blockCapsule));
+      shieldedTRC20TrackerCapsule.processTrigger();
     }
   }
 
@@ -1880,6 +1883,7 @@ public class Manager {
             if (EventPluginLoader.getInstance().isShieldedTRC20TrackerSolidityTriggerEnable()) {
               ShieldedTRC20SolidityTrackerCapsule shieldedTRC20SolidityTrackerCapsule =
                   new ShieldedTRC20SolidityTrackerCapsule(solidBlock);
+              shieldedTRC20SolidityTrackerCapsule.processTrigger();
             }
           }
 
@@ -2069,17 +2073,16 @@ public class Manager {
       TransactionInfo transactionInfo, Map<ByteString, byte[]> inputDataMap) {
     List<TransactionInfo.Log> logList = transactionInfo.getLogList();
     List<LogPojo> logPojos = new ArrayList<>();
-    for (TransactionInfo.Log log : logList) {
-      //if (Wallet.getShieldedTRC20LogType(log.getTopicsList())!= 0) {
-      if (true) {
-        logPojos.add(toLogPojo(log));
-      }
+    for (int index = 0; index < logList.size(); index++) {
+      TransactionInfo.Log log = logList.get(index);
+      addLogPojo(logPojos, log);
     }
     if (logPojos.size() > 0 && list != null) {
       TransactionPojo transactionPojo = new TransactionPojo();
       transactionPojo.setTxId(Hex.toHexString(transactionInfo.getId().toByteArray()));
       transactionPojo.setContractAddress(
-          WalletUtil.encode58Check(transactionInfo.getContractAddress().toByteArray()));
+          WalletUtil.encode58Check(
+              MUtil.convertToTronAddress(transactionInfo.getContractAddress().toByteArray())));
       transactionPojo.setLogList(logPojos);
       transactionPojo.setEnergyFee(transactionInfo.getReceipt().getEnergyFee());
       transactionPojo.setEnergyUsage(transactionInfo.getReceipt().getEnergyUsage());
@@ -2096,15 +2099,19 @@ public class Manager {
   }
 
 
-  private static LogPojo toLogPojo(TransactionInfo.Log log) {
-    LogPojo ret = new LogPojo();
-    ret.setType(Wallet.getShieldedTRC20LogType(log.getTopicsList()));
-    ret.setAddress(WalletUtil.encode58Check(log.getAddress().toByteArray()));
-    ret.setData(Hex.toHexString(log.getData().toByteArray()));
-    for (ByteString b : log.getTopicsList()) {
-      ret.getTopics().add(Hex.toHexString(b.toByteArray()));
+  private static void addLogPojo(List<LogPojo> logPojos, TransactionInfo.Log log) {
+    int type = getShieldedTRC20LogType(log.getTopicsList());
+    if (type > 0) {
+      LogPojo ret = new LogPojo();
+      ret.setType(type);
+      ret.setIndex(logPojos.size());
+      ret.setAddress(WalletUtil.encode58Check(log.getAddress().toByteArray()));
+      ret.setData(Hex.toHexString(log.getData().toByteArray()));
+      for (ByteString b : log.getTopicsList()) {
+        ret.getTopics().add(Hex.toHexString(b.toByteArray()));
+      }
+      logPojos.add(ret);
     }
-    return ret;
   }
 
   private static byte[] getTriggerDataFromTransaction(TransactionCapsule transactionCapsule) {
@@ -2139,6 +2146,16 @@ public class Manager {
       insertTransactionPojo(transactionPojos, info, inputMap);
     }
     return transactionPojos;
+  }
+
+
+  public static int getShieldedTRC20LogType(List<ByteString> logTopicsList) {
+    if (logTopicsList != null && logTopicsList.size() > 0) {
+      return ShieldedTRC20EventsEnum
+          .getShieldedTRC20EventsTypeIdByTopicBytes(logTopicsList.get(0).toByteArray());
+    } else {
+      return 0;
+    }
   }
 
 }

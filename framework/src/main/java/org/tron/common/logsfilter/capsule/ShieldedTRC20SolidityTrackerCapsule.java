@@ -1,6 +1,5 @@
 package org.tron.common.logsfilter.capsule;
 
-import com.alibaba.fastjson.JSONObject;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -25,8 +24,7 @@ public class ShieldedTRC20SolidityTrackerCapsule extends TriggerCapsule {
     shieldedTRC20TrackerTrigger.setTimeStamp(block.getTimeStamp());
     shieldedTRC20TrackerTrigger.solidityType();
 
-    logger.info("---------------------shieldedTRC20TrackerTrigger------------------------{}",
-        JSONObject.toJSONString(shieldedTRC20TrackerTrigger));
+    //logger.info("---------------------shieldedTRC20TrackerTrigger------------------------{}",JSONObject.toJSONString(shieldedTRC20TrackerTrigger));
 
   }
 
