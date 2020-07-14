@@ -66,7 +66,7 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
 
   @Override
   public void put(byte[] key, AccountCapsule item) {
-    final AccountCapsule oldAccount = get(key);
+    AccountCapsule oldAccount = get(key);
     super.put(key, item);
     accountStateCallBackUtils.accountCallBack(key, item);
     handler(key, oldAccount, item);
@@ -302,9 +302,6 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
         if (oldVal == null) {
           oldVal = 0L;
         }
-        else {
-          oldAssetMapV2.remove(key);
-        }
 
         final Trc10Info trc10Info = of(key, oldVal, val);
 
@@ -314,6 +311,10 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
       });
 
       oldAssetMapV2.forEach((key, oldVal) -> {
+        if (newAssetMapV2.containsKey(key)) {
+          return;
+        }
+
         final Trc10Info trc10Info = of(key, oldVal, 0);
 
         if (trc10Info != null) {
