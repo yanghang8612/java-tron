@@ -56,7 +56,6 @@ public class TRC20TrackerCapsule extends TriggerCapsule {
 
     logger.info("---------------------trc20TrackerTrigger------------------------{}",
         JSONObject.toJSONString(trc20TrackerTrigger));
-    //logger.info("---------------------trc20TrackerTrigger------------------------{}", JSONObject.toJSONString(trc20TrackerTrigger));
   }
 
   private void handlerTrxAndTrc10(Map<byte[], AccountStore.AccountInfo> accountInfoMap,
