@@ -1850,9 +1850,10 @@ public class Manager {
     if (eventPluginLoaded &&
         EventPluginLoader.getInstance().isTrc20TrackerTriggerEnable()) {
       TRC20TrackerCapsule trc20TrackerCapsule = new TRC20TrackerCapsule(blockCapsule,
-              getAccountStore().getTempAccountMap());
+              getAccountStore().getChangeAccountMap());
       if (trc20TrackerCapsule.getTrc20TrackerTrigger() != null) {
         trc20TrackerCapsule.processTrigger();
+        getAccountStore().clearChangeAccountMap();
       }
     }
     if (eventPluginLoaded &&

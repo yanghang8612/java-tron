@@ -17,7 +17,7 @@ import org.tron.common.logsfilter.trigger.TRC20TrackerTrigger.AssetStatusPojo;
 import org.tron.common.runtime.vm.LogInfo;
 import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.capsule.TransactionCapsule;
-import org.tron.core.store.AccountStore;
+import org.tron.core.db.accountchange.AccountChangeRecord;
 
 @Slf4j
 public class TRC20TrackerCapsule extends TriggerCapsule {
@@ -27,7 +27,7 @@ public class TRC20TrackerCapsule extends TriggerCapsule {
   @Setter
   TRC20TrackerTrigger trc20TrackerTrigger;
 
-  public TRC20TrackerCapsule(BlockCapsule block, Map<byte[], AccountStore.AccountInfo> accountInfoMap) {
+  public TRC20TrackerCapsule(BlockCapsule block, Map<byte[], AccountChangeRecord.AccountInfo> accountInfoMap) {
     trc20TrackerTrigger = new TRC20TrackerTrigger();
     trc20TrackerTrigger.setBlockHash(block.getBlockId().toString());
     trc20TrackerTrigger.setParentHash(block.getParentHash().toString());
@@ -58,7 +58,7 @@ public class TRC20TrackerCapsule extends TriggerCapsule {
         JSONObject.toJSONString(trc20TrackerTrigger));
   }
 
-  private void handlerTrxAndTrc10(Map<byte[], AccountStore.AccountInfo> accountInfoMap,
+  private void handlerTrxAndTrc10(Map<byte[], AccountChangeRecord.AccountInfo> accountInfoMap,
                                   List<TRC20TrackerTrigger.TrxStatusPojo> trxStatusList,
                                   List<TRC20TrackerTrigger.Trc10StatusPojo> trc10StatusList) {
     if (CollectionUtils.isEmpty(accountInfoMap)) {
@@ -73,10 +73,10 @@ public class TRC20TrackerCapsule extends TriggerCapsule {
     });
   }
 
-  private TRC20TrackerTrigger.TrxStatusPojo converterTrx(AccountStore.AccountInfo info) {
+  private TRC20TrackerTrigger.TrxStatusPojo converterTrx(AccountChangeRecord.AccountInfo info) {
     TRC20TrackerTrigger.TrxStatusPojo trx = new TRC20TrackerTrigger.TrxStatusPojo();
     trx.setAccountAddress(info.getAccountAddress());
-    trx.setAdd(info.getAdd());
+    trx.setAdd(info.getCreate());
 
     trx.setBalance(String.valueOf(info.getBalance()));
     trx.setFrozenBalance(String.valueOf(info.getFrozenBalance()));
@@ -93,7 +93,7 @@ public class TRC20TrackerCapsule extends TriggerCapsule {
   }
 
   private List<TRC20TrackerTrigger.Trc10StatusPojo> converterTrc10(String accountAddress,
-                                                                   Map<String, AccountStore.Trc10Info> trc10Map) {
+                                                                   Map<String, AccountChangeRecord.Trc10Info> trc10Map) {
     List<TRC20TrackerTrigger.Trc10StatusPojo> list = new LinkedList<>();
     if (CollectionUtils.isEmpty(trc10Map)) {
       return list;
