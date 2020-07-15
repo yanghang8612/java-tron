@@ -51,7 +51,7 @@ public class AccountChangeRecord {
       return;
     }
 
-    // 如果是null, 表示balance没有变动，则直接返回
+    // if null, means balance not change, return.
     if (accountInfo == null) {
       return;
     }
@@ -72,7 +72,7 @@ public class AccountChangeRecord {
   }
 
   private void mergeInfo(AccountInfo inMapInfo, AccountInfo addInfo) {
-    //  merge操作：余额 更新， diff余额 相加
+    //  merge：update balance， add incrementBalance.
     AccountInfo.setBalance(inMapInfo, addInfo);
 
     inMapInfo.setIncrementBalance(inMapInfo.getIncrementBalance() + addInfo.getIncrementBalance());
@@ -80,6 +80,9 @@ public class AccountChangeRecord {
     inMapInfo.setIncrementEnergyFrozenBalance(inMapInfo.getIncrementEnergyFrozenBalance() + addInfo.getIncrementEnergyFrozenBalance());
     inMapInfo.setIncrementDelegatedFrozenBalanceForEnergy(inMapInfo.getIncrementDelegatedFrozenBalanceForEnergy() + addInfo.getIncrementDelegatedFrozenBalanceForEnergy());
     inMapInfo.setIncrementDelegatedFrozenBalanceForBandwidth(inMapInfo.getIncrementDelegatedFrozenBalanceForBandwidth() + addInfo.getIncrementDelegatedFrozenBalanceForBandwidth());
+    inMapInfo.setIncrementFrozenSupplyBalance(inMapInfo.getFrozenSupplyBalance() + addInfo.getFrozenSupplyBalance());
+    inMapInfo.setIncrementAcquiredDelegatedFrozenBalanceForEnergy(inMapInfo.getAcquiredDelegatedFrozenBalanceForEnergy() + addInfo.getAcquiredDelegatedFrozenBalanceForEnergy());
+    inMapInfo.setIncrementAcquiredDelegatedFrozenBalanceForBandwidth(inMapInfo.getAcquiredDelegatedFrozenBalanceForBandwidth() + addInfo.getAcquiredDelegatedFrozenBalanceForBandwidth());
 
     final Map<String, Trc10Info> trc10Map = inMapInfo.getTrc10Map();
     final Map<String, Trc10Info> addMap = addInfo.getTrc10Map();
@@ -101,7 +104,6 @@ public class AccountChangeRecord {
   }
 
 
-  // todo
   @Data
   public static class AccountInfo {
     private String accountAddress;
@@ -112,12 +114,18 @@ public class AccountChangeRecord {
     private long energyFrozenBalance;
     private long delegatedFrozenBalanceForEnergy;
     private long delegatedFrozenBalanceForBandwidth;
+    private long frozenSupplyBalance;
+    private long acquiredDelegatedFrozenBalanceForEnergy;
+    private long acquiredDelegatedFrozenBalanceForBandwidth;
 
     private long incrementBalance;
     private long incrementFrozenBalance;
     private long incrementEnergyFrozenBalance;
     private long incrementDelegatedFrozenBalanceForEnergy;
     private long incrementDelegatedFrozenBalanceForBandwidth;
+    private long incrementFrozenSupplyBalance;
+    private long incrementAcquiredDelegatedFrozenBalanceForEnergy;
+    private long incrementAcquiredDelegatedFrozenBalanceForBandwidth;
 
     private Map<String, Trc10Info> trc10Map;
 
@@ -135,6 +143,9 @@ public class AccountChangeRecord {
       info.setIncrementEnergyFrozenBalance(account.getEnergyFrozenBalance());
       info.setIncrementDelegatedFrozenBalanceForEnergy(account.getDelegatedFrozenBalanceForEnergy());
       info.setIncrementDelegatedFrozenBalanceForBandwidth(account.getDelegatedFrozenBalanceForBandwidth());
+      info.setIncrementFrozenSupplyBalance(account.getFrozenSupplyBalance());
+      info.setIncrementAcquiredDelegatedFrozenBalanceForEnergy(account.getAcquiredDelegatedFrozenBalanceForEnergy());
+      info.setIncrementAcquiredDelegatedFrozenBalanceForBandwidth(account.getAcquiredDelegatedFrozenBalanceForBandwidth());
 
       info.setTrc10Map(Trc10Info.of(account.getAssetMapV2(), true));
       return info;
@@ -154,6 +165,9 @@ public class AccountChangeRecord {
       info.setIncrementEnergyFrozenBalance(newAccount.getEnergyFrozenBalance() - oldAccount.getEnergyFrozenBalance());
       info.setIncrementDelegatedFrozenBalanceForEnergy(newAccount.getDelegatedFrozenBalanceForEnergy() - oldAccount.getDelegatedFrozenBalanceForEnergy());
       info.setIncrementDelegatedFrozenBalanceForBandwidth(newAccount.getDelegatedFrozenBalanceForBandwidth() - oldAccount.getDelegatedFrozenBalanceForBandwidth());
+      info.setIncrementFrozenSupplyBalance(newAccount.getFrozenSupplyBalance() - oldAccount.getFrozenSupplyBalance());
+      info.setIncrementAcquiredDelegatedFrozenBalanceForEnergy(newAccount.getAcquiredDelegatedFrozenBalanceForEnergy() - oldAccount.getAcquiredDelegatedFrozenBalanceForEnergy());
+      info.setIncrementAcquiredDelegatedFrozenBalanceForBandwidth(newAccount.getAcquiredDelegatedFrozenBalanceForBandwidth() - oldAccount.getAcquiredDelegatedFrozenBalanceForBandwidth());
 
       info.setTrc10Map(Trc10Info.of(oldAccount.getAssetMapV2(), newAccount.getAssetMapV2()));
 
@@ -176,6 +190,9 @@ public class AccountChangeRecord {
       info.setEnergyFrozenBalance(account.getEnergyFrozenBalance());
       info.setDelegatedFrozenBalanceForEnergy(account.getDelegatedFrozenBalanceForEnergy());
       info.setDelegatedFrozenBalanceForBandwidth(account.getDelegatedFrozenBalanceForBandwidth());
+      info.setFrozenSupplyBalance(account.getFrozenSupplyBalance());
+      info.setAcquiredDelegatedFrozenBalanceForEnergy(account.getAcquiredDelegatedFrozenBalanceForEnergy());
+      info.setAcquiredDelegatedFrozenBalanceForBandwidth(account.getAcquiredDelegatedFrozenBalanceForBandwidth());
     }
 
     public static void setBalance(AccountInfo info, AccountInfo account) {

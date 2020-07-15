@@ -11,6 +11,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.tron.common.utils.ByteUtil;
 import org.tron.common.utils.Commons;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.db.TronStoreWithRevoking;
@@ -34,20 +35,6 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
     super(dbName);
   }
 
-
-  public void startRecord(boolean record) {
-    accountChangeRecord.startRecord(record);
-  }
-
-  public Map<byte[], AccountChangeRecord.AccountInfo> getChangeAccountMap() {
-    final Map<byte[], AccountChangeRecord.AccountInfo> accountMap = accountChangeRecord.getTempAccountMap();
-    return accountMap;
-  }
-
-  public void clearChangeAccountMap() {
-    accountChangeRecord.clear();
-  }
-
   public static void setAccount(com.typesafe.config.Config config) {
     List list = config.getObjectList("genesis.block.assets");
     for (int i = 0; i < list.size(); i++) {
@@ -66,21 +53,13 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
 
   @Override
   public void put(byte[] key, AccountCapsule item) {
-    /**
-     * todo
-     * 1 多线程
-     * 2， 开关能否 空值住
-     * 3， 回退 到 applyBlock
-     * 4， balance 多个字段的含义
-     * 5， fullnode 接收交易
-     *    fullnode 接收块
-     *   solidity 产块固化
-     */
-
     AccountCapsule oldAccount = get(key);
     super.put(key, item);
     accountStateCallBackUtils.accountCallBack(key, item);
-    accountChangeRecord.recordChangedAccount(key, oldAccount, item);
+
+    if (!ByteUtil.equals(key, getBlackhole().getAddress().toByteArray())) {
+      accountChangeRecord.recordChangedAccount(key, oldAccount, item);
+    }
   }
 
   /**
@@ -103,7 +82,6 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
   public AccountCapsule getZion() {
     return getUnchecked(assertsAddress.get("Zion"));
   }
-
 
   @Override
   public void close() {

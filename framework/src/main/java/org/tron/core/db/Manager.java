@@ -97,6 +97,7 @@ import org.tron.core.config.args.Args;
 import org.tron.core.config.args.GenesisBlock;
 import org.tron.core.consensus.ProposalController;
 import org.tron.core.db.KhaosDatabase.KhaosBlock;
+import org.tron.core.db.accountchange.AccountChangeRecord;
 import org.tron.core.db.accountstate.TrieService;
 import org.tron.core.db.accountstate.callback.AccountStateCallBack;
 import org.tron.core.db.api.AssetUpdateHelper;
@@ -277,6 +278,8 @@ public class Manager {
   private ForkController forkController = ForkController.instance();
   @Autowired
   private AccountStateCallBack accountStateCallBack;
+  @Autowired
+  private AccountChangeRecord accountChangeRecord;
   @Autowired
   private TrieService trieService;
   private Set<String> ownerAddressSet = new HashSet<>();
@@ -942,7 +945,7 @@ public class Manager {
       VMIllegalException, TooBigTransactionResultException, ZksnarkException, BadBlockException {
 
     boolean record = eventPluginLoaded && EventPluginLoader.getInstance().isTrc20TrackerTriggerEnable();
-    getAccountStore().startRecord(record);
+    accountChangeRecord.startRecord(record);
 
     processBlock(block);
     this.blockStore.put(block.getBlockId().getBytes(), block);
@@ -1173,8 +1176,6 @@ public class Manager {
           postTRC20Trigger(newBlock);
 
           postTRC20SolidityTrigger(getDynamicPropertiesStore().getLatestSolidifiedBlockNum());
-
-
         } catch (Throwable throwable) {
           logger.error(throwable.getMessage(), throwable);
           khaosDb.removeBlk(block.getBlockId());
@@ -1850,10 +1851,10 @@ public class Manager {
     if (eventPluginLoaded &&
         EventPluginLoader.getInstance().isTrc20TrackerTriggerEnable()) {
       TRC20TrackerCapsule trc20TrackerCapsule = new TRC20TrackerCapsule(blockCapsule,
-              getAccountStore().getChangeAccountMap());
+              accountChangeRecord.getTempAccountMap());
       if (trc20TrackerCapsule.getTrc20TrackerTrigger() != null) {
         trc20TrackerCapsule.processTrigger();
-        getAccountStore().clearChangeAccountMap();
+        accountChangeRecord.clear();
       }
     }
     if (eventPluginLoaded &&
