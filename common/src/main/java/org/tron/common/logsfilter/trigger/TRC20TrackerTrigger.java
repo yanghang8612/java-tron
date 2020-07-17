@@ -30,19 +30,25 @@ public class TRC20TrackerTrigger extends Trigger {
   @Data
   public static class TrxStatusPojo {
     private String accountAddress;
-    private Boolean add;
+    private Boolean create;
 
     private String balance;
     private String frozenBalance;
     private String energyFrozenBalance;
     private String delegatedFrozenBalanceForEnergy;
     private String delegatedFrozenBalanceForBandwidth;
+    private String frozenSupplyBalance;
+    private String acquiredDelegatedFrozenBalanceForEnergy;
+    private String acquiredDelegatedFrozenBalanceForBandwidth;
 
     private String incrementBalance;
     private String incrementFrozenBalance;
     private String incrementEnergyFrozenBalance;
     private String incrementDelegatedFrozenBalanceForEnergy;
     private String incrementDelegatedFrozenBalanceForBandwidth;
+    private String incrementFrozenSupplyBalance;
+    private String incrementAcquiredDelegatedFrozenBalanceForEnergy;
+    private String incrementAcquiredDelegatedFrozenBalanceForBandwidth;
   }
 
   public static enum ConcernTopics {

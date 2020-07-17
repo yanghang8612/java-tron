@@ -76,19 +76,26 @@ public class TRC20TrackerCapsule extends TriggerCapsule {
   private TRC20TrackerTrigger.TrxStatusPojo converterTrx(AccountChangeRecord.AccountInfo info) {
     TRC20TrackerTrigger.TrxStatusPojo trx = new TRC20TrackerTrigger.TrxStatusPojo();
     trx.setAccountAddress(info.getAccountAddress());
-    trx.setAdd(info.getCreate());
+    trx.setCreate(info.getCreate());
 
     trx.setBalance(String.valueOf(info.getBalance()));
     trx.setFrozenBalance(String.valueOf(info.getFrozenBalance()));
     trx.setEnergyFrozenBalance(String.valueOf(info.getEnergyFrozenBalance()));
     trx.setDelegatedFrozenBalanceForEnergy(String.valueOf(info.getDelegatedFrozenBalanceForEnergy()));
     trx.setDelegatedFrozenBalanceForBandwidth(String.valueOf(info.getDelegatedFrozenBalanceForBandwidth()));
+    trx.setFrozenSupplyBalance(String.valueOf(info.getFrozenBalance()));
+    trx.setAcquiredDelegatedFrozenBalanceForEnergy(String.valueOf(info.getAcquiredDelegatedFrozenBalanceForEnergy()));
+    trx.setAcquiredDelegatedFrozenBalanceForBandwidth(String.valueOf(info.getAcquiredDelegatedFrozenBalanceForBandwidth()));
 
     trx.setIncrementBalance(String.valueOf(info.getIncrementBalance()));
     trx.setIncrementFrozenBalance(String.valueOf(info.getIncrementFrozenBalance()));
     trx.setIncrementEnergyFrozenBalance(String.valueOf(info.getIncrementEnergyFrozenBalance()));
     trx.setIncrementDelegatedFrozenBalanceForEnergy(String.valueOf(info.getIncrementDelegatedFrozenBalanceForEnergy()));
     trx.setIncrementDelegatedFrozenBalanceForBandwidth(String.valueOf(info.getIncrementDelegatedFrozenBalanceForBandwidth()));
+    trx.setIncrementFrozenSupplyBalance(String.valueOf(info.getIncrementFrozenSupplyBalance()));
+    trx.setIncrementAcquiredDelegatedFrozenBalanceForEnergy(String.valueOf(info.getIncrementAcquiredDelegatedFrozenBalanceForEnergy()));
+    trx.setIncrementAcquiredDelegatedFrozenBalanceForBandwidth(String.valueOf(info.getIncrementAcquiredDelegatedFrozenBalanceForBandwidth()));
+
     return trx;
   }
 
