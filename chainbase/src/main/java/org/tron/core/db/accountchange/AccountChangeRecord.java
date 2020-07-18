@@ -3,6 +3,7 @@ package org.tron.core.db.accountchange;
 import com.google.common.collect.Maps;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.spongycastle.util.encoders.Hex;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.tron.common.utils.WalletUtil;
@@ -17,7 +18,8 @@ public class AccountChangeRecord {
 
   private static volatile boolean recordBalance = false;
 
-  private static Map<byte[], AccountInfo> tempAccountMap = new HashMap<>();
+  // not byte[]! because the same byte[] but not hashCode.
+  private static Map<String, AccountInfo> tempAccountMap = new HashMap<>();
 
   public void startRecord(boolean record) {
     this.recordBalance = record;
@@ -28,7 +30,7 @@ public class AccountChangeRecord {
     tempAccountMap.clear();
   }
 
-  public Map<byte[], AccountInfo> getTempAccountMap() {
+  public Map<String, AccountInfo> getTempAccountMap() {
     return Maps.newHashMap(tempAccountMap);
   }
 
@@ -56,10 +58,11 @@ public class AccountChangeRecord {
       return;
     }
 
-    final AccountInfo inMapInfo = tempAccountMap.get(key);
+    final String keyString = Hex.toHexString(key);
+    final AccountInfo inMapInfo = tempAccountMap.get(keyString);
 
     if (inMapInfo == null) {
-      tempAccountMap.put(key, accountInfo);
+      tempAccountMap.put(keyString, accountInfo);
       return;
     }
 

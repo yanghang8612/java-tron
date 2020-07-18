@@ -27,7 +27,7 @@ public class TRC20TrackerCapsule extends TriggerCapsule {
   @Setter
   TRC20TrackerTrigger trc20TrackerTrigger;
 
-  public TRC20TrackerCapsule(BlockCapsule block, Map<byte[], AccountChangeRecord.AccountInfo> accountInfoMap) {
+  public TRC20TrackerCapsule(BlockCapsule block, Map<String, AccountChangeRecord.AccountInfo> accountInfoMap) {
     trc20TrackerTrigger = new TRC20TrackerTrigger();
     trc20TrackerTrigger.setBlockHash(block.getBlockId().toString());
     trc20TrackerTrigger.setParentHash(block.getParentHash().toString());
@@ -58,7 +58,7 @@ public class TRC20TrackerCapsule extends TriggerCapsule {
         JSONObject.toJSONString(trc20TrackerTrigger));
   }
 
-  private void handlerTrxAndTrc10(Map<byte[], AccountChangeRecord.AccountInfo> accountInfoMap,
+  private void handlerTrxAndTrc10(Map<String, AccountChangeRecord.AccountInfo> accountInfoMap,
                                   List<TRC20TrackerTrigger.TrxStatusPojo> trxStatusList,
                                   List<TRC20TrackerTrigger.Trc10StatusPojo> trc10StatusList) {
     if (CollectionUtils.isEmpty(accountInfoMap)) {
