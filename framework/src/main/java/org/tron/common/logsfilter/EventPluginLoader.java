@@ -12,15 +12,8 @@ import org.pf4j.ManifestPluginDescriptorFinder;
 import org.pf4j.PluginManager;
 import org.springframework.util.StringUtils;
 import org.tron.common.logsfilter.nativequeue.NativeMessageQueue;
-import org.tron.common.logsfilter.trigger.BlockErasedTrigger;
-import org.tron.common.logsfilter.trigger.BlockLogTrigger;
-import org.tron.common.logsfilter.trigger.ContractEventTrigger;
-import org.tron.common.logsfilter.trigger.ContractLogTrigger;
-import org.tron.common.logsfilter.trigger.ShieldedTRC20TrackerTrigger;
-import org.tron.common.logsfilter.trigger.SolidityTrigger;
-import org.tron.common.logsfilter.trigger.TRC20TrackerTrigger;
-import org.tron.common.logsfilter.trigger.TransactionLogTrigger;
-import org.tron.common.logsfilter.trigger.Trigger;
+import org.tron.common.logsfilter.trigger.*;
+import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger;
 
 @Slf4j
 public class EventPluginLoader {
@@ -419,7 +412,7 @@ public class EventPluginLoader {
   }
 
 
-  public void postTRC20TrackerTrigger(TRC20TrackerTrigger trigger) {
+  public void postTRC20TrackerTrigger(BalanceTrackerTrigger trigger) {
     if (useNativeQueue) {
       NativeMessageQueue.getInstance()
           .publishTrigger(toJsonString(trigger), trigger.getTriggerName());

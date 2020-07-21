@@ -55,7 +55,7 @@ import org.tron.common.logsfilter.capsule.ShieldedTRC20SolidityTrackerCapsule;
 import org.tron.common.logsfilter.capsule.ShieldedTRC20TrackerCapsule;
 import org.tron.common.logsfilter.capsule.SolidityTriggerCapsule;
 import org.tron.common.logsfilter.capsule.TRC20SolidityTrackerCapsule;
-import org.tron.common.logsfilter.capsule.TRC20TrackerCapsule;
+import org.tron.common.logsfilter.capsule.BalanceTrackerCapsule;
 import org.tron.common.logsfilter.capsule.TransactionLogTriggerCapsule;
 import org.tron.common.logsfilter.capsule.TriggerCapsule;
 import org.tron.common.logsfilter.trigger.ContractTrigger;
@@ -1849,10 +1849,10 @@ public class Manager {
   private void postBalanceTrigger(BlockCapsule blockCapsule) {
     if (eventPluginLoaded &&
         EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable()) {
-      TRC20TrackerCapsule trc20TrackerCapsule = new TRC20TrackerCapsule(blockCapsule,
+      BalanceTrackerCapsule balanceTrackerCapsule = new BalanceTrackerCapsule(blockCapsule,
               accountChangeRecord.getTempAccountMap());
-      if (trc20TrackerCapsule.getTrc20TrackerTrigger() != null) {
-        trc20TrackerCapsule.processTrigger();
+      if (balanceTrackerCapsule.getTrc20TrackerTrigger() != null) {
+        balanceTrackerCapsule.processTrigger();
         accountChangeRecord.clear();
       }
     }

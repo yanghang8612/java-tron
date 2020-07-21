@@ -12,23 +12,23 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.CollectionUtils;
 import org.tron.common.logsfilter.EventPluginLoader;
 import org.tron.common.logsfilter.TRC20Utils;
-import org.tron.common.logsfilter.trigger.TRC20TrackerTrigger;
-import org.tron.common.logsfilter.trigger.TRC20TrackerTrigger.AssetStatusPojo;
+import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger;
+import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger.AssetStatusPojo;
 import org.tron.common.runtime.vm.LogInfo;
 import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.capsule.TransactionCapsule;
 import org.tron.core.db.accountchange.AccountChangeRecord;
 
 @Slf4j
-public class TRC20TrackerCapsule extends TriggerCapsule {
+public class BalanceTrackerCapsule extends TriggerCapsule {
 
 
   @Getter
   @Setter
-  TRC20TrackerTrigger trc20TrackerTrigger;
+  private BalanceTrackerTrigger trc20TrackerTrigger;
 
-  public TRC20TrackerCapsule(BlockCapsule block, Map<String, AccountChangeRecord.AccountInfo> accountInfoMap) {
-    trc20TrackerTrigger = new TRC20TrackerTrigger();
+  public BalanceTrackerCapsule(BlockCapsule block, Map<String, AccountChangeRecord.AccountInfo> accountInfoMap) {
+    trc20TrackerTrigger = new BalanceTrackerTrigger();
     trc20TrackerTrigger.setBlockHash(block.getBlockId().toString());
     trc20TrackerTrigger.setParentHash(block.getParentHash().toString());
     trc20TrackerTrigger.setBlockNumber(block.getNum());
@@ -48,8 +48,8 @@ public class TRC20TrackerCapsule extends TriggerCapsule {
       trc20TrackerTrigger.setAssetStatusList(assetStatusPojos);
     }
 
-    List<TRC20TrackerTrigger.Trc10StatusPojo> trc10StatusList = new LinkedList<>();
-    List<TRC20TrackerTrigger.TrxStatusPojo> trxStatusList = new LinkedList<>();
+    List<BalanceTrackerTrigger.Trc10StatusPojo> trc10StatusList = new LinkedList<>();
+    List<BalanceTrackerTrigger.TrxStatusPojo> trxStatusList = new LinkedList<>();
     handlerTrxAndTrc10(accountInfoMap, trxStatusList, trc10StatusList);
     trc20TrackerTrigger.setTrxStatusList(trxStatusList);
     trc20TrackerTrigger.setTrc10StatusList(trc10StatusList);
@@ -59,22 +59,22 @@ public class TRC20TrackerCapsule extends TriggerCapsule {
   }
 
   private void handlerTrxAndTrc10(Map<String, AccountChangeRecord.AccountInfo> accountInfoMap,
-                                  List<TRC20TrackerTrigger.TrxStatusPojo> trxStatusList,
-                                  List<TRC20TrackerTrigger.Trc10StatusPojo> trc10StatusList) {
+                                  List<BalanceTrackerTrigger.TrxStatusPojo> trxStatusList,
+                                  List<BalanceTrackerTrigger.Trc10StatusPojo> trc10StatusList) {
     if (CollectionUtils.isEmpty(accountInfoMap)) {
       return;
     }
 
     accountInfoMap.values().stream().forEach(info -> {
-      final TRC20TrackerTrigger.TrxStatusPojo trxStatusPojo = converterTrx(info);
+      final BalanceTrackerTrigger.TrxStatusPojo trxStatusPojo = converterTrx(info);
       trxStatusList.add(trxStatusPojo);
-      final List<TRC20TrackerTrigger.Trc10StatusPojo> trc10List = converterTrc10(info.getAccountAddress(), info.getTrc10Map());
+      final List<BalanceTrackerTrigger.Trc10StatusPojo> trc10List = converterTrc10(info.getAccountAddress(), info.getTrc10Map());
       trc10StatusList.addAll(trc10List);
     });
   }
 
-  private TRC20TrackerTrigger.TrxStatusPojo converterTrx(AccountChangeRecord.AccountInfo info) {
-    TRC20TrackerTrigger.TrxStatusPojo trx = new TRC20TrackerTrigger.TrxStatusPojo();
+  private BalanceTrackerTrigger.TrxStatusPojo converterTrx(AccountChangeRecord.AccountInfo info) {
+    BalanceTrackerTrigger.TrxStatusPojo trx = new BalanceTrackerTrigger.TrxStatusPojo();
     trx.setAccountAddress(info.getAccountAddress());
     trx.setActions(info.getActions());
 
@@ -99,15 +99,15 @@ public class TRC20TrackerCapsule extends TriggerCapsule {
     return trx;
   }
 
-  private List<TRC20TrackerTrigger.Trc10StatusPojo> converterTrc10(String accountAddress,
+  private List<BalanceTrackerTrigger.Trc10StatusPojo> converterTrc10(String accountAddress,
                                                                    Map<String, AccountChangeRecord.Trc10Info> trc10Map) {
-    List<TRC20TrackerTrigger.Trc10StatusPojo> list = new LinkedList<>();
+    List<BalanceTrackerTrigger.Trc10StatusPojo> list = new LinkedList<>();
     if (CollectionUtils.isEmpty(trc10Map)) {
       return list;
     }
 
     trc10Map.forEach((key, info) -> {
-      TRC20TrackerTrigger.Trc10StatusPojo trc10Info = new TRC20TrackerTrigger.Trc10StatusPojo();
+      BalanceTrackerTrigger.Trc10StatusPojo trc10Info = new BalanceTrackerTrigger.Trc10StatusPojo();
       trc10Info.setAccountAddress(accountAddress);
       trc10Info.setTokenId(info.getTokenId());
       trc10Info.setBalance(String.valueOf(info.getBalance()));

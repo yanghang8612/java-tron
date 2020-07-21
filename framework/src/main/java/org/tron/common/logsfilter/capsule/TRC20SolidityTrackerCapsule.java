@@ -4,7 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.tron.common.logsfilter.EventPluginLoader;
-import org.tron.common.logsfilter.trigger.TRC20TrackerTrigger;
+import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger;
 import org.tron.core.capsule.BlockCapsule;
 
 @Slf4j
@@ -12,10 +12,10 @@ public class TRC20SolidityTrackerCapsule extends TriggerCapsule {
 
   @Getter
   @Setter
-  TRC20TrackerTrigger trc20TrackerTrigger;
+  BalanceTrackerTrigger trc20TrackerTrigger;
 
   public TRC20SolidityTrackerCapsule(BlockCapsule block) {
-    trc20TrackerTrigger = new TRC20TrackerTrigger();
+    trc20TrackerTrigger = new BalanceTrackerTrigger();
     trc20TrackerTrigger.setBlockHash(block.getBlockId().toString());
     trc20TrackerTrigger.setParentHash(block.getParentHash().toString());
     trc20TrackerTrigger.setBlockNumber(block.getNum());

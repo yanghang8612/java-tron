@@ -8,7 +8,7 @@ import lombok.Getter;
 
 @Data
 @EqualsAndHashCode(callSuper = false)
-public class TRC20TrackerTrigger extends Trigger {
+public class BalanceTrackerTrigger extends Trigger {
 
   @Data
   public static class AssetStatusPojo {
@@ -83,7 +83,7 @@ public class TRC20TrackerTrigger extends Trigger {
 
   private List<TrxStatusPojo> trxStatusList = new ArrayList<>();
 
-  public TRC20TrackerTrigger() {
+  public BalanceTrackerTrigger() {
     super();
     setTriggerName(Trigger.TRC20TRACKER_TRIGGER_NAME);
   }
