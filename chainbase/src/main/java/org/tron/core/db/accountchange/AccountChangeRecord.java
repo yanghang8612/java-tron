@@ -5,11 +5,14 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.spongycastle.util.encoders.Hex;
 import org.springframework.stereotype.Service;
+import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.tron.common.utils.WalletUtil;
 import org.tron.core.capsule.AccountCapsule;
 
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -17,6 +20,10 @@ import java.util.Map;
 public class AccountChangeRecord {
 
   private static volatile boolean recordBalance = false;
+
+  private static final int DELETE = 2;
+  private static final int CREATE = 1;
+  private static final int UPDATE = 0;
 
   // not byte[]! because the same byte[] but not hashCode.
   private static Map<String, AccountInfo> tempAccountMap = new HashMap<>();
@@ -43,9 +50,11 @@ public class AccountChangeRecord {
     try {
       if (oldAccount == null) {
         accountInfo = AccountInfo.of(newAccount);
+        accountInfo.getActions().add(CREATE);
       }
       else {
         accountInfo = AccountInfo.of(oldAccount, newAccount);
+        accountInfo.getActions().add(UPDATE);
       }
     }
     catch (Exception ex) {
@@ -58,6 +67,30 @@ public class AccountChangeRecord {
       return;
     }
 
+    merge(key, accountInfo);
+  }
+
+  public void delete(byte[] key, AccountCapsule oldAccount) {
+    if (!recordBalance) {
+      return;
+    }
+
+    // check balance == 0; 否则报错
+    Assert.isTrue(oldAccount.getBalance() == 0, " delete account but balance is not 0");
+    Assert.isTrue(oldAccount.getFrozenBalance() == 0, " delete account but balance is not 0");
+    Assert.isTrue(oldAccount.getEnergyFrozenBalance() == 0, " delete account but balance is not 0");
+    Assert.isTrue(oldAccount.getDelegatedFrozenBalanceForEnergy() == 0, " delete account but balance is not 0");
+    Assert.isTrue(oldAccount.getDelegatedFrozenBalanceForBandwidth() == 0, " delete account but balance is not 0");
+    Assert.isTrue(oldAccount.getFrozenSupplyBalance() == 0, " delete account but balance is not 0");
+    Assert.isTrue(oldAccount.getAcquiredDelegatedFrozenBalanceForEnergy() == 0, " delete account but balance is not 0");
+    Assert.isTrue(oldAccount.getAcquiredDelegatedFrozenBalanceForBandwidth() == 0, " delete account but balance is not 0");
+
+    AccountInfo accountInfo = AccountInfo.of(oldAccount);
+    accountInfo.getActions().add(DELETE);
+    merge(key, accountInfo);
+  }
+
+  private void merge(byte[] key, AccountInfo accountInfo) {
     final String keyString = Hex.toHexString(key);
     final AccountInfo inMapInfo = tempAccountMap.get(keyString);
 
@@ -77,6 +110,7 @@ public class AccountChangeRecord {
   private void mergeInfo(AccountInfo inMapInfo, AccountInfo addInfo) {
     //  merge：update balance， add incrementBalance.
     AccountInfo.setBalance(inMapInfo, addInfo);
+    inMapInfo.getActions().addAll(addInfo.getActions());
 
     inMapInfo.setIncrementBalance(inMapInfo.getIncrementBalance() + addInfo.getIncrementBalance());
     inMapInfo.setIncrementFrozenBalance(inMapInfo.getIncrementFrozenBalance() + addInfo.getIncrementFrozenBalance());
@@ -88,7 +122,7 @@ public class AccountChangeRecord {
     inMapInfo.setIncrementAcquiredDelegatedFrozenBalanceForBandwidth(inMapInfo.getAcquiredDelegatedFrozenBalanceForBandwidth() + addInfo.getAcquiredDelegatedFrozenBalanceForBandwidth());
 
     final Map<String, Trc10Info> trc10Map = inMapInfo.getTrc10Map();
-    final Map<String, Trc10Info> addMap = addInfo.getTrc10Map();
+    Map<String, Trc10Info> addMap = addInfo.getTrc10Map();
 
     trc10Map.forEach((tokenId, info) -> {
       final Trc10Info addTrc10Info = addMap.get(tokenId);
@@ -110,7 +144,8 @@ public class AccountChangeRecord {
   @Data
   public static class AccountInfo {
     private String accountAddress;
-    private Boolean create = false;
+    // 2=delete; 1=add; 0=update;
+    private List<Integer> actions = new LinkedList<>();
 
     private long balance;
     private long frozenBalance;
@@ -132,12 +167,10 @@ public class AccountChangeRecord {
 
     private Map<String, Trc10Info> trc10Map;
 
-
     public static AccountInfo of(AccountCapsule account) {
       AccountInfo info = new AccountInfo();
       final String address = WalletUtil.encode58Check(account.getAddress().toByteArray());
       info.setAccountAddress(address);
-      info.setCreate(true);
 
       setBalance(info, account);
 
@@ -159,7 +192,6 @@ public class AccountChangeRecord {
       AccountInfo info = new AccountInfo();
       final String address = WalletUtil.encode58Check(newAccount.getAddress().toByteArray());
       info.setAccountAddress(address);
-      info.setCreate(false);
 
       setBalance(info, newAccount);
 
@@ -204,6 +236,9 @@ public class AccountChangeRecord {
       info.setEnergyFrozenBalance(account.getEnergyFrozenBalance());
       info.setDelegatedFrozenBalanceForEnergy(account.getDelegatedFrozenBalanceForEnergy());
       info.setDelegatedFrozenBalanceForBandwidth(account.getDelegatedFrozenBalanceForBandwidth());
+      info.setFrozenSupplyBalance(account.getFrozenSupplyBalance());
+      info.setAcquiredDelegatedFrozenBalanceForEnergy(account.getAcquiredDelegatedFrozenBalanceForEnergy());
+      info.setAcquiredDelegatedFrozenBalanceForBandwidth(account.getAcquiredDelegatedFrozenBalanceForBandwidth());
     }
   }
 

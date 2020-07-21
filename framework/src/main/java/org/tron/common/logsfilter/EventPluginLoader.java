@@ -49,7 +49,7 @@ public class EventPluginLoader {
 
   private boolean solidityLogTriggerEnable = false;
 
-  private boolean trc20TrackerTriggerEnable = false;
+  private boolean balanceTrackerTriggerEnable = false;
 
   private boolean trc20TrackerSolidityTriggerEnable = false;
 
@@ -227,12 +227,12 @@ public class EventPluginLoader {
       if (!useNativeQueue) {
         setPluginTopic(Trigger.TRC20TRACKER_SOLIDITY_TRIGGER, triggerConfig.getTopic());
       }
-    } else if (EventPluginConfig.TRC20TRACKER_TRIGGER_NAME
+    } else if (EventPluginConfig.BALANCE_TRACKER
         .equalsIgnoreCase(triggerConfig.getTriggerName())) {
       if (triggerConfig.isEnabled()) {
-        trc20TrackerTriggerEnable = true;
+        balanceTrackerTriggerEnable = true;
       } else {
-        trc20TrackerTriggerEnable = false;
+        balanceTrackerTriggerEnable = false;
       }
       if (!useNativeQueue) {
         setPluginTopic(Trigger.TRC20TRACKER_TRIGGER, triggerConfig.getTopic());
@@ -290,8 +290,8 @@ public class EventPluginLoader {
     return contractLogTriggerEnable;
   }
 
-  public synchronized boolean isTrc20TrackerTriggerEnable() {
-    return trc20TrackerTriggerEnable;
+  public synchronized boolean isBalanceTrackerTriggerEnable() {
+    return balanceTrackerTriggerEnable;
   }
 
   public synchronized boolean isTrc20TrackerSolidityTriggerEnable() {

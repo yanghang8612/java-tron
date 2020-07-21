@@ -76,7 +76,7 @@ public class TRC20TrackerCapsule extends TriggerCapsule {
   private TRC20TrackerTrigger.TrxStatusPojo converterTrx(AccountChangeRecord.AccountInfo info) {
     TRC20TrackerTrigger.TrxStatusPojo trx = new TRC20TrackerTrigger.TrxStatusPojo();
     trx.setAccountAddress(info.getAccountAddress());
-    trx.setCreate(info.getCreate());
+    trx.setActions(info.getActions());
 
     trx.setBalance(String.valueOf(info.getBalance()));
     trx.setFrozenBalance(String.valueOf(info.getFrozenBalance()));

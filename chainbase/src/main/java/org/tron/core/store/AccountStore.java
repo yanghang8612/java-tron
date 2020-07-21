@@ -62,6 +62,16 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
     }
   }
 
+  @Override
+  public void delete(byte[] key) {
+    final AccountCapsule oldAccount = get(key);
+    super.delete(key);
+
+    if (!ByteUtil.equals(key, getBlackhole().getAddress().toByteArray())) {
+      accountChangeRecord.delete(key, oldAccount);
+    }
+  }
+
   /**
    * Max TRX account.
    */

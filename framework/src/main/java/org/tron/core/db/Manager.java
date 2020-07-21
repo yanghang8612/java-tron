@@ -944,7 +944,7 @@ public class Manager {
       TaposException, ValidateScheduleException, ReceiptCheckErrException,
       VMIllegalException, TooBigTransactionResultException, ZksnarkException, BadBlockException {
 
-    boolean record = eventPluginLoaded && EventPluginLoader.getInstance().isTrc20TrackerTriggerEnable();
+    boolean record = eventPluginLoaded && EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable();
     accountChangeRecord.startRecord(record);
 
     processBlock(block);
@@ -1005,7 +1005,7 @@ public class Manager {
         try (ISession tmpSession = revokingStore.buildSession()) {
           applyBlock(item.getBlk());
           tmpSession.commit();
-          postTRC20Trigger(item.getBlk());
+          postBalanceTrigger(item.getBlk());
         } catch (AccountResourceInsufficientException
             | ValidateSignatureException
             | ContractValidateException
@@ -1045,7 +1045,7 @@ public class Manager {
               try (ISession tmpSession = revokingStore.buildSession()) {
                 applyBlock(khaosBlock.getBlk());
                 tmpSession.commit();
-                postTRC20Trigger(khaosBlock.getBlk());
+                postBalanceTrigger(khaosBlock.getBlk());
 
               } catch (AccountResourceInsufficientException
                   | ValidateSignatureException
@@ -1173,9 +1173,9 @@ public class Manager {
           // if event subscribe is enabled, post block trigger to queue
           postBlockTrigger(newBlock);
 
-          postTRC20Trigger(newBlock);
+          postBalanceTrigger(newBlock);
 
-          postTRC20SolidityTrigger(getDynamicPropertiesStore().getLatestSolidifiedBlockNum());
+          postBalanceSolidityTrigger(getDynamicPropertiesStore().getLatestSolidifiedBlockNum());
         } catch (Throwable throwable) {
           logger.error(throwable.getMessage(), throwable);
           khaosDb.removeBlk(block.getBlockId());
@@ -1846,10 +1846,9 @@ public class Manager {
     }
   }
 
-
-  private void postTRC20Trigger(BlockCapsule blockCapsule) {
+  private void postBalanceTrigger(BlockCapsule blockCapsule) {
     if (eventPluginLoaded &&
-        EventPluginLoader.getInstance().isTrc20TrackerTriggerEnable()) {
+        EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable()) {
       TRC20TrackerCapsule trc20TrackerCapsule = new TRC20TrackerCapsule(blockCapsule,
               accountChangeRecord.getTempAccountMap());
       if (trc20TrackerCapsule.getTrc20TrackerTrigger() != null) {
@@ -1865,40 +1864,40 @@ public class Manager {
     }
   }
 
-  private void postTRC20SolidityTrigger(long latestSolidifiedBlockNumber) {
-    if (eventPluginLoaded && (EventPluginLoader.getInstance()
-        .isTrc20TrackerSolidityTriggerEnable() || EventPluginLoader.getInstance()
-        .isShieldedTRC20TrackerSolidityTriggerEnable())) {
-      if (lastTrc20TrackedSolidityBlockNum == 0) {
-        lastTrc20TrackedSolidityBlockNum = latestSolidifiedBlockNumber - 1;
-      }
-      for (long i = lastTrc20TrackedSolidityBlockNum; i < latestSolidifiedBlockNumber; i++) {
-        try {
-          lastTrc20TrackedSolidityBlockNum++;
-          BlockCapsule solidBlock = getBlockByNum(lastTrc20TrackedSolidityBlockNum);
-          if (solidBlock != null) {
-            if (EventPluginLoader.getInstance().isTrc20TrackerSolidityTriggerEnable()) {
-              TRC20SolidityTrackerCapsule trc20SolidityTrackerCapsule = new TRC20SolidityTrackerCapsule(
-                  solidBlock, null);
-              trc20SolidityTrackerCapsule.processTrigger();
-            }
-            if (EventPluginLoader.getInstance().isShieldedTRC20TrackerSolidityTriggerEnable()) {
-              ShieldedTRC20SolidityTrackerCapsule shieldedTRC20SolidityTrackerCapsule =
-                  new ShieldedTRC20SolidityTrackerCapsule(solidBlock);
-              shieldedTRC20SolidityTrackerCapsule.processTrigger();
-            }
-          }
+  private void postBalanceSolidityTrigger(long latestSolidifiedBlockNumber) {
+    final boolean balanceTrigger = eventPluginLoaded && EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable();
+    final boolean shieldedTRC20Trigger = eventPluginLoaded && EventPluginLoader.getInstance().isShieldedTRC20TrackerSolidityTriggerEnable();
 
-        } catch (ItemNotFoundException e) {
-          e.printStackTrace();
-        } catch (BadItemException e) {
-          e.printStackTrace();
-        } /*finally {
-        setMode(true);
-      }*/
-      }
+    if (!balanceTrigger && !shieldedTRC20Trigger) {
+      return;
     }
 
+    if (lastTrc20TrackedSolidityBlockNum == 0) {
+      lastTrc20TrackedSolidityBlockNum = latestSolidifiedBlockNumber - 1;
+    }
+
+    for (long i = lastTrc20TrackedSolidityBlockNum; i < latestSolidifiedBlockNumber; i++) {
+      try {
+        lastTrc20TrackedSolidityBlockNum++;
+        BlockCapsule solidBlock = getBlockByNum(lastTrc20TrackedSolidityBlockNum);
+        if (solidBlock != null) {
+          if (balanceTrigger) {
+            TRC20SolidityTrackerCapsule trc20SolidityTrackerCapsule = new TRC20SolidityTrackerCapsule(solidBlock);
+            trc20SolidityTrackerCapsule.processTrigger();
+          }
+
+          if (shieldedTRC20Trigger) {
+            ShieldedTRC20SolidityTrackerCapsule shieldedTRC20SolidityTrackerCapsule =
+                new ShieldedTRC20SolidityTrackerCapsule(solidBlock);
+            shieldedTRC20SolidityTrackerCapsule.processTrigger();
+          }
+        }
+      } catch (ItemNotFoundException e) {
+        e.printStackTrace();
+      } catch (BadItemException e) {
+        e.printStackTrace();
+      }
+    }
   }
 
 

@@ -13,7 +13,7 @@ public class EventPluginConfig {
   public static final String CONTRACTLOG_TRIGGER_NAME = "contractlog";
   public static final String SOLIDITY_TRIGGER_NAME = "solidity";
 
-  public static final String TRC20TRACKER_TRIGGER_NAME = "trc20Tracker";
+  public static final String BALANCE_TRACKER = "balanceTracker";
   public static final String TRC20TRACKER_SOLIDITY_TRIGGER_NAME = "trc20SolidityTracker";
   public static final String BLOCK_ERASE_TRIGGER_NAME = "blockErased";
   public static final String SHIELDED_TRC20_SOLIDITY_TRACKER = "shieldedTRC20SolidityTracker";
