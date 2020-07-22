@@ -70,20 +70,22 @@ public class AccountChangeRecord {
     merge(key, accountInfo);
   }
 
+  private static final String errorMsg = " delete account but balance is not 0";
+
   public void delete(byte[] key, AccountCapsule oldAccount) {
     if (!recordBalance) {
       return;
     }
 
     // check balance == 0; 否则报错
-    Assert.isTrue(oldAccount.getBalance() == 0, " delete account but balance is not 0");
-    Assert.isTrue(oldAccount.getFrozenBalance() == 0, " delete account but balance is not 0");
-    Assert.isTrue(oldAccount.getEnergyFrozenBalance() == 0, " delete account but balance is not 0");
-    Assert.isTrue(oldAccount.getDelegatedFrozenBalanceForEnergy() == 0, " delete account but balance is not 0");
-    Assert.isTrue(oldAccount.getDelegatedFrozenBalanceForBandwidth() == 0, " delete account but balance is not 0");
-    Assert.isTrue(oldAccount.getFrozenSupplyBalance() == 0, " delete account but balance is not 0");
-    Assert.isTrue(oldAccount.getAcquiredDelegatedFrozenBalanceForEnergy() == 0, " delete account but balance is not 0");
-    Assert.isTrue(oldAccount.getAcquiredDelegatedFrozenBalanceForBandwidth() == 0, " delete account but balance is not 0");
+    Assert.isTrue(oldAccount.getBalance() == 0, errorMsg);
+    Assert.isTrue(oldAccount.getFrozenBalance() == 0, errorMsg);
+    Assert.isTrue(oldAccount.getEnergyFrozenBalance() == 0, errorMsg);
+    Assert.isTrue(oldAccount.getDelegatedFrozenBalanceForEnergy() == 0, errorMsg);
+    Assert.isTrue(oldAccount.getDelegatedFrozenBalanceForBandwidth() == 0, errorMsg);
+    Assert.isTrue(oldAccount.getFrozenSupplyBalance() == 0, errorMsg);
+    Assert.isTrue(oldAccount.getAcquiredDelegatedFrozenBalanceForEnergy() == 0, errorMsg);
+    Assert.isTrue(oldAccount.getAcquiredDelegatedFrozenBalanceForBandwidth() == 0, errorMsg);
 
     AccountInfo accountInfo = AccountInfo.of(oldAccount);
     accountInfo.getActions().add(DELETE);
