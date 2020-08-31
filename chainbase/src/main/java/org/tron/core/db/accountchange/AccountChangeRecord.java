@@ -128,8 +128,15 @@ public class AccountChangeRecord {
     inMapInfo.setIncrementAcquiredDelegatedFrozenBalanceForEnergy(inMapInfo.getAcquiredDelegatedFrozenBalanceForEnergy() + addInfo.getAcquiredDelegatedFrozenBalanceForEnergy());
     inMapInfo.setIncrementAcquiredDelegatedFrozenBalanceForBandwidth(inMapInfo.getAcquiredDelegatedFrozenBalanceForBandwidth() + addInfo.getAcquiredDelegatedFrozenBalanceForBandwidth());
 
-    final Map<String, Trc10Info> trc10Map = inMapInfo.getTrc10Map();
+    Map<String, Trc10Info> trc10Map = inMapInfo.getTrc10Map();
     Map<String, Trc10Info> addMap = addInfo.getTrc10Map();
+
+    if (trc10Map == null) {
+      trc10Map = new HashMap<>();
+      trc10Map.putAll(addMap);
+      inMapInfo.setTrc10Map(trc10Map);
+      return;
+    }
 
     trc10Map.forEach((tokenId, info) -> {
       final Trc10Info addTrc10Info = addMap.get(tokenId);
