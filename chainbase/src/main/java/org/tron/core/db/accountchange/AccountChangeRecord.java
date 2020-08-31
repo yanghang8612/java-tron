@@ -54,6 +54,11 @@ public class AccountChangeRecord {
       }
       else {
         accountInfo = AccountInfo.of(oldAccount, newAccount);
+
+        if (accountInfo == null) {
+          return;
+        }
+
         accountInfo.getActions().add(UPDATE);
       }
     }
