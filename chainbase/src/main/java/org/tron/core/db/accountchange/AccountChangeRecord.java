@@ -133,9 +133,7 @@ public class AccountChangeRecord {
 
     if (trc10Map == null) {
       trc10Map = new HashMap<>();
-      trc10Map.putAll(addMap);
       inMapInfo.setTrc10Map(trc10Map);
-      return;
     }
 
     trc10Map.forEach((tokenId, info) -> {
@@ -151,7 +149,9 @@ public class AccountChangeRecord {
       addMap.remove(tokenId);
     });
 
-    trc10Map.putAll(addMap);
+    if (addMap != null) {
+      trc10Map.putAll(addMap);
+    }
   }
 
 
