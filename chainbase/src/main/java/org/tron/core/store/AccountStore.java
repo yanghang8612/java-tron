@@ -57,6 +57,10 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
     super.put(key, item);
     accountStateCallBackUtils.accountCallBack(key, item);
 
+    if (getBlackhole() == null) {
+      return;
+    }
+
     if (!ByteUtil.equals(key, getBlackhole().getAddress().toByteArray())) {
       accountChangeRecord.recordChangedAccount(key, oldAccount, item);
     }
