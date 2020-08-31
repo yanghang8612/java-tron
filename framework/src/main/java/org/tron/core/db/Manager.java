@@ -1896,6 +1896,8 @@ public class Manager {
         e.printStackTrace();
       } catch (BadItemException e) {
         e.printStackTrace();
+      } catch (Exception ex) {
+        logger.error("", ex);
       }
     }
   }
