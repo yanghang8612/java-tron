@@ -106,7 +106,7 @@ public class TRC20Utils {
       if (topics == null) {
         continue;
       }
-      if (topics.size() >= 3 && topics.get(0).equals(ConcernTopics.TRANSFER.getSignHash())) {
+      if (topics.size() >= 3 && ConcernTopics.MatchSignHash(topics.get(0))) {
         //TransferCase : decrease sender, increase receiver
         String senderAddr = WalletUtil
             .encode58Check(MUtil.convertToTronAddress(logInfo.getTopics().get(1).getLast20Bytes()));

@@ -51,9 +51,15 @@ public class BalanceTrackerTrigger extends Trigger {
     private String incrementAcquiredDelegatedFrozenBalanceForBandwidth;
   }
 
-  public static enum ConcernTopics {
+  public  enum ConcernTopics {
     TRANSFER("Transfer(address,address,uint256)",
-        "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
+        "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
+    Withdrawal("Withdrawal(address,uint256)",
+        "7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65"),
+    Deposit("Deposit(address,uint256)",
+        "e1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c"),
+    Mint("Mint(address,uint256)",
+        "0f6798a560793a54c3bcfe86a93cde1e73087d944c0ea20544137d4121396885");
 
     @Getter
     private String sign;
@@ -64,6 +70,15 @@ public class BalanceTrackerTrigger extends Trigger {
     ConcernTopics(String sign, String signHash) {
       this.sign = sign;
       this.signHash = signHash;
+    }
+
+    public static Boolean MatchSignHash(String dist) {
+      for (ConcernTopics value : ConcernTopics.values()) {
+        if (value.signHash.equals(dist)){
+          return true;
+        }
+      }
+      return false;
     }
 
   }
@@ -91,7 +106,6 @@ public class BalanceTrackerTrigger extends Trigger {
   public void solidityType() {
     setTriggerName(Trigger.TRC20TRACKER_SOLIDITY_TRIGGER_NAME);
   }
-
 
 }
 
