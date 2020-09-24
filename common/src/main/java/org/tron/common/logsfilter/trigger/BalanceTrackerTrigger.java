@@ -12,6 +12,7 @@ public class BalanceTrackerTrigger extends Trigger {
 
   @Data
   public static class AssetStatusPojo {
+
     private String accountAddress;
     private String tokenAddress;
     private String balance;
@@ -21,6 +22,7 @@ public class BalanceTrackerTrigger extends Trigger {
 
   @Data
   public static class Trc10StatusPojo {
+
     private String accountAddress;
     private String tokenId;
     private String balance;
@@ -29,6 +31,7 @@ public class BalanceTrackerTrigger extends Trigger {
 
   @Data
   public static class TrxStatusPojo {
+
     private String accountAddress;
     private List<Integer> actions;
 
@@ -51,15 +54,15 @@ public class BalanceTrackerTrigger extends Trigger {
     private String incrementAcquiredDelegatedFrozenBalanceForBandwidth;
   }
 
-  public  enum ConcernTopics {
+  public enum ConcernTopics {
     TRANSFER("Transfer(address,address,uint256)",
         "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
     Withdrawal("Withdrawal(address,uint256)",
         "7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65"),
     Deposit("Deposit(address,uint256)",
         "e1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c"),
-    Mint("Mint(address,uint256)",
-        "0f6798a560793a54c3bcfe86a93cde1e73087d944c0ea20544137d4121396885");
+    UNKNOWN("UNKNOWN()",
+        "0c78932dd210147f42a4ec6c5a353697626c4043d49be5f063518e57f3399e61");
 
     @Getter
     private String sign;
@@ -74,13 +77,21 @@ public class BalanceTrackerTrigger extends Trigger {
 
     public static Boolean MatchSignHash(String dist) {
       for (ConcernTopics value : ConcernTopics.values()) {
-        if (value.signHash.equals(dist)){
+        if (value.signHash.equals(dist)) {
           return true;
         }
       }
       return false;
     }
 
+    public static ConcernTopics getBySH(String signHa) {
+      for (ConcernTopics value : ConcernTopics.values()) {
+        if (value.signHash.equals(signHa)) {
+          return value;
+        }
+      }
+      return UNKNOWN;
+    }
   }
 
 

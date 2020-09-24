@@ -13,6 +13,7 @@ import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jetty.util.StringUtil;
 import org.spongycastle.util.encoders.Hex;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger.AssetStatusPojo;
 import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger.ConcernTopics;
@@ -34,7 +35,7 @@ import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
 public class TRC20Utils {
 
   static VMActuator vmActuator = new VMActuator(true);
-
+  static final String WTRXAddress = "TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR";
 
   public static BigInteger getTRC20Decimal(String contractAddress, BlockCapsule baseBlockCap) {
     byte[] data = Hex.decode("313ce567");
@@ -103,31 +104,67 @@ public class TRC20Utils {
     Map<String, BigInteger> decimalMap = new LinkedHashMap<>();
     for (LogInfo logInfo : logInfos) {
       List<String> topics = logInfo.getHexTopics();
-      if (topics == null) {
+      if (CollectionUtils.isEmpty(topics)) {
         continue;
       }
-      if (topics.size() >= 2 && ConcernTopics.MatchSignHash(topics.get(0))) {
-        String tokenAddress = WalletUtil
-            .encode58Check(MUtil.convertToTronAddress(logInfo.getAddress()));
-        BigInteger increment = hexStrToBigInteger(logInfo.getHexData());
-        if (increment != null) {
+
+      BigInteger increment = hexStrToBigInteger(logInfo.getHexData());
+      if (increment == null) {
+        continue;
+      }
+      String tokenAddress = WalletUtil
+          .encode58Check(MUtil.convertToTronAddress(logInfo.getAddress()));
+      switch (ConcernTopics.getBySH(topics.get(0))) {
+        case TRANSFER:
+          if (topics.size() < 3) {
+            continue;
+          }
           //TransferCase : decrease sender, increase receiver
           String senderAddr = WalletUtil
               .encode58Check(
                   MUtil.convertToTronAddress(logInfo.getTopics().get(1).getLast20Bytes()));
           adjustIncrement(incrementMap, senderAddr, tokenAddress, increment.negate());
-          if (topics.size() >= 3) {
-            String recAddr = WalletUtil
-                .encode58Check(
-                    MUtil.convertToTronAddress(logInfo.getTopics().get(2).getLast20Bytes()));
-            adjustIncrement(incrementMap, recAddr, tokenAddress, increment);
+          String recAddr = WalletUtil
+              .encode58Check(
+                  MUtil.convertToTronAddress(logInfo.getTopics().get(2).getLast20Bytes()));
+          adjustIncrement(incrementMap, recAddr, tokenAddress, increment);
+          tokenSet.add(tokenAddress);
+          break;
+        case Deposit:
+          if (tokenAddress.equals(WTRXAddress)) {
+            continue;
           }
-        }
-        tokenSet.add(tokenAddress);
-
+          if (topics.size() < 2) {
+            continue;
+          }
+          //DepositCase : increase receiver
+          recAddr = WalletUtil
+              .encode58Check(
+                  MUtil.convertToTronAddress(logInfo.getTopics().get(1).getLast20Bytes()));
+          adjustIncrement(incrementMap, recAddr, tokenAddress, increment);
+          tokenSet.add(tokenAddress);
+          break;
+        case Withdrawal:
+          if (tokenAddress.equals(WTRXAddress)) {
+            continue;
+          }
+          if (topics.size() < 2) {
+            continue;
+          }
+          //WithdrawalCase : decrease sender
+          senderAddr = WalletUtil
+              .encode58Check(
+                  MUtil.convertToTronAddress(logInfo.getTopics().get(1).getLast20Bytes()));
+          adjustIncrement(incrementMap, senderAddr, tokenAddress, increment.negate());
+          tokenSet.add(tokenAddress);
+          break;
+        default:
+          continue;
       }
+
     }
-    for (String keys : incrementMap.keySet()) {
+    for (
+        String keys : incrementMap.keySet()) {
       // foreach address try to get it's balance.
       String[] key = keys.split(",");
       BigInteger balance = TRC20Utils.getTRC20Balance(key[0], key[1], block);
@@ -135,7 +172,8 @@ public class TRC20Utils {
         balanceMap.put(keys, balance);
       }
     }
-    for (String token : tokenSet) {
+    for (
+        String token : tokenSet) {
       BigInteger decimals = TRC20Utils.getTRC20Decimal(token, block);
       if (decimals != null) {
         decimalMap.put(token, decimals);
@@ -147,7 +185,8 @@ public class TRC20Utils {
     logger.debug("decimalsMap: {}", decimalMap);
 
     //
-    for (String keys : incrementMap.keySet()) {
+    for (
+        String keys : incrementMap.keySet()) {
       String[] key = keys.split(",");
       AssetStatusPojo assetStatusPojo = new AssetStatusPojo();
       assetStatusPojo.setAccountAddress(key[0]);
