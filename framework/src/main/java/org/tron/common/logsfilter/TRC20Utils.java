@@ -131,10 +131,7 @@ public class TRC20Utils {
           tokenSet.add(tokenAddress);
           break;
         case Deposit:
-          if (tokenAddress.equals(WTRXAddress)) {
-            continue;
-          }
-          if (topics.size() < 2) {
+          if (!tokenAddress.equals(WTRXAddress) || topics.size() < 2) {
             continue;
           }
           //DepositCase : increase receiver
@@ -145,10 +142,7 @@ public class TRC20Utils {
           tokenSet.add(tokenAddress);
           break;
         case Withdrawal:
-          if (tokenAddress.equals(WTRXAddress)) {
-            continue;
-          }
-          if (topics.size() < 2) {
+          if (!tokenAddress.equals(WTRXAddress) || topics.size() < 2) {
             continue;
           }
           //WithdrawalCase : decrease sender
