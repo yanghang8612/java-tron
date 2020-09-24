@@ -106,20 +106,23 @@ public class TRC20Utils {
       if (topics == null) {
         continue;
       }
-      if (topics.size() >= 3 && ConcernTopics.MatchSignHash(topics.get(0))) {
-        //TransferCase : decrease sender, increase receiver
-        String senderAddr = WalletUtil
-            .encode58Check(MUtil.convertToTronAddress(logInfo.getTopics().get(1).getLast20Bytes()));
-        String recAddr = WalletUtil
-            .encode58Check(MUtil.convertToTronAddress(logInfo.getTopics().get(2).getLast20Bytes()));
+      if (topics.size() >= 2 && ConcernTopics.MatchSignHash(topics.get(0))) {
         String tokenAddress = WalletUtil
             .encode58Check(MUtil.convertToTronAddress(logInfo.getAddress()));
         BigInteger increment = hexStrToBigInteger(logInfo.getHexData());
         if (increment != null) {
-          adjustIncrement(incrementMap, recAddr, tokenAddress, increment);
+          //TransferCase : decrease sender, increase receiver
+          String senderAddr = WalletUtil
+              .encode58Check(
+                  MUtil.convertToTronAddress(logInfo.getTopics().get(1).getLast20Bytes()));
           adjustIncrement(incrementMap, senderAddr, tokenAddress, increment.negate());
+          if (topics.size() >= 3) {
+            String recAddr = WalletUtil
+                .encode58Check(
+                    MUtil.convertToTronAddress(logInfo.getTopics().get(2).getLast20Bytes()));
+            adjustIncrement(incrementMap, recAddr, tokenAddress, increment);
+          }
         }
-
         tokenSet.add(tokenAddress);
 
       }
