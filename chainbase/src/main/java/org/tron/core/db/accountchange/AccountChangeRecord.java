@@ -136,6 +136,10 @@ public class AccountChangeRecord {
       inMapInfo.setTrc10Map(trc10Map);
     }
 
+    if (addMap == null) {
+      return;
+    }
+
     trc10Map.forEach((tokenId, info) -> {
       final Trc10Info addTrc10Info = addMap.get(tokenId);
       if (addTrc10Info == null) {
@@ -144,12 +148,12 @@ public class AccountChangeRecord {
         return;
       }
 
-      info.setBalance(addInfo.getBalance());
+      info.setBalance(addTrc10Info.getBalance());
       info.setIncrementBalance(info.getIncrementBalance() + addTrc10Info.getIncrementBalance());
       addMap.remove(tokenId);
     });
 
-    if (addMap != null) {
+    if (addMap != null && addMap.size() > 0) {
       trc10Map.putAll(addMap);
     }
   }
