@@ -54,8 +54,8 @@ public class BalanceTrackerCapsule extends TriggerCapsule {
     trc20TrackerTrigger.setTrxStatusList(trxStatusList);
     trc20TrackerTrigger.setTrc10StatusList(trc10StatusList);
 
-    logger.info("---------------------trc20TrackerTrigger------------------------{}",
-        JSONObject.toJSONString(trc20TrackerTrigger));
+//    logger.info("---------------------trc20TrackerTrigger------------------------{}",
+//        JSONObject.toJSONString(trc20TrackerTrigger));
   }
 
   private void handlerTrxAndTrc10(Map<String, AccountChangeRecord.AccountInfo> accountInfoMap,
