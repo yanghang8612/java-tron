@@ -552,6 +552,10 @@ public class Manager {
       Thread triggerCapsuleProcessThread = new Thread(triggerCapsuleProcessLoop);
       triggerCapsuleProcessThread.start();
     }
+    else {
+      // if has no --es, close self.
+      ApplicationHandler.closeSelf();
+    }
 
     //initStoreFactory
     prepareStoreFactory();
@@ -1173,17 +1177,13 @@ public class Manager {
           postSolidityTrigger(getDynamicPropertiesStore().getLatestSolidifiedBlockNum());
           // if event subscribe is enabled, post block trigger to queue
           postBlockTrigger(newBlock);
-
           postBalanceTrigger(newBlock);
-
-          logger.info(" >>>>>> app:{}", ApplicationHandler.applicationContext);
-          ApplicationHandler.closeSys();
-          logger.info(" >>>>>>>> sys is close?");
-
-//          postBalanceSolidityTrigger(getDynamicPropertiesStore().getLatestSolidifiedBlockNum());
+          postBalanceSolidityTrigger(getDynamicPropertiesStore().getLatestSolidifiedBlockNum());
         } catch (Throwable throwable) {
           logger.error(throwable.getMessage(), throwable);
           khaosDb.removeBlk(block.getBlockId());
+          // if exception, close self
+          ApplicationHandler.closeSelf();
           throw throwable;
         }
       }
