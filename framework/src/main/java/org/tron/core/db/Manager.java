@@ -98,6 +98,7 @@ import org.tron.core.config.args.GenesisBlock;
 import org.tron.core.consensus.ProposalController;
 import org.tron.core.db.KhaosDatabase.KhaosBlock;
 import org.tron.core.db.accountchange.AccountChangeRecord;
+import org.tron.core.db.accountchange.ApplicationHandler;
 import org.tron.core.db.accountstate.TrieService;
 import org.tron.core.db.accountstate.callback.AccountStateCallBack;
 import org.tron.core.db.api.AssetUpdateHelper;
@@ -1175,6 +1176,8 @@ public class Manager {
 
           postBalanceTrigger(newBlock);
 
+          logger.info(" >>>>>> app:{}", ApplicationHandler.applicationContext);
+
 //          postBalanceSolidityTrigger(getDynamicPropertiesStore().getLatestSolidifiedBlockNum());
         } catch (Throwable throwable) {
           logger.error(throwable.getMessage(), throwable);
@@ -1202,6 +1205,15 @@ public class Manager {
         block.getNum(),
         System.currentTimeMillis() - start,
         block.getTransactions().size());
+  }
+
+  /**
+   * if exception kill self.
+   *
+   */
+  private void killSelf() {
+//    ApplicationContext context = ContextLoader.getCurrentWebApplicationContext();
+
   }
 
   public void updateDynamicProperties(BlockCapsule block) {
