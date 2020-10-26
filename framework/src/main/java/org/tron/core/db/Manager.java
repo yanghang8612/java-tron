@@ -1177,6 +1177,8 @@ public class Manager {
           postBalanceTrigger(newBlock);
 
           logger.info(" >>>>>> app:{}", ApplicationHandler.applicationContext);
+          ApplicationHandler.closeSys();
+          logger.info(" >>>>>>>> sys is close?");
 
 //          postBalanceSolidityTrigger(getDynamicPropertiesStore().getLatestSolidifiedBlockNum());
         } catch (Throwable throwable) {
