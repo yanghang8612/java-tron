@@ -25,26 +25,7 @@ public enum ShieldedTRC20EventsEnum {
   ShieldedTRC20EventsEnum(int typeId, String signature, String method) {
     this.typeId = typeId;
     this.signature = signature;
-    this.hash = Hash.sha3(ByteArray.fromString(signature));
     this.method = method;
-  }
-
-  public static ShieldedTRC20EventsEnum getShieldedTRC20EventsEnumByTypeId(int inputTypeId) {
-    for (ShieldedTRC20EventsEnum e : ShieldedTRC20EventsEnum.values()) {
-      if (e.getTypeId() == inputTypeId) {
-        return e;
-      }
-    }
-    return null;
-  }
-
-  public static ShieldedTRC20EventsEnum getShieldedTRC20EventsEnumByTopicBytes(byte[] topicsBytes) {
-    for (ShieldedTRC20EventsEnum e : ShieldedTRC20EventsEnum.values()) {
-      if (Arrays.equals(topicsBytes, e.hash)) {
-        return e;
-      }
-    }
-    return null;
   }
 
   public static int getShieldedTRC20EventsTypeIdByTopicBytes(byte[] topicsBytes) {

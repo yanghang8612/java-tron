@@ -7,7 +7,7 @@ import org.spongycastle.util.encoders.Hex;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
-import org.tron.common.utils.WalletUtil;
+import org.tron.common.utils.StringUtil;
 import org.tron.core.capsule.AccountCapsule;
 
 import java.util.HashMap;
@@ -187,7 +187,8 @@ public class AccountChangeRecord {
 
     public static AccountInfo of(AccountCapsule account) {
       AccountInfo info = new AccountInfo();
-      final String address = WalletUtil.encode58Check(account.getAddress().toByteArray());
+//      final String address = WalletUtil.encode58Check(account.getAddress().toByteArray());
+      final String address = StringUtil.encode58Check(account.getAddress().toByteArray());
       info.setAccountAddress(address);
 
       setBalance(info, account);
@@ -208,7 +209,8 @@ public class AccountChangeRecord {
     // 检查余额是否有变动，没有变动 return null.
     public static AccountInfo of(AccountCapsule oldAccount, AccountCapsule newAccount) {
       AccountInfo info = new AccountInfo();
-      final String address = WalletUtil.encode58Check(newAccount.getAddress().toByteArray());
+//      final String address = WalletUtil.encode58Check(newAccount.getAddress().toByteArray());
+      final String address = StringUtil.encode58Check(newAccount.getAddress().toByteArray());
       info.setAccountAddress(address);
 
       setBalance(info, newAccount);

@@ -11,7 +11,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
-import org.eclipse.jetty.util.StringUtil;
 import org.spongycastle.util.encoders.Hex;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
@@ -20,13 +19,13 @@ import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger.ConcernTopics;
 import org.tron.common.runtime.ProgramResult;
 import org.tron.common.runtime.vm.LogInfo;
 import org.tron.common.utils.Commons;
-import org.tron.common.utils.WalletUtil;
+import org.tron.common.utils.StringUtil;
 import org.tron.core.actuator.VMActuator;
 import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.capsule.TransactionCapsule;
 import org.tron.core.db.TransactionContext;
+import org.tron.core.db.TransactionTrace;
 import org.tron.core.store.StoreFactory;
-import org.tron.core.vm.utils.MUtil;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
@@ -55,7 +54,7 @@ public class TRC20Utils {
 
 
   public static BigInteger hexStrToBigInteger(String hexStr) {
-    if (StringUtil.isNotBlank(hexStr)) {
+    if (org.apache.commons.lang3.StringUtils.isNotBlank(hexStr)) {
       try {
         return new BigInteger(hexStr, 16);
       } catch (Exception e) {
@@ -112,21 +111,21 @@ public class TRC20Utils {
       if (increment == null) {
         continue;
       }
-      String tokenAddress = WalletUtil
-          .encode58Check(MUtil.convertToTronAddress(logInfo.getAddress()));
+      String tokenAddress = StringUtil
+          .encode58Check(TransactionTrace.convertToTronAddress(logInfo.getAddress()));
       switch (ConcernTopics.getBySH(topics.get(0))) {
         case TRANSFER:
           if (topics.size() < 3) {
             continue;
           }
           //TransferCase : decrease sender, increase receiver
-          String senderAddr = WalletUtil
+          String senderAddr = StringUtil
               .encode58Check(
-                  MUtil.convertToTronAddress(logInfo.getTopics().get(1).getLast20Bytes()));
+                      TransactionTrace.convertToTronAddress(logInfo.getTopics().get(1).getLast20Bytes()));
           adjustIncrement(incrementMap, senderAddr, tokenAddress, increment.negate());
-          String recAddr = WalletUtil
+          String recAddr = StringUtil
               .encode58Check(
-                  MUtil.convertToTronAddress(logInfo.getTopics().get(2).getLast20Bytes()));
+                      TransactionTrace.convertToTronAddress(logInfo.getTopics().get(2).getLast20Bytes()));
           adjustIncrement(incrementMap, recAddr, tokenAddress, increment);
           tokenSet.add(tokenAddress);
           break;
@@ -135,9 +134,9 @@ public class TRC20Utils {
             continue;
           }
           //DepositCase : increase receiver
-          recAddr = WalletUtil
+          recAddr = StringUtil
               .encode58Check(
-                  MUtil.convertToTronAddress(logInfo.getTopics().get(1).getLast20Bytes()));
+                      TransactionTrace.convertToTronAddress(logInfo.getTopics().get(1).getLast20Bytes()));
           adjustIncrement(incrementMap, recAddr, tokenAddress, increment);
           tokenSet.add(tokenAddress);
           break;
@@ -146,9 +145,9 @@ public class TRC20Utils {
             continue;
           }
           //WithdrawalCase : decrease sender
-          senderAddr = WalletUtil
+          senderAddr = StringUtil
               .encode58Check(
-                  MUtil.convertToTronAddress(logInfo.getTopics().get(1).getLast20Bytes()));
+                      TransactionTrace.convertToTronAddress(logInfo.getTopics().get(1).getLast20Bytes()));
           adjustIncrement(incrementMap, senderAddr, tokenAddress, increment.negate());
           tokenSet.add(tokenAddress);
           break;

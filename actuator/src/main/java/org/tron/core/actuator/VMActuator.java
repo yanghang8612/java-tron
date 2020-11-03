@@ -602,11 +602,10 @@ public class VMActuator implements Actuator2 {
 
 
   private double getCpuLimitInUsRatio() {
-
     double cpuLimitRatio;
 
-    if (isConstanCall) {
-      cpuLimitRatio = DBConfig.getMaxTimeRatio();
+    if (isConstantCall) {
+      cpuLimitRatio = CommonParameter.getInstance().getMaxTimeRatio();
       return cpuLimitRatio;
     }
 

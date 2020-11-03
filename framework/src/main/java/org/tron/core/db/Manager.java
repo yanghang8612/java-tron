@@ -64,7 +64,6 @@ import org.tron.common.logsfilter.trigger.ContractTrigger;
 import org.tron.common.logsfilter.trigger.Trigger;
 import org.tron.common.logsfilter.trigger.ShieldedTRC20TrackerTrigger.LogPojo;
 import org.tron.common.logsfilter.trigger.ShieldedTRC20TrackerTrigger.TransactionPojo;
-import org.tron.common.overlay.discover.node.Node;
 import org.tron.common.overlay.message.Message;
 import org.tron.common.parameter.CommonParameter;
 import org.tron.common.runtime.RuntimeImpl;
@@ -76,7 +75,6 @@ import org.tron.common.utils.SessionOptional;
 import org.tron.common.utils.Sha256Hash;
 import org.tron.common.utils.ShieldedTRC20EventsEnum;
 import org.tron.common.utils.StringUtil;
-import org.tron.common.utils.WalletUtil;
 import org.tron.common.zksnark.MerkleContainer;
 import org.tron.consensus.Consensus;
 import org.tron.consensus.base.Param.Miner;
@@ -150,18 +148,14 @@ import org.tron.core.store.StorageRowStore;
 import org.tron.core.store.StoreFactory;
 import org.tron.core.store.TransactionHistoryStore;
 import org.tron.core.store.TransactionRetStore;
-import org.tron.core.store.TreeBlockIndexStore;
 import org.tron.core.store.VotesStore;
 import org.tron.core.store.WitnessScheduleStore;
 import org.tron.core.store.WitnessStore;
 import org.tron.core.utils.TransactionRegister;
-import org.tron.core.vm.utils.MUtil;
 import org.tron.protos.Protocol.AccountType;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract;
 import org.tron.protos.Protocol.Transaction.Contract.ContractType;
-import org.tron.protos.Protocol.Transaction.Result;
-import org.tron.protos.Protocol.Transaction.Result.contractResult;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.Protocol.TransactionInfo.Log;
 import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
@@ -1610,7 +1604,7 @@ public class Manager {
     logger.info("ready to postBlockErasedTrigger");
     if (eventPluginLoaded && EventPluginLoader.getInstance().isBlockErasedTriggerEnable()) {
       try {
-        BlockCapsule blockCapsule = getBlockById(
+        BlockCapsule blockCapsule = chainBaseManager.getBlockById(
             getDynamicPropertiesStore().getLatestBlockHeaderHash());
         BlockErasedTriggerCapsule erasedTriggerCapsule = new BlockErasedTriggerCapsule(
             blockCapsule);
@@ -1661,7 +1655,7 @@ public class Manager {
     for (long i = lastTrc20TrackedSolidityBlockNum; i < latestSolidifiedBlockNumber; i++) {
       try {
         lastTrc20TrackedSolidityBlockNum++;
-        BlockCapsule solidBlock = getBlockByNum(lastTrc20TrackedSolidityBlockNum);
+        BlockCapsule solidBlock = chainBaseManager.getBlockByNum(lastTrc20TrackedSolidityBlockNum);
         if (solidBlock != null) {
           if (balanceTrigger) {
             TRC20SolidityTrackerCapsule trc20SolidityTrackerCapsule = new TRC20SolidityTrackerCapsule(solidBlock);
@@ -1811,7 +1805,7 @@ public class Manager {
     Map<ByteString, TransactionInfo> retMap = new HashMap<>();
     TransactionRetCapsule retCapsule = null;
     try {
-      retCapsule = transactionRetStore
+      retCapsule = chainBaseManager.getTransactionRetStore()
           .getTransactionInfoByBlockNum(ByteArray.fromLong(blockCapsule.getNum()));
       if (retCapsule != null) {
         for (TransactionInfo transactionResultInfo : retCapsule.getInstance()
@@ -1828,7 +1822,7 @@ public class Manager {
       for (TransactionCapsule capsule : blockCapsule.getTransactions()) {
         if (retMap.get(capsule.getTransactionId().getByteString()) == null) {
           try {
-            TransactionInfoCapsule infoCapsule = transactionHistoryStore
+            TransactionInfoCapsule infoCapsule = chainBaseManager.getTransactionHistoryStore()
                 .get(capsule.getTransactionId().getBytes());
             if (infoCapsule != null) {
               ret.add(infoCapsule.getInstance());
@@ -1882,8 +1876,8 @@ public class Manager {
       TransactionPojo transactionPojo = new TransactionPojo();
       transactionPojo.setTxId(Hex.toHexString(transactionInfo.getId().toByteArray()));
       transactionPojo.setContractAddress(
-          WalletUtil.encode58Check(
-              MUtil.convertToTronAddress(transactionInfo.getContractAddress().toByteArray())));
+          StringUtil.encode58Check(
+                  TransactionTrace.convertToTronAddress(transactionInfo.getContractAddress().toByteArray())));
       transactionPojo.setLogList(logPojos);
       transactionPojo.setEnergyFee(transactionInfo.getReceipt().getEnergyFee());
       transactionPojo.setEnergyUsage(transactionInfo.getReceipt().getEnergyUsage());
@@ -1906,7 +1900,7 @@ public class Manager {
       LogPojo ret = new LogPojo();
       ret.setType(type);
       ret.setIndex(logPojos.size());
-      ret.setAddress(WalletUtil.encode58Check(log.getAddress().toByteArray()));
+      ret.setAddress(StringUtil.encode58Check(log.getAddress().toByteArray()));
       ret.setData(Hex.toHexString(log.getData().toByteArray()));
       for (ByteString b : log.getTopicsList()) {
         ret.getTopics().add(Hex.toHexString(b.toByteArray()));
