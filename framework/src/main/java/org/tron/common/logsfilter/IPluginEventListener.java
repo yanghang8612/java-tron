@@ -23,6 +23,10 @@ public interface IPluginEventListener extends ExtensionPoint {
 
   void handleSolidityTrigger(Object trigger);
 
+  void handleSolidityLogTrigger(Object trigger);
+
+  void handleSolidityEventTrigger(Object trigger);
+
   //Added For trc20
 
   void handleBlockErasedEvent(Object trigger);
