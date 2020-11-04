@@ -1,6 +1,5 @@
 package org.tron.common.logsfilter.capsule;
 
-import com.alibaba.fastjson.JSONObject;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -54,8 +53,6 @@ public class BalanceTrackerCapsule extends TriggerCapsule {
     trc20TrackerTrigger.setTrxStatusList(trxStatusList);
     trc20TrackerTrigger.setTrc10StatusList(trc10StatusList);
 
-//    logger.info("---------------------trc20TrackerTrigger------------------------{}",
-//        JSONObject.toJSONString(trc20TrackerTrigger));
   }
 
   private void handlerTrxAndTrc10(Map<String, AccountChangeRecord.AccountInfo> accountInfoMap,
@@ -109,7 +106,7 @@ public class BalanceTrackerCapsule extends TriggerCapsule {
     trc10Map.forEach((key, info) -> {
       BalanceTrackerTrigger.Trc10StatusPojo trc10Info = new BalanceTrackerTrigger.Trc10StatusPojo();
       trc10Info.setAccountAddress(accountAddress);
-      trc10Info.setTokenId(info.getTokenId());
+      trc10Info.setTokenAddress(info.getTokenId());
       trc10Info.setBalance(String.valueOf(info.getBalance()));
       trc10Info.setIncrementBalance(String.valueOf(info.getIncrementBalance()));
       list.add(trc10Info);

@@ -23,7 +23,7 @@ public class AccountChangeRecord {
 
   private static final int DELETE = 2;
   private static final int CREATE = 1;
-  private static final int UPDATE = 0;
+  private static final int UPDATE = 3;
 
   // not byte[]! because the same byte[] but not hashCode.
   private static Map<String, AccountInfo> tempAccountMap = new HashMap<>();

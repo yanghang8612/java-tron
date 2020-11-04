@@ -24,7 +24,7 @@ public class BalanceTrackerTrigger extends Trigger {
   public static class Trc10StatusPojo {
 
     private String accountAddress;
-    private String tokenId;
+    private String tokenAddress;
     private String balance;
     private String incrementBalance;
   }
