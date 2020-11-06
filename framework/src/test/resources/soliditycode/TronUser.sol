@@ -1095,7 +1095,6 @@ contract Aggregator is AggregatorInterface, JustlinkClient, Ownable {
     public
     onlyOwner()
     {
-        token.call()(100);
         token.approve(justMidAddress(), _amount);
         require(justMid.transferFrom(address(this), _recipient, _amount), "LINK transfer failed");
     }
