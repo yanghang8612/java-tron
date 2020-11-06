@@ -2,6 +2,7 @@ package org.tron.common.utils;
 
 import java.util.Arrays;
 import lombok.Getter;
+import org.tron.common.crypto.Hash;
 
 public enum ShieldedTRC20EventsEnum {
 
@@ -25,6 +26,7 @@ public enum ShieldedTRC20EventsEnum {
   ShieldedTRC20EventsEnum(int typeId, String signature, String method) {
     this.typeId = typeId;
     this.signature = signature;
+    this.hash = Hash.sha3(ByteArray.fromString(signature));
     this.method = method;
   }
 
