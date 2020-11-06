@@ -1657,10 +1657,10 @@ public class Manager {
         lastTrc20TrackedSolidityBlockNum++;
         BlockCapsule solidBlock = chainBaseManager.getBlockByNum(lastTrc20TrackedSolidityBlockNum);
         if (solidBlock != null) {
-          if (balanceTrigger) {
-            TRC20SolidityTrackerCapsule trc20SolidityTrackerCapsule = new TRC20SolidityTrackerCapsule(solidBlock);
-            trc20SolidityTrackerCapsule.processTrigger();
-          }
+//          if (balanceTrigger) {
+//            TRC20SolidityTrackerCapsule trc20SolidityTrackerCapsule = new TRC20SolidityTrackerCapsule(solidBlock);
+//            trc20SolidityTrackerCapsule.processTrigger();
+//          }
 
           if (shieldedTRC20Trigger) {
             ShieldedTRC20SolidityTrackerCapsule shieldedTRC20SolidityTrackerCapsule =
