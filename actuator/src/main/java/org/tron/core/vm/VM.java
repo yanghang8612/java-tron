@@ -116,12 +116,11 @@ public class VM {
       }
 
       if (!VMConfig.allowTvmStake()
-              && (op == ISSRCANDIDATE || op == REWARDBALANCE || op == STAKE || op == UNSTAKE
-                || op == WITHDRAWREWARD)) {
+              && (op == ISSRCANDIDATE)) {
         return;
       }
 
-      if(!VMConfig.allowTvmAssetIssue() && (op == TOKENISSUE || op == UPDATEASSET)) {
+      if(!VMConfig.allowTvmAssetIssue() && (op == TOKENISSUE)) {
         return;
       }
 
