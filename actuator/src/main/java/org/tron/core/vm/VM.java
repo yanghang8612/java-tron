@@ -96,6 +96,7 @@ public class VM {
         return;
       }
 
+      int opVal = op.val();
       // hard fork for 3.2
       if (!VMConfig.allowTvmTransferTrc10()
           && (op == CALLTOKEN || op == TOKENBALANCE || op == CALLTOKENVALUE || op == CALLTOKENID)) {
@@ -111,19 +112,17 @@ public class VM {
         return;
       }
 
-      if (!VMConfig.allowTvmIstanbul() && (op == SELFBALANCE || op == CHAINID)) {
+      if (!VMConfig.allowTvmIstanbul() && (opVal == 0x47 || opVal == 0x46)) {
         return;
       }
 
       if (!VMConfig.allowTvmStake()
-              && (op == ISSRCANDIDATE || op == REWARDBALANCE || op == STAKE || op == UNSTAKE
-                || op == WITHDRAWREWARD || op == SELFBALANCE || op == CHAINID
-          || op == SHL || op == SHR || op == SAR || op == CREATE2 || op == EXTCODEHASH
-          ||op == CALLTOKEN || op == TOKENBALANCE || op == CALLTOKENVALUE || op == CALLTOKENID)) {
+              && (opVal == 0xd9 || opVal == 0xd8 || opVal == 0xd5 || opVal == 0xd6
+                || opVal == 0xd7)) {
         return;
       }
 
-      if(!VMConfig.allowTvmAssetIssue() && (op == TOKENISSUE || op == UPDATEASSET)) {
+      if(!VMConfig.allowTvmAssetIssue() && (opVal == 0xda || opVal == 0xdb)) {
         return;
       }
 
