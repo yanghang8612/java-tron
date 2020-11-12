@@ -116,11 +116,14 @@ public class VM {
       }
 
       if (!VMConfig.allowTvmStake()
-              && (op == ISSRCANDIDATE)) {
+              && (op == ISSRCANDIDATE || op == REWARDBALANCE || op == STAKE || op == UNSTAKE
+                || op == WITHDRAWREWARD || op == SELFBALANCE || op == CHAINID
+          || op == SHL || op == SHR || op == SAR || op == CREATE2 || op == EXTCODEHASH
+          ||op == CALLTOKEN || op == TOKENBALANCE || op == CALLTOKENVALUE || op == CALLTOKENID)) {
         return;
       }
 
-      if(!VMConfig.allowTvmAssetIssue() && (op == TOKENISSUE)) {
+      if(!VMConfig.allowTvmAssetIssue() && (op == TOKENISSUE || op == UPDATEASSET)) {
         return;
       }
 
