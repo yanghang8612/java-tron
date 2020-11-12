@@ -136,6 +136,7 @@ import org.tron.core.store.VotesStore;
 import org.tron.core.store.WitnessScheduleStore;
 import org.tron.core.store.WitnessStore;
 import org.tron.core.utils.TransactionRegister;
+import org.tron.program.PruneBlock;
 import org.tron.protos.Protocol.AccountType;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract;
@@ -211,6 +212,9 @@ public class Manager {
   // the capacity is equal to Integer.MAX_VALUE default
   private BlockingQueue<TransactionCapsule> rePushTransactions;
   private BlockingQueue<TriggerCapsule> triggerCapsuleQueue;
+
+  @Autowired
+  private PruneBlock pruneBlock;
 
   /**
    * Cycle thread to rePush Transactions
@@ -385,7 +389,7 @@ public class Manager {
     //for test only
     chainBaseManager.getDynamicPropertiesStore().updateDynamicStoreByConfig();
 
-    initCacheTxs();
+//    initCacheTxs();
     revokingStore.enable();
     validateSignService = Executors
         .newFixedThreadPool(Args.getInstance().getValidateSignThreadNum());
@@ -753,6 +757,8 @@ public class Manager {
     } else {
       revokingStore.setMaxFlushCount(SnapshotManager.DEFAULT_MIN_FLUSH_COUNT);
     }
+
+    pruneBlock.prune(block);
   }
 
   private void switchFork(BlockCapsule newHead)
@@ -1298,6 +1304,8 @@ public class Manager {
     }
     //reset BlockEnergyUsage
     chainBaseManager.getDynamicPropertiesStore().saveBlockEnergyUsage(0);
+    boolean flag = block.generatedByMyself;
+    block.generatedByMyself = true;
     //parallel check sign
     if (!block.generatedByMyself) {
       try {
@@ -1307,6 +1315,7 @@ public class Manager {
         Thread.currentThread().interrupt();
       }
     }
+    block.generatedByMyself = flag;
 
     TransactionRetCapsule transactionRetCapsule =
         new TransactionRetCapsule(block);
@@ -1421,14 +1430,14 @@ public class Manager {
   }
 
   public long getSyncBeginNumber() {
-    logger.info("headNumber:"
-        + chainBaseManager.getDynamicPropertiesStore().getLatestBlockHeaderNumber());
-    logger.info(
-        "syncBeginNumber:"
-            + (chainBaseManager.getDynamicPropertiesStore().getLatestBlockHeaderNumber()
-            - revokingStore.size()));
-    logger.info("solidBlockNumber:"
-        + chainBaseManager.getDynamicPropertiesStore().getLatestSolidifiedBlockNum());
+//    logger.info("headNumber:"
+//        + chainBaseManager.getDynamicPropertiesStore().getLatestBlockHeaderNumber());
+//    logger.info(
+//        "syncBeginNumber:"
+//            + (chainBaseManager.getDynamicPropertiesStore().getLatestBlockHeaderNumber()
+//            - revokingStore.size()));
+//    logger.info("solidBlockNumber:"
+//        + chainBaseManager.getDynamicPropertiesStore().getLatestSolidifiedBlockNum());
     return chainBaseManager.getDynamicPropertiesStore().getLatestBlockHeaderNumber()
         - revokingStore.size();
   }

@@ -25,7 +25,7 @@ public class TransactionStore extends TronStoreWithRevoking<TransactionCapsule> 
   private KhaosDatabase khaosDatabase;
 
   @Autowired
-  private TransactionStore(@Value("trans") String dbName) {
+  public TransactionStore(@Value("trans") String dbName) {
     super(dbName);
   }
 

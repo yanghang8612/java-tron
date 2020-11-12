@@ -22,9 +22,9 @@
       <!-- rollover daily -->
       <fileNamePattern>./logs/tron-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
       <!-- each file should be at most 500MB, keep 30 days worth of history, but at most 50GB -->
-      <maxFileSize>500MB</maxFileSize>
-      <maxHistory>3</maxHistory>
-      <totalSizeCap>50GB</totalSizeCap>
+      <maxFileSize>100MB</maxFileSize>
+      <maxHistory>1</maxHistory>
+      <totalSizeCap>1GB</totalSizeCap>
     </rollingPolicy>
     <encoder>
       <pattern>%d{HH:mm:ss.SSS} %-5level [%t] [%c{1}]\(%F:%L\) %m%n</pattern>
@@ -51,17 +51,18 @@
   </root>
 
   <logger level="INFO" name="app"/>
-  <logger level="INFO" name="net"/>
+  <logger level="ERROR" name="net"/>
   <logger level="INFO" name="backup"/>
   <logger level="INFO" name="discover"/>
   <logger level="INFO" name="crypto"/>
   <logger level="INFO" name="utils"/>
   <logger level="INFO" name="actuator"/>
-  <logger level="INFO" name="API"/>
+  <logger level="ERROR" name="API"/>
   <logger level="INFO" name="witness"/>
   <logger level="INFO" name="DB"/>
   <logger level="INFO" name="capsule"/>
-  <logger level="INFO" name="VM"/>
+  <logger level="ERROR" name="VM"/>
+  <logger level="ERROR" name="delegation"/>
 
   <logger level="INFO" name="tool" additivity="false">
     <appender-ref ref="CONSOLE"/>

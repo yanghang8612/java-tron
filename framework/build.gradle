@@ -2,11 +2,11 @@ plugins {
     id "org.sonarqube" version "2.6"
 }
 
-apply plugin: 'application'
+//apply plugin: 'application'
 apply plugin: 'checkstyle'
 apply plugin: 'com.github.johnrengelman.shadow'
 
-mainClassName = 'org.tron.program.FullNode'
+//mainClassName = 'org.tron.program.FullNode'
 
 def versions = [
         checkstyle: '8.7',
@@ -124,18 +124,18 @@ if (project.hasProperty("mainClass")) {
     mainClassName = mainClass
 }
 
-run {
-    if (project.hasProperty('witness')) {
-        standardInput = System.in
-        args = ['--witness']
-    }
-}
+//run {
+//    if (project.hasProperty('witness')) {
+//        standardInput = System.in
+//        args = ['--witness']
+//    }
+//}
 
-shadowJar {
-    baseName = 'java-tron'
-    classifier = null
-    version = null
-}
+//shadowJar {
+//    baseName = 'java-tron'
+//    classifier = null
+//    version = null
+//}
 
 test {
     testLogging {
@@ -242,38 +242,40 @@ def createScript(project, mainClass, name) {
     }
 }
 
-applicationDistribution.from("../gradle/java-tron.vmoptions") {
-    into "bin"
-}
+//applicationDistribution.from("../gradle/java-tron.vmoptions") {
+//    into "bin"
+//}
 //distZip {
 //    doLast {
 //        file("$destinationDir/$archiveName").renameTo("$destinationDir/"+'java-tron-'+version+'-bin.zip')
 //    }
 //}
 configurations.archives.artifacts.removeAll { it.type == 'tar' }
-applicationName = 'java-tron'
-startScripts.enabled = false
-run.enabled = false
-tasks.distTar.enabled = false
+//applicationName = 'java-tron'
+//startScripts.enabled = false
+//run.enabled = false
+//tasks.distTar.enabled = false
 
-createScript(project, 'org.tron.program.SolidityNode', 'SolidityNode')
-createScript(project, 'org.tron.program.FullNode', 'FullNode')
-createScript(project, 'org.tron.program.KeystoreFactory', 'KeystoreFactory')
-createScript(project, 'org.tron.program.DBConvert', 'DBConvert')
-createScript(project, 'org.tron.tool.litefullnode.LiteFullNodeTool', 'LiteFullNodeTool')
+//createScript(project, 'org.tron.program.SolidityNode', 'SolidityNode')
+//createScript(project, 'org.tron.program.FullNode', 'FullNode')
+//createScript(project, 'org.tron.program.KeystoreFactory', 'KeystoreFactory')
+//createScript(project, 'org.tron.program.DBConvert', 'DBConvert')
+//createScript(project, 'org.tron.tool.litefullnode.LiteFullNodeTool', 'LiteFullNodeTool')
 
 artifacts {
-    archives(binaryRelease('buildSolidityNodeJar', 'SolidityNode', 'org.tron.program.SolidityNode'),
-            binaryRelease('buildFullNodeJar', 'FullNode', 'org.tron.program.FullNode'),
-            binaryRelease('buildKeystoreFactoryJar', 'KeystoreFactory', 'org.tron.program.KeystoreFactory'),
-            binaryRelease('buildDBConvertJar', 'DBConvert', 'org.tron.program.DBConvert'),
-            binaryRelease('buildLiteFullNodeToolJar', 'LiteFullNodeTool', 'org.tron.tool.litefullnode.LiteFullNodeTool'))
+    archives(
+//    binaryRelease('buildSolidityNodeJar', 'SolidityNode', 'org.tron.program.SolidityNode'),
+            binaryRelease('buildFullNodeJar', 'FullNode', 'org.tron.program.FullNode')
+//            binaryRelease('buildKeystoreFactoryJar', 'KeystoreFactory', 'org.tron.program.KeystoreFactory'),
+//            binaryRelease('buildDBConvertJar', 'DBConvert', 'org.tron.program.DBConvert'),
+//            binaryRelease('buildLiteFullNodeToolJar', 'LiteFullNodeTool', 'org.tron.tool.litefullnode.LiteFullNodeTool')
+            )
 }
 
-task copyToParent(type: Copy) {
-    into "../build/distributions"
-    from "$buildDir/distributions"
-    include "*.zip"
-}
+//task copyToParent(type: Copy) {
+//    into "../build/distributions"
+//    from "$buildDir/distributions"
+//    include "*.zip"
+//}
 
-build.finalizedBy(copyToParent)
+//build.finalizedBy(copyToParent)

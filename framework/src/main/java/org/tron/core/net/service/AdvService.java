@@ -48,10 +48,10 @@ public class AdvService {
   private ConcurrentHashMap<Item, Long> invToSpread = new ConcurrentHashMap<>();
 
   private Cache<Item, Long> invToFetchCache = CacheBuilder.newBuilder()
-      .maximumSize(100_000).expireAfterWrite(1, TimeUnit.HOURS).recordStats().build();
+      .maximumSize(10_000).expireAfterWrite(1, TimeUnit.HOURS).recordStats().build();
 
   private Cache<Item, Message> trxCache = CacheBuilder.newBuilder()
-      .maximumSize(50_000).expireAfterWrite(1, TimeUnit.HOURS).recordStats().build();
+      .maximumSize(2_000).expireAfterWrite(1, TimeUnit.HOURS).recordStats().build();
 
   private Cache<Item, Message> blockCache = CacheBuilder.newBuilder()
       .maximumSize(10).expireAfterWrite(1, TimeUnit.MINUTES).recordStats().build();

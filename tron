@@ -1,0 +1,69 @@
+#!/bin/bash
+
+APP=FullNode
+JAR_NAME=$APP.jar
+MAX_STOP_TIME=60
+
+status_service() {
+ pid=`ps -ef | grep $JAR_NAME |grep -v grep | awk '{print $2}'`
+ if [ $pid ]; then
+	 echo "$APP is running ..."
+ else
+	 echo "$APP is not runnning ..."
+ fi
+ return $pid
+
+}
+
+stop_service() {
+  count=1
+  while [ $count -le $MAX_STOP_TIME ]; do
+    status_service
+    if [ $pid ]; then
+       kill -15 $pid
+       sleep 1
+    else
+       echo "java-tron stop"
+       return
+    fi
+    count=$(echo $count+1 | bc)
+    if [ $count -eq $MAX_STOP_TIME ]; then
+      kill -9 $pid
+      sleep 1
+    fi
+  done
+}
+
+start_service() {
+# echo `date` > tron.log
+ total=`cat /proc/meminfo  |grep MemTotal |awk -F ' ' '{print $2}'`
+ xmx=12G
+ logtime=`date +%Y-%m-%d_%H-%M-%S`
+ nohup java -Xmx$xmx -Xms$xmx -XX:+UseConcMarkSweepGC -XX:+PrintGCDetails -Xloggc:./gc.log\
+ -XX:+PrintGCDateStamps -XX:+CMSParallelRemarkEnabled -XX:ReservedCodeCacheSize=256m\
+ -XX:+CMSScavengeBeforeRemark -jar $JAR_NAME -c config.conf  >>/dev/null 2>&1 &
+
+ pid=`ps -ef |grep $JAR_NAME |grep -v grep |awk '{print $2}'`
+ echo "start tron with pid $pid on $HOSTNAME"
+}
+
+
+case "$1" in
+start)
+        start_service
+	;;
+stop)
+	stop_service
+        ;;
+restart)
+        $0 stop
+        $0 start
+        ;;
+status)
+	status_service
+        ;;
+*)	log_action_msg "Usage: tron {start|stop|status|restart}"
+        exit 2
+        ;;
+esac
+exit 0

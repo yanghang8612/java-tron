@@ -33,7 +33,7 @@ import org.tron.core.exception.BadItemException;
 public class BlockStore extends TronStoreWithRevoking<BlockCapsule> {
 
   @Autowired
-  private BlockStore(@Value("block") String dbName) {
+  public BlockStore(@Value("block") String dbName) {
     super(dbName);
   }
 

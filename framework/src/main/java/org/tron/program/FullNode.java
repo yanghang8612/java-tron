@@ -67,6 +67,7 @@ public class FullNode {
     context.register(DefaultConfig.class);
 
     context.refresh();
+    pruneBlock(context);
     Application appT = ApplicationFactory.create(context);
     shutdown(appT);
 
@@ -113,5 +114,18 @@ public class FullNode {
   public static void shutdown(final Application app) {
     logger.info("********register application shutdown hook********");
     Runtime.getRuntime().addShutdownHook(new Thread(app::shutdown));
+  }
+
+  public static void pruneBlock(TronApplicationContext context) {
+    if (!Args.getInstance().isPruneBlock()) {
+      return;
+    }
+    System.out.println("prune block start");
+
+    PruneBlock pruneBlock = context.getBean(PruneBlock.class);
+    pruneBlock.pruneAll();
+
+    System.out.println("prune block done");
+    System.exit(0);
   }
 }

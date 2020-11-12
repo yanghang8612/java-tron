@@ -1,20 +1,15 @@
 package org.tron.core.config;
 
 import lombok.extern.slf4j.Slf4j;
-import org.rocksdb.RocksDB;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.tron.common.utils.StorageUtils;
 import org.tron.core.config.args.Args;
 import org.tron.core.db.RevokingDatabase;
 import org.tron.core.db.RevokingStore;
-import org.tron.core.db.TransactionCache;
-import org.tron.core.db.backup.BackupRocksDBAspect;
-import org.tron.core.db.backup.NeedBeanCondition;
 import org.tron.core.db2.core.SnapshotManager;
 import org.tron.core.services.interfaceOnPBFT.RpcApiServiceOnPBFT;
 import org.tron.core.services.interfaceOnPBFT.http.PBFT.HttpApiOnPBFTService;
@@ -25,10 +20,6 @@ import org.tron.core.services.interfaceOnSolidity.http.solidity.HttpApiOnSolidit
 @Configuration
 @Import(CommonConfig.class)
 public class DefaultConfig {
-
-  static {
-    RocksDB.loadLibrary();
-  }
 
   @Autowired
   public ApplicationContext appCtx;
@@ -104,19 +95,4 @@ public class DefaultConfig {
     return null;
   }
 
-  @Bean
-  public TransactionCache transactionCache() {
-    int dbVersion = Args.getInstance().getStorage().getDbVersion();
-    if (dbVersion == 2) {
-      return new TransactionCache("trans-cache");
-    }
-
-    return null;
-  }
-
-  @Bean
-  @Conditional(NeedBeanCondition.class)
-  public BackupRocksDBAspect backupRocksDBAspect() {
-    return new BackupRocksDBAspect();
-  }
 }

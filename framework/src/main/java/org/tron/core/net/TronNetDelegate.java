@@ -241,24 +241,24 @@ public class TronNetDelegate {
   }
 
   public void pushTransaction(TransactionCapsule trx) throws P2pException {
-    try {
+//    try {
       trx.setTime(System.currentTimeMillis());
-      dbManager.pushTransaction(trx);
-    } catch (ContractSizeNotEqualToOneException
-        | VMIllegalException e) {
-      throw new P2pException(TypeEnum.BAD_TRX, e);
-    } catch (ContractValidateException
-        | ValidateSignatureException
-        | ContractExeException
-        | DupTransactionException
-        | TaposException
-        | TooBigTransactionException
-        | TransactionExpirationException
-        | ReceiptCheckErrException
-        | TooBigTransactionResultException
-        | AccountResourceInsufficientException e) {
-      throw new P2pException(TypeEnum.TRX_EXE_FAILED, e);
-    }
+//      dbManager.pushTransaction(trx);
+//    } catch (ContractSizeNotEqualToOneException
+//        | VMIllegalException e) {
+//      throw new P2pException(TypeEnum.BAD_TRX, e);
+//    } catch (ContractValidateException
+//        | ValidateSignatureException
+//        | ContractExeException
+//        | DupTransactionException
+//        | TaposException
+//        | TooBigTransactionException
+//        | TransactionExpirationException
+//        | ReceiptCheckErrException
+//        | TooBigTransactionResultException
+//        | AccountResourceInsufficientException e) {
+//      throw new P2pException(TypeEnum.TRX_EXE_FAILED, e);
+//    }
   }
 
   public boolean validBlock(BlockCapsule block) throws P2pException {

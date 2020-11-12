@@ -12,7 +12,7 @@ public class WriteOptionsWrapper {
   public static WriteOptionsWrapper getInstance() {
     WriteOptionsWrapper wrapper = new WriteOptionsWrapper();
     wrapper.level = new org.iq80.leveldb.WriteOptions();
-    wrapper.rocks = new org.rocksdb.WriteOptions();
+//    wrapper.rocks = new org.rocksdb.WriteOptions();
 
     return wrapper;
   }
@@ -20,7 +20,7 @@ public class WriteOptionsWrapper {
 
   public WriteOptionsWrapper sync(boolean bool) {
     this.level.sync(bool);
-    this.rocks.setSync(bool);
+//    this.rocks.setSync(bool);
     return this;
   }
 }
