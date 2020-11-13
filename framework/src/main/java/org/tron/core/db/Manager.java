@@ -13,7 +13,6 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.protobuf.ByteString;
 
-import java.net.ConnectException;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
@@ -1005,12 +1004,6 @@ public class Manager {
           postBlockTrigger(newBlock);
           postBalanceTrigger(newBlock);
           postBalanceSolidityTrigger(getDynamicPropertiesStore().getLatestSolidifiedBlockNum());
-
-          if (new Random().nextInt(100) > 95) {
-            System.out.println(" >>>>>>>>> to throw exception");
-            logger.info(" >>>>>>>>> to throw exception");
-            throw new RuntimeException();
-          }
         } catch (Throwable throwable) {
           logger.error(throwable.getMessage(), throwable);
           khaosDb.removeBlk(block.getBlockId());
