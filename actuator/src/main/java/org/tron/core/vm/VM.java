@@ -109,10 +109,13 @@ public class VM {
       }
 
       if (!VMConfig.allowTvmSolidity059() && op == ISCONTRACT) {
-        return;
+        throw Program.Exception.invalidOpCode(program.getCurrentOp());
       }
 
-      if (!VMConfig.allowTvmIstanbul() && (opVal == 0x47)) {
+      if (!VMConfig.allowTvmIstanbul() && (opVal == 0x47 || opVal == 0xe0
+          || opVal == 0xe1 || opVal == 0xe2 || opVal == 0xe3 || opVal == 0xe4 || opVal == 0xe5
+          || opVal == 0xe6 || opVal == 0xe7 || opVal == 0xe8 || opVal == 0xe9 || opVal == 0xea
+          || opVal == 0xeb || opVal == 0xec || opVal == 0xed || opVal == 0xee || opVal == 0xef)) {
         throw Program.Exception.invalidOpCode(program.getCurrentOp());
       }
 
