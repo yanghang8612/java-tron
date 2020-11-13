@@ -27,6 +27,10 @@ public class TronApplicationContext extends AnnotationConfigApplicationContext {
   @Override
   public void destroy() {
 
+    Application appT = ApplicationFactory.create(this);
+    appT.shutdownServices();
+    appT.shutdown();
+
     DiscoverServer discoverServer = getBean(DiscoverServer.class);
     discoverServer.close();
     ChannelManager channelManager = getBean(ChannelManager.class);
@@ -37,11 +41,6 @@ public class TronApplicationContext extends AnnotationConfigApplicationContext {
     Manager dbManager = getBean(Manager.class);
     dbManager.stopRePushThread();
     dbManager.stopRePushTriggerThread();
-
-    Application appT = ApplicationFactory.create(this);
-    appT.shutdownServices();
-    appT.shutdown();
-
     super.destroy();
   }
 }
