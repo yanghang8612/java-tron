@@ -5,6 +5,9 @@ import static org.tron.common.utils.ByteUtil.EMPTY_BYTE_ARRAY;
 import static org.tron.core.db.TransactionTrace.convertToTronAddress;
 import static org.tron.core.vm.OpCode.*;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
@@ -85,6 +88,12 @@ public class VM {
     return energyCost;
   }
 
+  public long timeAll1 = 0;
+  public long count1 = 0;
+  public long timeAll2 = 0;
+  public long count2 = 0;
+  public long timeAll3 = 0;
+  public long count3 = 0;
   public void step(Program program) {
     if (config.vmTrace()) {
       program.saveOpTrace();
@@ -92,6 +101,7 @@ public class VM {
 
     try {
       OpCode op = OpCode.code(program.getCurrentOp());
+      long startTime1 = System.nanoTime();
       if (op == null) {
         throw Program.Exception.invalidOpCode(program.getCurrentOp());
       }
@@ -127,7 +137,11 @@ public class VM {
       if(!VMConfig.allowTvmAssetIssue() && (opVal == 0xda)) {
         throw Program.Exception.invalidOpCode(program.getCurrentOp());
       }
+      long endTime1 = System.nanoTime();
+      timeAll1 += 0xffffffffffffffffL - startTime1 + endTime1;
+      count1++;
 
+      long startTime2 = System.nanoTime();
       program.setLastOp(op.val());
       program.verifyStackSize(op.require());
       program.verifyStackOverflow(op.require(), op.ret()); //Check not exceeding stack limits
@@ -340,6 +354,11 @@ public class VM {
       program.spendEnergy(energyCost, op.name());
       program.checkCPUTimeLimit(op.name());
 
+      long endTime2 = System.nanoTime();
+      timeAll2 += 0xffffffffffffffffL - startTime2 + endTime2;
+      count2++;
+  
+      long startTime3 = System.nanoTime();
       // Execute operation
       switch (op) {
         /**
@@ -1538,6 +1557,12 @@ public class VM {
       }
 
       program.setPreviouslyExecutedOp(op.val());
+  
+  
+      long endTime3 = System.nanoTime();
+      timeAll3 += 0xffffffffffffffffL - startTime3 + endTime3;
+      count3++;
+      
     } catch (RuntimeException e) {
       logger.info("VM halted: [{}]", e.getMessage());
       if (!(e instanceof TransferException)) {
@@ -1556,10 +1581,25 @@ public class VM {
       if (program.byTestingSuite()) {
         return;
       }
-
+      timeAll1 = 0;
+      count1 = 0;
+      timeAll2 = 0;
+      count2 = 0;
+      timeAll3 = 0;
+      count3 = 0;
       while (!program.isStopped()) {
         this.step(program);
       }
+      double time1 = count1 == 0 ? 0 : ((double) timeAll1) / count1;
+      double time2 = count2 == 0 ? 0 : ((double) timeAll2) / count2;
+      double time3 = count3 == 0 ? 0 : ((double) timeAll3) / count3;
+      String msg = String.format("[benchmark]\t[1]\t%d,\t%d,\t%f\t[2]\t%d,\t%d,\t%f\t[3]\t%d,\t%d,\t%f",
+           timeAll1, count1, time1, timeAll2, count2, time2, timeAll3, count3, time3);
+      System.out.println(msg);
+      //BufferedWriter bufferedWriter;
+      //bufferedWriter = new BufferedWriter(new FileWriter("4.1BenchMark.txt", true)) ;
+      //bufferedWriter.write(msg + "\n");
+      //bufferedWriter.close();
 
     } catch (JVMStackOverFlowException | OutOfTimeException e) {
       throw e;
@@ -1576,6 +1616,9 @@ public class VM {
           .info("\n !!! StackOverflowError: update your java run command with -Xss !!!\n", soe);
       throw new JVMStackOverFlowException();
     }
+    //catch (IOException ioe) {
+    //  logger.info("IOException:{}", ioe.getMessage());
+    //}
   }
 
   private boolean isDeadAccount(Program program, DataWord address) {

@@ -1077,10 +1077,10 @@ public class Program {
 
   public void spendEnergy(long energyValue, String opName) {
     if (getEnergylimitLeftLong() < energyValue) {
-      throw new OutOfEnergyException(
+      logger.error(String.format(
           "Not enough energy for '%s' operation executing: curInvokeEnergyLimit[%d],"
               + " curOpEnergy[%d], usedEnergy[%d]",
-          opName, invoke.getEnergyLimit(), energyValue, getResult().getEnergyUsed());
+          opName, invoke.getEnergyLimit(), energyValue, getResult().getEnergyUsed()));
     }
     getResult().spendEnergy(energyValue);
   }
@@ -1101,7 +1101,7 @@ public class Program {
           CommonParameter.getInstance().getMinTimeRatio(),
           CommonParameter.getInstance().getMaxTimeRatio(),
           getVmShouldEndInUs(), vmNowInUs, getVmStartInUs());
-      throw Exception.notEnoughTime(opName);
+      //throw Exception.notEnoughTime(opName);
     }
 
   }
