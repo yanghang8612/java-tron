@@ -112,17 +112,15 @@ public class VM {
         return;
       }
 
-      if (!VMConfig.allowTvmIstanbul() && (opVal == 0x47 || opVal == 0x46)) {
+      if (!VMConfig.allowTvmIstanbul()) {
         return;
       }
 
-      if (!VMConfig.allowTvmStake()
-              && (opVal == 0xd9 || opVal == 0xd8 || opVal == 0xd5 || opVal == 0xd6
-                || opVal == 0xd7)) {
+      if (!VMConfig.allowTvmStake()) {
         return;
       }
 
-      if(!VMConfig.allowTvmAssetIssue() && (opVal == 0xda || opVal == 0xdb)) {
+      if(!VMConfig.allowTvmAssetIssue() && (opVal == 0xda)) {
         return;
       }
 
