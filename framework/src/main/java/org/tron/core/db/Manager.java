@@ -419,6 +419,7 @@ public class Manager {
     }
     else {
       // if has no --es, close self.
+      logger.info(" >>>>>>>>>>> has no --es , to close!!!!!!!!!!!!");
       ApplicationHandler.closeSelf();
     }
 
