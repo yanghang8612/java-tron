@@ -18,7 +18,7 @@ public class ApplicationHandler implements ApplicationContextAware {
   public static void closeSelf() {
     applicationContext.destroy();
     applicationContext.close();
-    System.exit(0);
+    System.exit(1);
   }
 
 }
