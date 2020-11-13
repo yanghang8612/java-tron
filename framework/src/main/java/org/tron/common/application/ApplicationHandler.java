@@ -28,9 +28,7 @@ public class ApplicationHandler implements ApplicationContextAware {
       ex.printStackTrace();
     }
 
-    System.out.println(">>>>>>>>>>>>>>>>> to exit1");
     System.exit(1);
-    System.out.println(">>>>>>>>>>>>>>>>> to exit2");
   }
 
 }

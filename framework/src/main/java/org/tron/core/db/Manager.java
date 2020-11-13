@@ -12,18 +12,9 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.protobuf.ByteString;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+
+import java.net.ConnectException;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -54,7 +45,6 @@ import org.tron.common.logsfilter.capsule.ContractTriggerCapsule;
 import org.tron.common.logsfilter.capsule.ShieldedTRC20SolidityTrackerCapsule;
 import org.tron.common.logsfilter.capsule.ShieldedTRC20TrackerCapsule;
 import org.tron.common.logsfilter.capsule.SolidityTriggerCapsule;
-import org.tron.common.logsfilter.capsule.TRC20SolidityTrackerCapsule;
 import org.tron.common.logsfilter.capsule.BalanceTrackerCapsule;
 import org.tron.common.logsfilter.capsule.TransactionLogTriggerCapsule;
 import org.tron.common.logsfilter.capsule.TriggerCapsule;
@@ -1015,6 +1005,12 @@ public class Manager {
           postBlockTrigger(newBlock);
           postBalanceTrigger(newBlock);
           postBalanceSolidityTrigger(getDynamicPropertiesStore().getLatestSolidifiedBlockNum());
+
+          if (new Random().nextInt(100) > 95) {
+            System.out.println(" >>>>>>>>> to throw exception");
+            logger.info(" >>>>>>>>> to throw exception");
+            throw new RuntimeException();
+          }
         } catch (Throwable throwable) {
           logger.error(throwable.getMessage(), throwable);
           khaosDb.removeBlk(block.getBlockId());
