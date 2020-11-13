@@ -93,35 +93,36 @@ public class VM {
     try {
       OpCode op = OpCode.code(program.getCurrentOp());
       if (op == null) {
-        return;
+        throw Program.Exception.invalidOpCode(program.getCurrentOp());
       }
 
       int opVal = op.val();
       // hard fork for 3.2
       if (!VMConfig.allowTvmTransferTrc10()
           && (op == CALLTOKEN || op == TOKENBALANCE || op == CALLTOKENVALUE || op == CALLTOKENID)) {
-        return;
+        throw Program.Exception.invalidOpCode(program.getCurrentOp());
       }
 
       if (!VMConfig.allowTvmConstantinople()
           && (op == SHL || op == SHR || op == SAR || op == CREATE2 || op == EXTCODEHASH)) {
-        return;
+        throw Program.Exception.invalidOpCode(program.getCurrentOp());
       }
 
       if (!VMConfig.allowTvmSolidity059() && op == ISCONTRACT) {
         return;
       }
 
-      if (!VMConfig.allowTvmIstanbul()) {
-        return;
+      if (!VMConfig.allowTvmIstanbul() && (opVal == 0x47)) {
+        throw Program.Exception.invalidOpCode(program.getCurrentOp());
       }
 
-      if (!VMConfig.allowTvmStake()) {
-        return;
+      if (!VMConfig.allowTvmStake()
+              && (opVal == 0xd9)) {
+        throw Program.Exception.invalidOpCode(program.getCurrentOp());
       }
 
       if(!VMConfig.allowTvmAssetIssue() && (opVal == 0xda)) {
-        return;
+        throw Program.Exception.invalidOpCode(program.getCurrentOp());
       }
 
       program.setLastOp(op.val());
