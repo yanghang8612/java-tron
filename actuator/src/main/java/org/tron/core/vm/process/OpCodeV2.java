@@ -518,7 +518,7 @@ public class OpCodeV2 {
 
       OpCode op = OpCode.code((byte)(res%256));
       if (op != null) {
-        res += op.require() + op.ret() + op.getTier().ordinal() + (op.isCall() ? 2 : 3);
+        res += op.require() + op.ret() + op.getTier().ordinal() + 1;//+ (op.isCall() ? 2 : 3);
       }else {
         res ++;
       }
@@ -531,7 +531,7 @@ public class OpCodeV2 {
 
       OpCode op = OpCode.code((byte)(res%256));
       if (op != null) {
-        res += op.require() + op.ret() + op.getTier().ordinal()+ (op.isCall() ? 2 : 3);
+        res += op.require() + op.ret() + op.getTier().ordinal() + 1;//+ (op.isCall() ? 2 : 3);
       }else {
         res ++;
       }
@@ -544,7 +544,7 @@ public class OpCodeV2 {
 
       int val = opsBasic_[(int)(res%256)];
       if (val > 0){
-        res += (val >> 14 & 0b11111) + (val >> 9 & 0b11111) + (val >> 5 & 0b1111) + (((val & 0b10000) == 0b10000) ? 2:3 );
+        res += (val >> 14 & 0b11111) + (val >> 9 & 0b11111) + (val >> 5 & 0b1111) + 1;//+ (((val & 0b10000) == 0b10000) ? 2:3 );
       }else {
         res ++;
       }
@@ -557,7 +557,7 @@ public class OpCodeV2 {
 
       int val = opsBasic_[(int)(res%256)];
       if (val > 0){
-        res += (val >> 14 & 0b11111) + (val >> 9 & 0b11111) + (val >> 5 & 0b1111) + (((val & 0b10000) == 0b10000) ? 2:3 );
+        res += (val >> 14 & 0b11111) + (val >> 9 & 0b11111) + (val >> 5 & 0b1111) + 1;//+ (((val & 0b10000) == 0b10000) ? 2:3 );
       }else {
         res ++;
       }
