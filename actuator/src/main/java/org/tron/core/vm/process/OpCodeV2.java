@@ -477,75 +477,89 @@ public class OpCodeV2 {
     long res = 0;
     int total;
     int s = 0;
-    total = 100000000;
+    total = 678900000;
 
 
     ///////
-    for (s = 0, res = 0, i = total, ts = System.nanoTime(); i > 0; i--){
+    s = 0; res = 0 ; ts = System.nanoTime();
+    while (res++ <= 678900000){
 
-      OpCode op = OpCode.code((byte)(i%256));
+      OpCode op = OpCode.code((byte)(res%256));
       if (op != null) {
-        ++s;
         res += op.require() + op.ret() + op.getTier().ordinal()+ (op.isCall() ? 2 : 3);
+//        System.out.println(res);
+      }else {
+        res ++;
       }
     }
-    logger.warn("3.1 result {}, {} times, timer {}", res, s, (System.nanoTime() - ts) / 1000_000.0);
+    logger.warn("0.0 result {}, {} times, timer {}", res, s, (System.nanoTime() - ts) / 1000_000.0);
 
 
 
     ///////
-    for (s = 0, res = 0, i = total, ts = System.nanoTime(); i > 0; i--){
+    int[] opsBasic_ = OpCodeV2.opsBasic;
+    s = 0; res = 0 ; ts = System.nanoTime();
+    while (res <= 678900000){
 
-      int val = opsBasic[i%256];
+      int val = opsBasic_[(int)(res%256)];
       if (val > 0){
-        ++s;
         res += (val >> 14 & 0b11111) + (val >> 9 & 0b11111) + (val >> 5 & 0b1111) + (((val & 0b10000) == 0b10000) ? 2:3 );
+      }else {
+        res ++;
       }
     }
-    logger.warn("3.1 result {}, {} times, timer {}", res, s, (System.nanoTime() - ts) / 1000_000.0);
+    logger.warn("0.0 result {}, {} times, timer {}", res, s, (System.nanoTime() - ts) / 1000_000.0);
 
     System.out.println("\n\n\n");
-    total = 1000000;
+    total = 100000000;
 
-    for (s = 0, res = 0, i = total, ts = System.nanoTime(); i > 0; i--){
+    s = 0; res = 0 ; ts = System.nanoTime();
+    while (res <= 678900000){
 
-      OpCode op = OpCode.code((byte)(i%256));
+      OpCode op = OpCode.code((byte)(res%256));
       if (op != null) {
-        ++s;
         res += op.require() + op.ret() + op.getTier().ordinal() + (op.isCall() ? 2 : 3);
+      }else {
+        res ++;
       }
     }
     logger.warn("1.0 result {}, {} times, timer {}", res, s, (System.nanoTime() - ts) / 1000_000.0);
 
     ///////
-    for (s = 0, res = 0, i = total, ts = System.nanoTime(); i > 0; i--){
+    s = 0; res = 0 ; ts = System.nanoTime();
+    while (res <= 678900000){
 
-      OpCode op = OpCode.code((byte)(i%256));
+      OpCode op = OpCode.code((byte)(res%256));
       if (op != null) {
-        ++s;
         res += op.require() + op.ret() + op.getTier().ordinal()+ (op.isCall() ? 2 : 3);
+      }else {
+        res ++;
       }
     }
     logger.warn("1.1 result {}, {} times, timer {}", res, s, (System.nanoTime() - ts) / 1000_000.0);
 
     ///////
-    for (s = 0, res = 0, i = total, ts = System.nanoTime(); i > 0; i--){
+    s = 0; res = 0 ; ts = System.nanoTime();
+    while (res <= 678900000){
 
-      int val = opsBasic[i%256];
+      int val = opsBasic_[(int)(res%256)];
       if (val > 0){
-        ++s;
         res += (val >> 14 & 0b11111) + (val >> 9 & 0b11111) + (val >> 5 & 0b1111) + (((val & 0b10000) == 0b10000) ? 2:3 );
+      }else {
+        res ++;
       }
     }
     logger.warn("2.0 result {}, {} times, timer {}", res, s, (System.nanoTime() - ts) / 1000_000.0);
 
     ///////
-    for (s = 0, res = 0, i = total, ts = System.nanoTime(); i > 0; i--){
+    s = 0; res = 0 ; ts = System.nanoTime();
+    while (res <= 678900000){
 
-      int val = opsBasic[i%256];
+      int val = opsBasic_[(int)(res%256)];
       if (val > 0){
-        ++s;
         res += (val >> 14 & 0b11111) + (val >> 9 & 0b11111) + (val >> 5 & 0b1111) + (((val & 0b10000) == 0b10000) ? 2:3 );
+      }else {
+        res ++;
       }
     }
     logger.warn("2.1 result {}, {} times, timer {}", res, s, (System.nanoTime() - ts) / 1000_000.0);
