@@ -236,6 +236,15 @@ public enum OpCode {
    * (0x45) Get the block’s gas limit
    */
   GASLIMIT(0x45, 0, 1, OpCode.Tier.BaseTier),
+  /**
+   *  (0x46) Get the chain id
+   */
+  CHAINID(0x46, 0, 1, OpCode.Tier.BaseTier),
+  /**
+   *  (0x47) Get current account balance
+   */
+  SELFBALANCE(0x47, 0, 1, Tier.LowTier),
+
 
   /*  Memory, Storage and Flow Operations */
 
@@ -576,7 +585,6 @@ public enum OpCode {
   CALLTOKENID(0xd3, 0, 1, OpCode.Tier.BaseTier),
 
   ISCONTRACT(0xd4, 1, 1, OpCode.Tier.ExtTier),
-
   /**
    * (0xf0) Create a new account with associated code
    */
