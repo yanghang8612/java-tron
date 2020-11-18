@@ -1,6 +1,8 @@
 package org.tron.core.vm;
 
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class EnergyCost {
 
   private static EnergyCost instance = null;
@@ -298,5 +300,64 @@ public class EnergyCost {
 
   public int getUpdateAsset() {
     return UPDATE_ASSET;
+  }
+
+  public static int[] costs = new int[64];
+  static {
+    costs[62] = 3;
+  }
+
+  public static void main(String[] args){
+    int i;
+    long ts;
+    long res = 0;
+    EnergyCost cost = EnergyCost.getInstance();
+    int total = 1000000000;
+
+    int[] _costs = EnergyCost.costs;
+    for (res = 0, i = total, ts = System.nanoTime(); i > 0; i--){
+      res = res + _costs[62];
+    }
+    logger.warn("2.0 result {}, timer {}", res, (System.nanoTime() - ts) / 1000_000.0);
+
+    for (res = 0, i = total, ts = System.nanoTime(); i > 0; i--){
+      res = res + _costs[62];
+    }
+    logger.warn("2.1 result {}, timer {}", res, (System.nanoTime() - ts) / 1000_000.0);
+
+
+    for (res = 0, i = total, ts = System.nanoTime(); i > 0; i--){
+      res = res + cost.getIDENTITY_WORD();
+    }
+
+    logger.warn("1.0 result {}, timer {}", res, (System.nanoTime() - ts) / 1000_000.0);
+
+    for (res = 0, i = total, ts = System.nanoTime(); i > 0; i--){
+      res = res + cost.getIDENTITY_WORD();
+    }
+    logger.warn("1.1 result {}, timer {}", res, (System.nanoTime() - ts) / 1000_000.0);
+
+
+    for (res = 0, i = total, ts = System.nanoTime(); i > 0; i--){
+      res = res + _costs[62];
+    }
+    logger.warn("2.2 result {}, timer {}", res, (System.nanoTime() - ts) / 1000_000.0);
+
+    for (res = 0, i = total, ts = System.nanoTime(); i > 0; i--){
+      res = res + _costs[62];
+    }
+    logger.warn("2.3 result {}, timer {}", res, (System.nanoTime() - ts) / 1000_000.0);
+
+    for (res = 0, i = total, ts = System.nanoTime(); i > 0; i--){
+      res = res + cost.getIDENTITY_WORD();
+    }
+
+    logger.warn("1.2 result {}, timer {}", res, (System.nanoTime() - ts) / 1000_000.0);
+
+    for (res = 0, i = total, ts = System.nanoTime(); i > 0; i--){
+      res = res + cost.getIDENTITY_WORD();
+    }
+    logger.warn("1.3 result {}, timer {}", res, (System.nanoTime() - ts) / 1000_000.0);
+
   }
 }

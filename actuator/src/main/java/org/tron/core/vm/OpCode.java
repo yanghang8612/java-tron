@@ -17,6 +17,8 @@
  */
 package org.tron.core.vm;
 
+import lombok.Getter;
+
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;

@@ -102,7 +102,7 @@ public class WalletUtil {
       System.arraycopy(Hash.sha3(sb.toString().getBytes()), 0, funcSelector, 0, 4);
       if (Arrays.equals(funcSelector, selector)) {
         if (entry.getConstant() || entry.getStateMutability()
-            .equals(StateMutabilityType.View)) {
+            .equals(StateMutabilityType.View)) {// pure, constant: false
           return true;
         } else {
           return false;
