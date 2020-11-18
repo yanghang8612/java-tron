@@ -110,6 +110,7 @@ import org.tron.common.parameter.CommonParameter;
 import org.tron.common.runtime.ProgramResult;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.ByteUtil;
+import org.tron.common.utils.Commons;
 import org.tron.common.utils.DecodeUtil;
 import org.tron.common.utils.Sha256Hash;
 import org.tron.common.utils.StringUtil;
@@ -270,12 +271,12 @@ public class Wallet {
   private TransactionUtil transactionUtil;
 
   private Thread monitorShieldedTrc20Thread = new Thread(new MonitorShieldedTRC20Runnalbe());
-  private static final byte[] mintMehtodSign = getSelector(Hash
+  private static final byte[] mintMehtodSign = WalletUtil.getSelector(Hash
       .sha3(ByteArray.fromString("mint(uint256,bytes32[9],bytes32[2],bytes32[21])")));
-  private static final byte[] transferMehtodSign = getSelector(Hash
+  private static final byte[] transferMehtodSign = WalletUtil.getSelector(Hash
       .sha3(ByteArray.fromString("transfer(bytes32[10][],bytes32[2][],bytes32[9][],bytes32[2],"
           + "bytes32[21][])")));
-  private static final byte[] burnMehtodSign = getSelector(Hash
+  private static final byte[] burnMehtodSign = WalletUtil.getSelector(Hash
       .sha3(ByteArray.fromString(
           "burn(bytes32[10],bytes32[2],uint256,bytes32[2],address,bytes32[3],bytes32[9][],"
               + "bytes32[21][])")));
@@ -283,10 +284,10 @@ public class Wallet {
   private static byte[] trc20ContractAddress = new byte[21];
 
   {
-    shieldedTRC20ContractAddress = Wallet
-        .decode58Check(Args.getInstance().getShieldedTrc20ContractAddress());
-    trc20ContractAddress = Wallet
-        .decode58Check(Args.getInstance().getTrc20ContractAddress());
+    shieldedTRC20ContractAddress = Commons.decodeFromBase58Check(
+        Args.getInstance().getShieldedTrc20ContractAddress());
+    trc20ContractAddress = Commons
+        .decodeFromBase58Check(Args.getInstance().getTrc20ContractAddress());
     if (!monitorShieldedTrc20Thread.isAlive()) {
       monitorShieldedTrc20Thread.start();
     }

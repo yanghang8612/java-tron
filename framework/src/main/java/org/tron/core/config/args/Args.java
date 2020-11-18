@@ -758,14 +758,14 @@ public class Args extends CommonParameter {
             config.hasPath(Constant.NODE_OPEN_HISTORY_QUERY_WHEN_LITEFN)
                     && config.getBoolean(Constant.NODE_OPEN_HISTORY_QUERY_WHEN_LITEFN));
 
-    INSTANCE.trc20ContractAddress = config.hasPath(Constant.TRC20_CONTRACT_ADDRESS) ? config
+    PARAMETER.trc20ContractAddress = config.hasPath(Constant.TRC20_CONTRACT_ADDRESS) ? config
         .getString(Constant.TRC20_CONTRACT_ADDRESS) : "";
 
-    INSTANCE.shieldedTrc20ContractAddress =
+    PARAMETER.shieldedTrc20ContractAddress =
         config.hasPath(Constant.SHIELDED_TRC20_CONTRACT_ADDRESS) ? config
             .getString(Constant.SHIELDED_TRC20_CONTRACT_ADDRESS) : "";
 
-    INSTANCE.startMonitorBlockNumber =
+    PARAMETER.startMonitorBlockNumber =
         config.hasPath(Constant.START_MONITOR_BLOCK_NUMBER) ? config
             .getLong(Constant.START_MONITOR_BLOCK_NUMBER) : 0;
 
