@@ -993,7 +993,7 @@ public class Manager {
 
           return;
         }
-        try (ISession tmpSession = revokingStore.buildSession()) {
+        try (ISession tmpSession = revokingStore.buildSession(true)) {
           applyBlock(newBlock);
           tmpSession.commit();
           // if event subscribe is enabled, post solidity trigger to queue
