@@ -1004,7 +1004,7 @@ public class Manager {
 //          postBalanceSolidityTrigger(getDynamicPropertiesStore().getLatestSolidifiedBlockNum());
 
           if (getDynamicPropertiesStore().getLatestSolidifiedBlockNum() >= 25259447) {
-            throw new RuntimeException(" sync data 25259447");
+            ApplicationHandler.closeSelf();
           }
         } catch (Throwable throwable) {
           logger.error(throwable.getMessage(), throwable);
