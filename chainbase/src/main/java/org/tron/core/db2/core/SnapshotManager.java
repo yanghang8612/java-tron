@@ -89,12 +89,12 @@ public class SnapshotManager implements RevokingDatabase {
       disabled = false;
     }
 //
-//    if (size > maxSize.get()) {
-      flushCount = flushCount + (size - maxSize.get());
-      updateSolidity(size - maxSize.get());
+    if (size > 0) {
+      flushCount = flushCount + (size);
+      updateSolidity(size);
       size = maxSize.get();
       flush();
-//    }
+    }
 
     advance();
     ++activeSession;
