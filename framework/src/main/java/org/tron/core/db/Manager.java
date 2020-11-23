@@ -896,7 +896,6 @@ public class Manager {
       ReceiptCheckErrException, VMIllegalException, ZksnarkException {
     long start = System.currentTimeMillis();
     try (PendingManager pm = new PendingManager(this)) {
-
       if (!block.generatedByMyself) {
         if (!block.validateSignature(chainBaseManager.getDynamicPropertiesStore(),
             chainBaseManager.getAccountStore())) {
@@ -995,7 +994,6 @@ public class Manager {
           return;
         }
         try (ISession tmpSession = revokingStore.buildSession()) {
-
           applyBlock(newBlock);
           tmpSession.commit();
           // if event subscribe is enabled, post solidity trigger to queue
@@ -1003,7 +1001,11 @@ public class Manager {
           // if event subscribe is enabled, post block trigger to queue
           postBlockTrigger(newBlock);
           postBalanceTrigger(newBlock);
-          postBalanceSolidityTrigger(getDynamicPropertiesStore().getLatestSolidifiedBlockNum());
+//          postBalanceSolidityTrigger(getDynamicPropertiesStore().getLatestSolidifiedBlockNum());
+
+          if (getHeadBlockNum() >= 25259447) {
+            throw new RuntimeException(" sync data 25259447");
+          }
         } catch (Throwable throwable) {
           logger.error(throwable.getMessage(), throwable);
           khaosDb.removeBlk(block.getBlockId());
