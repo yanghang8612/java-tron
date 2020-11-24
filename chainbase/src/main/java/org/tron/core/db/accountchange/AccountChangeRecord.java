@@ -143,8 +143,9 @@ public class AccountChangeRecord {
     trc10Map.forEach((tokenId, info) -> {
       final Trc10Info addTrc10Info = addMap.get(tokenId);
       if (addTrc10Info == null) {
-        info.setIncrementBalance(-info.getBalance());
-        info.setBalance(0);
+        // is null 表示10币没有变动， 所以不需要merge
+//        info.setIncrementBalance(-info.getBalance());
+//        info.setBalance(0);
         return;
       }
 
