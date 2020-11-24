@@ -80,18 +80,18 @@ public class SnapshotManager implements RevokingDatabase {
   }
 
   public synchronized ISession buildSession(boolean forceEnable) {
-//    if (disabled && !forceEnable) {
-//      return new Session(this);
-//    }
-//
+    if (disabled && !forceEnable) {
+      return new Session(this);
+    }
+
     boolean disableOnExit = disabled && forceEnable;
     if (forceEnable) {
       disabled = false;
     }
-//
-    if (size > 1) {
-      flushCount = flushCount + (size - 1);
-      updateSolidity(size - 1);
+
+    if (size > maxSize.get()) {
+      flushCount = flushCount + (size - maxSize.get());
+      updateSolidity(size - maxSize.get());
       size = maxSize.get();
       flush();
     }

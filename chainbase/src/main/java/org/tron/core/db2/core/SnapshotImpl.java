@@ -7,28 +7,22 @@ import com.google.common.collect.Streams;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.tron.core.db2.common.HashDB;
 import org.tron.core.db2.common.Key;
 import org.tron.core.db2.common.Value;
 import org.tron.core.db2.common.Value.Operator;
 import org.tron.core.db2.common.WrappedByteArray;
 
-@Slf4j
 public class SnapshotImpl extends AbstractSnapshot<Key, Value> {
 
   @Getter
   protected Snapshot root;
 
   SnapshotImpl(Snapshot snapshot) {
-    logger.error(" >>> " + snapshot, new RuntimeException(" for test"));
     root = snapshot.getRoot();
-    logger.error(" >>>>> root:{}", root);
-    logger.error(" >>>>> root:{}", root.getSolidity());
     previous = snapshot;
     snapshot.setNext(this);
     synchronized (this) {
