@@ -80,7 +80,7 @@ public class BalanceTrackerCapsule extends TriggerCapsule {
     trx.setEnergyFrozenBalance(String.valueOf(info.getEnergyFrozenBalance()));
     trx.setDelegatedFrozenBalanceForEnergy(String.valueOf(info.getDelegatedFrozenBalanceForEnergy()));
     trx.setDelegatedFrozenBalanceForBandwidth(String.valueOf(info.getDelegatedFrozenBalanceForBandwidth()));
-    trx.setFrozenSupplyBalance(String.valueOf(info.getFrozenBalance()));
+    trx.setFrozenSupplyBalance(String.valueOf(info.getFrozenSupplyBalance()));
     trx.setAcquiredDelegatedFrozenBalanceForEnergy(String.valueOf(info.getAcquiredDelegatedFrozenBalanceForEnergy()));
     trx.setAcquiredDelegatedFrozenBalanceForBandwidth(String.valueOf(info.getAcquiredDelegatedFrozenBalanceForBandwidth()));
 

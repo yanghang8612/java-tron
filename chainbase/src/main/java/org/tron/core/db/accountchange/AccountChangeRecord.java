@@ -233,6 +233,8 @@ public class AccountChangeRecord {
               && info.getIncrementEnergyFrozenBalance() == 0
               && info.getIncrementDelegatedFrozenBalanceForEnergy() == 0
               && info.getIncrementDelegatedFrozenBalanceForBandwidth() == 0
+              && info.getIncrementAcquiredDelegatedFrozenBalanceForEnergy() == 0
+              && info.getIncrementAcquiredDelegatedFrozenBalanceForBandwidth() == 0
               && info.getTrc10Map() == null) {
         return null;
       }
