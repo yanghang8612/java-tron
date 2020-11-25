@@ -75,7 +75,6 @@ import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.capsule.BlockCapsule.BlockId;
 import org.tron.core.capsule.BytesCapsule;
 import org.tron.core.capsule.ContractCapsule;
-import org.tron.core.capsule.ExchangeCapsule;
 import org.tron.core.capsule.TransactionCapsule;
 import org.tron.core.capsule.TransactionInfoCapsule;
 import org.tron.core.capsule.TransactionRetCapsule;
@@ -1001,11 +1000,7 @@ public class Manager {
           // if event subscribe is enabled, post block trigger to queue
           postBlockTrigger(newBlock);
           postBalanceTrigger(newBlock);
-//          postBalanceSolidityTrigger(getDynamicPropertiesStore().getLatestSolidifiedBlockNum());
-
-          if (getDynamicPropertiesStore().getLatestSolidifiedBlockNum() >= 25259447) {
-            ApplicationHandler.closeSelf();
-          }
+          postBalanceSolidityTrigger(getDynamicPropertiesStore().getLatestSolidifiedBlockNum());
         } catch (Throwable throwable) {
           logger.error(throwable.getMessage(), throwable);
           khaosDb.removeBlk(block.getBlockId());
