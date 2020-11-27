@@ -16,6 +16,7 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger.AssetStatusPojo;
 import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger.ConcernTopics;
+import org.tron.common.parameter.CommonParameter;
 import org.tron.common.runtime.ProgramResult;
 import org.tron.common.runtime.vm.LogInfo;
 import org.tron.common.utils.Commons;
@@ -160,6 +161,9 @@ public class TRC20Utils {
       }
 
     }
+
+
+    CommonParameter.getInstance().setDebug(true);
     for (
         String keys : incrementMap.keySet()) {
       // foreach address try to get it's balance.
@@ -177,6 +181,7 @@ public class TRC20Utils {
       }
     }
 
+    CommonParameter.getInstance().setDebug(false);
     logger.debug("incrementMap: {}", incrementMap);
     logger.debug("balanceMap: {}", balanceMap);
     logger.debug("decimalsMap: {}", decimalMap);
