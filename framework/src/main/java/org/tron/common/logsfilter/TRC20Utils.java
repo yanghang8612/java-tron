@@ -48,6 +48,8 @@ public class TRC20Utils {
       } catch (Exception e) {
       }
     }
+
+    logger.error(" >>>>> getTRC20Decimal get error, {}", contractAddress);
     return null;
 
   }
@@ -88,6 +90,8 @@ public class TRC20Utils {
       } catch (Exception e) {
       }
     }
+
+    logger.error(" >>>>> getTRC20Balance get error, {}, ownerAddress:{}", contractAddress, ownerAddress);
     return null;
 
   }
