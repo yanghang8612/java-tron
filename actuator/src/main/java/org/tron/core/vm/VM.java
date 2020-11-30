@@ -92,6 +92,7 @@ public class VM {
 
     try {
       OpCode op = OpCode.code(program.getCurrentOp());
+      int opByte = op.val() & 0xff;
       if (op == null) {
         throw Program.Exception.invalidOpCode(program.getCurrentOp());
       }
@@ -121,7 +122,7 @@ public class VM {
         throw Program.Exception.invalidOpCode(program.getCurrentOp());
       }
 
-      if(!VMConfig.allowTvmAssetIssue() && (op == TOKENISSUE || op == UPDATEASSET)) {
+      if (!VMConfig.allowTvmAssetIssue() && (op == TOKENISSUE || op == UPDATEASSET)) {
         throw Program.Exception.invalidOpCode(program.getCurrentOp());
       }
 
@@ -138,11 +139,11 @@ public class VM {
       DataWord adjustedCallEnergy = null;
 
       // Calculate fees and spend energy
-      switch (op) {
-        case STOP:
+      switch (opByte) {
+        case 0x00:
           energyCost = energyCosts.getSTOP();
           break;
-        case SUICIDE:
+        case 0xff:
           energyCost = energyCosts.getSUICIDE();
           DataWord suicideAddressWord = stack.get(stack.size() - 1);
           if (isDeadAccount(program, suicideAddressWord)
@@ -150,7 +151,7 @@ public class VM {
             energyCost += energyCosts.getNEW_ACCT_SUICIDE();
           }
           break;
-        case SSTORE:
+        case 0x55:
           // todo: check the reset to 0, refund or not
           DataWord newValue = stack.get(stack.size() - 2);
           DataWord oldValue = program.storageLoad(stack.peek());
@@ -168,72 +169,72 @@ public class VM {
             energyCost = energyCosts.getRESET_SSTORE();
           }
           break;
-        case SLOAD:
+        case 0x54:
           energyCost = energyCosts.getSLOAD();
           break;
-        case TOKENBALANCE:
-        case BALANCE:
-        case REWARDBALANCE:
-        case ISCONTRACT:
-        case ISSRCANDIDATE:
+        case 0xd1:
+        case 0x31:
+        case 0xd8:
+        case 0xd4:
+        case 0xd9:
           energyCost = energyCosts.getBALANCE();
           break;
 
         // These all operate on memory and therefore potentially expand it:
-        case MSTORE:
+        case 0x52:
           energyCost = calcMemEnergy(energyCosts, oldMemSize,
               memNeeded(stack.peek(), new DataWord(32)),
               0, op);
           break;
-        case MSTORE8:
+        case 0x53:
           energyCost = calcMemEnergy(energyCosts, oldMemSize,
               memNeeded(stack.peek(), new DataWord(1)),
               0, op);
           break;
-        case MLOAD:
+        case 0x51:
           energyCost = calcMemEnergy(energyCosts, oldMemSize,
               memNeeded(stack.peek(), new DataWord(32)),
               0, op);
           break;
-        case RETURN:
-        case REVERT:
+        case 0xf3:
+        case 0xfd:
           energyCost = energyCosts.getSTOP() + calcMemEnergy(energyCosts, oldMemSize,
               memNeeded(stack.peek(), stack.get(stack.size() - 2)), 0, op);
           break;
-        case SHA3:
+        case 0x20:
           energyCost = energyCosts.getSHA3() + calcMemEnergy(energyCosts, oldMemSize,
               memNeeded(stack.peek(), stack.get(stack.size() - 2)), 0, op);
           DataWord size = stack.get(stack.size() - 2);
           long chunkUsed = (size.longValueSafe() + 31) / 32;
           energyCost += chunkUsed * energyCosts.getSHA3_WORD();
           break;
-        case CALLDATACOPY:
-        case RETURNDATACOPY:
+        case 0x37:
+        case 0x3e:
           energyCost = calcMemEnergy(energyCosts, oldMemSize,
               memNeeded(stack.peek(), stack.get(stack.size() - 3)),
               stack.get(stack.size() - 3).longValueSafe(), op);
           break;
-        case CODECOPY:
+        case 0x39:
           energyCost = calcMemEnergy(energyCosts, oldMemSize,
               memNeeded(stack.peek(), stack.get(stack.size() - 3)),
               stack.get(stack.size() - 3).longValueSafe(), op);
           break;
-        case EXTCODESIZE:
+        case 0x3b:
           energyCost = energyCosts.getEXT_CODE_SIZE();
           break;
-        case EXTCODECOPY:
+        case 0x3c:
           energyCost = energyCosts.getEXT_CODE_COPY() + calcMemEnergy(energyCosts, oldMemSize,
               memNeeded(stack.get(stack.size() - 2), stack.get(stack.size() - 4)),
               stack.get(stack.size() - 4).longValueSafe(), op);
           break;
-        case EXTCODEHASH:
+        case 0x3f:
           energyCost = energyCosts.getEXT_CODE_HASH();
           break;
-        case CALL:
-        case CALLCODE:
-        case DELEGATECALL:
-        case STATICCALL:
-        case CALLTOKEN:
+        case 0xf1:
+        case 0xf2:
+        case 0xf4:
+        case 0xfa:
+        case 0xd0:
           // here, contract call an other contract, or a library, and so on
           energyCost = energyCosts.getCALL();
           DataWord callEnergyWord = stack.get(stack.size() - 1);
@@ -241,7 +242,7 @@ public class VM {
           DataWord value = op.callHasValue() ? stack.get(stack.size() - 3) : DataWord.ZERO;
 
           //check to see if account does not exist and is not a precompiled contract
-          if ((op == CALL || op == CALLTOKEN)
+          if ((opByte == 0xf1 || opByte == 0xd0)
               && isDeadAccount(program, callAddressWord)
               && !value.isZero()) {
             energyCost += energyCosts.getNEW_ACCT_CALL();
@@ -253,7 +254,7 @@ public class VM {
           }
 
           int opOff = op.callHasValue() ? 4 : 3;
-          if (op == CALLTOKEN) {
+          if (opByte == 0xd0) {
             opOff++;
           }
           BigInteger in = memNeeded(stack.get(stack.size() - opOff),
@@ -275,11 +276,11 @@ public class VM {
           adjustedCallEnergy = program.getCallEnergy(op, callEnergyWord, getEnergyLimitLeft);
           energyCost += adjustedCallEnergy.longValueSafe();
           break;
-        case CREATE:
+        case 0xf0:
           energyCost = energyCosts.getCREATE() + calcMemEnergy(energyCosts, oldMemSize,
               memNeeded(stack.get(stack.size() - 2), stack.get(stack.size() - 3)), 0, op);
           break;
-        case CREATE2:
+        case 0xf5:
           DataWord codeSize = stack.get(stack.size() - 3);
           energyCost = energyCosts.getCREATE();
           energyCost += calcMemEnergy(energyCosts, oldMemSize,
@@ -287,11 +288,11 @@ public class VM {
           energyCost += DataWord.sizeInWords(codeSize.intValueSafe()) * energyCosts.getSHA3_WORD();
 
           break;
-        case LOG0:
-        case LOG1:
-        case LOG2:
-        case LOG3:
-        case LOG4:
+        case 0xa0:
+        case 0xa1:
+        case 0xa2:
+        case 0xa3:
+        case 0xa4:
           int nTopics = op.val() - OpCode.LOG0.val();
           BigInteger dataSize = stack.get(stack.size() - 2).value();
           BigInteger dataCost = dataSize
@@ -310,24 +311,24 @@ public class VM {
 
           checkMemorySize(op, memNeeded(stack.peek(), stack.get(stack.size() - 2)));
           break;
-        case EXP:
+        case 0x0a:
 
           DataWord exp = stack.get(stack.size() - 2);
           int bytesOccupied = exp.bytesOccupied();
           energyCost =
               (long) energyCosts.getEXP_ENERGY() + energyCosts.getEXP_BYTE_ENERGY() * bytesOccupied;
           break;
-        case STAKE:
-        case UNSTAKE:
+        case 0xd5:
+        case 0xd6:
           energyCost = energyCosts.getStakeAndUnstake();
           break;
-        case WITHDRAWREWARD:
+        case 0xd7:
           energyCost = energyCosts.getWithdrawReward();
           break;
-        case TOKENISSUE:
+        case 0xda:
           energyCost = energyCosts.getTokenIssue();
           break;
-        case UPDATEASSET:
+        case 0xdb:
           energyCost = energyCosts.getUpdateAsset();
           break;
         default:
@@ -338,16 +339,16 @@ public class VM {
       program.checkCPUTimeLimit(op.name());
 
       // Execute operation
-      switch (op) {
+      switch (opByte) {
         /**
          * Stop and Arithmetic Operations
          */
-        case STOP: {
+        case 0x00: {
           program.setHReturn(EMPTY_BYTE_ARRAY);
           program.stop();
         }
         break;
-        case ADD: {
+        case 0x01: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
 
@@ -361,7 +362,7 @@ public class VM {
 
         }
         break;
-        case MUL: {
+        case 0x02: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
 
@@ -374,7 +375,7 @@ public class VM {
           program.step();
         }
         break;
-        case SUB: {
+        case 0x03: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
 
@@ -387,7 +388,7 @@ public class VM {
           program.step();
         }
         break;
-        case DIV: {
+        case 0x04: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
 
@@ -400,7 +401,7 @@ public class VM {
           program.step();
         }
         break;
-        case SDIV: {
+        case 0x05: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
 
@@ -413,7 +414,7 @@ public class VM {
           program.step();
         }
         break;
-        case MOD: {
+        case 0x06: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
 
@@ -426,7 +427,7 @@ public class VM {
           program.step();
         }
         break;
-        case SMOD: {
+        case 0x07: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
 
@@ -439,7 +440,7 @@ public class VM {
           program.step();
         }
         break;
-        case EXP: {
+        case 0x0a: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
 
@@ -452,7 +453,7 @@ public class VM {
           program.step();
         }
         break;
-        case SIGNEXTEND: {
+        case 0x0b: {
           DataWord word1 = program.stackPop();
           BigInteger k = word1.value();
 
@@ -467,7 +468,7 @@ public class VM {
           program.step();
         }
         break;
-        case NOT: {
+        case 0x19: {
           DataWord word1 = program.stackPop();
           word1.bnot();
 
@@ -479,7 +480,7 @@ public class VM {
           program.step();
         }
         break;
-        case LT: {
+        case 0x10: {
           // TODO: can be improved by not using BigInteger
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
@@ -498,7 +499,7 @@ public class VM {
           program.step();
         }
         break;
-        case SLT: {
+        case 0x12: {
           // TODO: can be improved by not using BigInteger
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
@@ -517,7 +518,7 @@ public class VM {
           program.step();
         }
         break;
-        case SGT: {
+        case 0x13: {
           // TODO: can be improved by not using BigInteger
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
@@ -536,7 +537,7 @@ public class VM {
           program.step();
         }
         break;
-        case GT: {
+        case 0x11: {
           // TODO: can be improved by not using BigInteger
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
@@ -555,7 +556,7 @@ public class VM {
           program.step();
         }
         break;
-        case EQ: {
+        case 0x14: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
 
@@ -573,7 +574,7 @@ public class VM {
           program.step();
         }
         break;
-        case ISZERO: {
+        case 0x15: {
           DataWord word1 = program.stackPop();
           if (word1.isZero()) {
             word1.getData()[31] = 1;
@@ -593,7 +594,7 @@ public class VM {
         /**
          * Bitwise Logic Operations
          */
-        case AND: {
+        case 0x16: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
 
@@ -606,7 +607,7 @@ public class VM {
           program.step();
         }
         break;
-        case OR: {
+        case 0x17: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
 
@@ -619,7 +620,7 @@ public class VM {
           program.step();
         }
         break;
-        case XOR: {
+        case 0x18: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
 
@@ -632,7 +633,7 @@ public class VM {
           program.step();
         }
         break;
-        case BYTE: {
+        case 0x1a: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
           final DataWord result;
@@ -653,7 +654,7 @@ public class VM {
           program.step();
         }
         break;
-        case SHL: {
+        case 0x1b: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
           final DataWord result = word2.shiftLeft(word1);
@@ -666,7 +667,7 @@ public class VM {
           program.step();
         }
         break;
-        case SHR: {
+        case 0x1c: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
           final DataWord result = word2.shiftRight(word1);
@@ -679,7 +680,7 @@ public class VM {
           program.step();
         }
         break;
-        case SAR: {
+        case 0x1d: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
           final DataWord result = word2.shiftRightSigned(word1);
@@ -692,7 +693,7 @@ public class VM {
           program.step();
         }
         break;
-        case ADDMOD: {
+        case 0x08: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
           DataWord word3 = program.stackPop();
@@ -701,7 +702,7 @@ public class VM {
           program.step();
         }
         break;
-        case MULMOD: {
+        case 0x09: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
           DataWord word3 = program.stackPop();
@@ -714,7 +715,7 @@ public class VM {
         /**
          * SHA3
          */
-        case SHA3: {
+        case 0x20: {
           DataWord memOffsetData = program.stackPop();
           DataWord lengthData = program.stackPop();
           byte[] buffer = program
@@ -735,7 +736,7 @@ public class VM {
         /**
          * Environmental Information
          */
-        case ADDRESS: {
+        case 0x30: {
           DataWord address = program.getContractAddress();
           if (VMConfig.allowMultiSign()) { // allowMultiSigns proposal
             address = new DataWord(address.getLast20Bytes());
@@ -749,7 +750,7 @@ public class VM {
           program.step();
         }
         break;
-        case BALANCE: {
+        case 0x31: {
           DataWord address = program.stackPop();
           DataWord balance = program.getBalance(address);
 
@@ -763,7 +764,7 @@ public class VM {
           program.step();
         }
         break;
-        case REWARDBALANCE: {
+        case 0xd8: {
           DataWord address = program.stackPop();
           DataWord rewardBalance = program.getRewardBalance(address);
 
@@ -777,7 +778,7 @@ public class VM {
           program.step();
         }
         break;
-        case ISCONTRACT: {
+        case 0xd4: {
           DataWord address = program.stackPop();
           DataWord isContract = program.isContract(address);
 
@@ -785,7 +786,7 @@ public class VM {
           program.step();
         }
         break;
-        case ISSRCANDIDATE: {
+        case 0xd9: {
           DataWord address = program.stackPop();
           DataWord isSRCandidate = program.isSRCandidate(address);
 
@@ -793,7 +794,7 @@ public class VM {
           program.step();
         }
         break;
-        case ORIGIN: {
+        case 0x32: {
           DataWord originAddress = program.getOriginAddress();
 
           if (VMConfig.allowMultiSign()) { //allowMultiSign proposal
@@ -808,7 +809,7 @@ public class VM {
           program.step();
         }
         break;
-        case CALLER: {
+        case 0x33: {
           DataWord callerAddress = program.getCallerAddress();
           /**
            since we use 21 bytes address instead of 20 as etherum, we need to make sure
@@ -823,7 +824,7 @@ public class VM {
           program.step();
         }
         break;
-        case CALLVALUE: {
+        case 0x34: {
           DataWord callValue = program.getCallValue();
 
           if (logger.isDebugEnabled()) {
@@ -834,7 +835,7 @@ public class VM {
           program.step();
         }
         break;
-        case CALLTOKENVALUE:
+        case 0xd2:
           DataWord tokenValue = program.getTokenValue();
 
           if (logger.isDebugEnabled()) {
@@ -844,7 +845,7 @@ public class VM {
           program.stackPush(tokenValue);
           program.step();
           break;
-        case CALLTOKENID:
+        case 0xd3:
           DataWord _tokenId = program.getTokenId();
 
           if (logger.isDebugEnabled()) {
@@ -854,7 +855,7 @@ public class VM {
           program.stackPush(_tokenId);
           program.step();
           break;
-        case CALLDATALOAD: {
+        case 0x35: {
           DataWord dataOffs = program.stackPop();
           DataWord value = program.getDataValue(dataOffs);
 
@@ -866,7 +867,7 @@ public class VM {
           program.step();
         }
         break;
-        case CALLDATASIZE: {
+        case 0x36: {
           DataWord dataSize = program.getDataSize();
 
           if (logger.isDebugEnabled()) {
@@ -877,7 +878,7 @@ public class VM {
           program.step();
         }
         break;
-        case CALLDATACOPY: {
+        case 0x37: {
           DataWord memOffsetData = program.stackPop();
           DataWord dataOffsetData = program.stackPop();
           DataWord lengthData = program.stackPop();
@@ -892,7 +893,7 @@ public class VM {
           program.step();
         }
         break;
-        case RETURNDATASIZE: {
+        case 0x3d: {
           DataWord dataSize = program.getReturnDataBufferSize();
 
           if (logger.isDebugEnabled()) {
@@ -903,7 +904,7 @@ public class VM {
           program.step();
         }
         break;
-        case RETURNDATACOPY: {
+        case 0x3e: {
           DataWord memOffsetData = program.stackPop();
           DataWord dataOffsetData = program.stackPop();
           DataWord lengthData = program.stackPop();
@@ -923,11 +924,11 @@ public class VM {
           program.step();
         }
         break;
-        case CODESIZE:
-        case EXTCODESIZE: {
+        case 0x38:
+        case 0x3b: {
 
           int length;
-          if (op == OpCode.CODESIZE) {
+          if (opByte == 0x38) {
             length = program.getCode().length;
           } else {
             DataWord address = program.stackPop();
@@ -943,15 +944,15 @@ public class VM {
           program.step();
           break;
         }
-        case CODECOPY:
-        case EXTCODECOPY: {
+        case 0x39:
+        case 0x3c: {
 
           byte[] fullCode = EMPTY_BYTE_ARRAY;
-          if (op == OpCode.CODECOPY) {
+          if (opByte == 0x39) {
             fullCode = program.getCode();
           }
 
-          if (op == OpCode.EXTCODECOPY) {
+          if (opByte == 0x3c) {
             DataWord address = program.stackPop();
             fullCode = program.getCodeAt(address);
           }
@@ -979,14 +980,14 @@ public class VM {
           program.step();
           break;
         }
-        case EXTCODEHASH: {
+        case 0x3f: {
           DataWord address = program.stackPop();
           byte[] codeHash = program.getCodeHashAt(address);
           program.stackPush(codeHash);
           program.step();
         }
         break;
-        case GASPRICE: {
+        case 0x3a: {
           DataWord energyPrice = new DataWord(0);
 
           if (logger.isDebugEnabled()) {
@@ -1001,7 +1002,7 @@ public class VM {
         /**
          * Block Information
          */
-        case BLOCKHASH: {
+        case 0x40: {
 
           int blockIndex = program.stackPop().intValueSafe();
 
@@ -1015,7 +1016,7 @@ public class VM {
           program.step();
         }
         break;
-        case COINBASE: {
+        case 0x41: {
           DataWord coinbase = program.getCoinbase();
 
           if (logger.isDebugEnabled()) {
@@ -1026,7 +1027,7 @@ public class VM {
           program.step();
         }
         break;
-        case TIMESTAMP: {
+        case 0x42: {
           DataWord timestamp = program.getTimestamp();
 
           if (logger.isDebugEnabled()) {
@@ -1037,7 +1038,7 @@ public class VM {
           program.step();
         }
         break;
-        case NUMBER: {
+        case 0x43: {
           DataWord number = program.getNumber();
 
           if (logger.isDebugEnabled()) {
@@ -1048,7 +1049,7 @@ public class VM {
           program.step();
         }
         break;
-        case DIFFICULTY: {
+        case 0x44: {
           DataWord difficulty = program.getDifficulty();
 
           if (logger.isDebugEnabled()) {
@@ -1059,7 +1060,7 @@ public class VM {
           program.step();
         }
         break;
-        case GASLIMIT: {
+        case 0x45: {
           // todo: this energylimit is the block's energy limit
           DataWord energyLimit = new DataWord(0);
 
@@ -1071,39 +1072,39 @@ public class VM {
           program.step();
         }
         break;
-        case CHAINID: {
+        case 0x46: {
           DataWord chainId = program.getChainId();
           program.stackPush(chainId);
           program.step();
           break;
         }
-        case SELFBALANCE: {
+        case 0x47: {
           DataWord selfBalance = program.getBalance(program.getContractAddress());
           program.stackPush(selfBalance);
           program.step();
           break;
         }
-        case POP: {
+        case 0x50: {
           program.stackPop();
           program.step();
         }
         break;
-        case DUP1:
-        case DUP2:
-        case DUP3:
-        case DUP4:
-        case DUP5:
-        case DUP6:
-        case DUP7:
-        case DUP8:
-        case DUP9:
-        case DUP10:
-        case DUP11:
-        case DUP12:
-        case DUP13:
-        case DUP14:
-        case DUP15:
-        case DUP16: {
+        case 0x80:
+        case 0x81:
+        case 0x82:
+        case 0x83:
+        case 0x84:
+        case 0x85:
+        case 0x86:
+        case 0x87:
+        case 0x88:
+        case 0x89:
+        case 0x8a:
+        case 0x8b:
+        case 0x8c:
+        case 0x8d:
+        case 0x8e:
+        case 0x8f: {
 
           int n = op.val() - OpCode.DUP1.val() + 1;
           DataWord word_1 = stack.get(stack.size() - n);
@@ -1112,33 +1113,33 @@ public class VM {
 
           break;
         }
-        case SWAP1:
-        case SWAP2:
-        case SWAP3:
-        case SWAP4:
-        case SWAP5:
-        case SWAP6:
-        case SWAP7:
-        case SWAP8:
-        case SWAP9:
-        case SWAP10:
-        case SWAP11:
-        case SWAP12:
-        case SWAP13:
-        case SWAP14:
-        case SWAP15:
-        case SWAP16: {
+        case 0x90:
+        case 0x91:
+        case 0x92:
+        case 0x93:
+        case 0x94:
+        case 0x95:
+        case 0x96:
+        case 0x97:
+        case 0x98:
+        case 0x99:
+        case 0x9a:
+        case 0x9b:
+        case 0x9c:
+        case 0x9d:
+        case 0x9e:
+        case 0x9f: {
 
           int n = op.val() - OpCode.SWAP1.val() + 2;
           stack.swap(stack.size() - 1, stack.size() - n);
           program.step();
           break;
         }
-        case LOG0:
-        case LOG1:
-        case LOG2:
-        case LOG3:
-        case LOG4: {
+        case 0xa0:
+        case 0xa1:
+        case 0xa2:
+        case 0xa3:
+        case 0xa4: {
 
           if (program.isStaticCall()) {
             throw new Program.StaticCallModificationException();
@@ -1169,7 +1170,7 @@ public class VM {
           program.step();
           break;
         }
-        case MLOAD: {
+        case 0x51: {
           DataWord addr = program.stackPop();
           DataWord data = program.memoryLoad(addr);
 
@@ -1181,7 +1182,7 @@ public class VM {
           program.step();
         }
         break;
-        case MSTORE: {
+        case 0x52: {
           DataWord addr = program.stackPop();
           DataWord value = program.stackPop();
 
@@ -1193,7 +1194,7 @@ public class VM {
           program.step();
         }
         break;
-        case MSTORE8: {
+        case 0x53: {
           DataWord addr = program.stackPop();
           DataWord value = program.stackPop();
           byte[] byteVal = {value.getData()[31]};
@@ -1201,7 +1202,7 @@ public class VM {
           program.step();
         }
         break;
-        case SLOAD: {
+        case 0x54: {
           DataWord key = program.stackPop();
           DataWord val = program.storageLoad(key);
 
@@ -1217,7 +1218,7 @@ public class VM {
           program.step();
         }
         break;
-        case SSTORE: {
+        case 0x55: {
           if (program.isStaticCall()) {
             throw new Program.StaticCallModificationException();
           }
@@ -1235,7 +1236,7 @@ public class VM {
           program.step();
         }
         break;
-        case JUMP: {
+        case 0x56: {
           DataWord pos = program.stackPop();
           int nextPC = program.verifyJumpDest(pos);
 
@@ -1247,7 +1248,7 @@ public class VM {
 
         }
         break;
-        case JUMPI: {
+        case 0x57: {
           DataWord pos = program.stackPop();
           DataWord cond = program.stackPop();
 
@@ -1265,7 +1266,7 @@ public class VM {
 
         }
         break;
-        case PC: {
+        case 0x58: {
           int pc = program.getPC();
           DataWord pcWord = new DataWord(pc);
 
@@ -1277,7 +1278,7 @@ public class VM {
           program.step();
         }
         break;
-        case MSIZE: {
+        case 0x59: {
           int memSize = program.getMemSize();
           DataWord wordMemSize = new DataWord(memSize);
 
@@ -1289,7 +1290,7 @@ public class VM {
           program.step();
         }
         break;
-        case GAS: {
+        case 0x5a: {
           DataWord energy = program.getEnergyLimitLeft();
           if (logger.isDebugEnabled()) {
             hint = "" + energy;
@@ -1300,38 +1301,38 @@ public class VM {
         }
         break;
 
-        case PUSH1:
-        case PUSH2:
-        case PUSH3:
-        case PUSH4:
-        case PUSH5:
-        case PUSH6:
-        case PUSH7:
-        case PUSH8:
-        case PUSH9:
-        case PUSH10:
-        case PUSH11:
-        case PUSH12:
-        case PUSH13:
-        case PUSH14:
-        case PUSH15:
-        case PUSH16:
-        case PUSH17:
-        case PUSH18:
-        case PUSH19:
-        case PUSH20:
-        case PUSH21:
-        case PUSH22:
-        case PUSH23:
-        case PUSH24:
-        case PUSH25:
-        case PUSH26:
-        case PUSH27:
-        case PUSH28:
-        case PUSH29:
-        case PUSH30:
-        case PUSH31:
-        case PUSH32: {
+        case 0x60:
+        case 0x61:
+        case 0x62:
+        case 0x63:
+        case 0x64:
+        case 0x65:
+        case 0x66:
+        case 0x67:
+        case 0x68:
+        case 0x69:
+        case 0x6a:
+        case 0x6b:
+        case 0x6c:
+        case 0x6d:
+        case 0x6e:
+        case 0x6f:
+        case 0x70:
+        case 0x71:
+        case 0x72:
+        case 0x73:
+        case 0x74:
+        case 0x75:
+        case 0x76:
+        case 0x77:
+        case 0x78:
+        case 0x79:
+        case 0x7a:
+        case 0x7b:
+        case 0x7c:
+        case 0x7d:
+        case 0x7e:
+        case 0x7f: {
           program.step();
           int nPush = op.val() - PUSH1.val() + 1;
 
@@ -1344,11 +1345,11 @@ public class VM {
           program.stackPush(data);
           break;
         }
-        case JUMPDEST: {
+        case 0x5b: {
           program.step();
         }
         break;
-        case CREATE: {
+        case 0xf0: {
           if (program.isStaticCall()) {
             throw new Program.StaticCallModificationException();
           }
@@ -1360,7 +1361,7 @@ public class VM {
           program.step();
         }
         break;
-        case CREATE2: {
+        case 0xf5: {
           if (program.isStaticCall()) {
             throw new Program.StaticCallModificationException();
           }
@@ -1372,7 +1373,7 @@ public class VM {
           program.step();
         }
         break;
-        case TOKENBALANCE: {
+        case 0xd1: {
           DataWord tokenId = program.stackPop();
           DataWord address = program.stackPop();
           DataWord tokenBalance = program.getTokenBalance(address, tokenId);
@@ -1381,11 +1382,11 @@ public class VM {
           program.step();
         }
         break;
-        case CALL:
-        case CALLCODE:
-        case CALLTOKEN:
-        case DELEGATECALL:
-        case STATICCALL: {
+        case 0xf1:
+        case 0xf2:
+        case 0xd0:
+        case 0xf4:
+        case 0xfa: {
           program.stackPop(); // use adjustedCallEnergy instead of requested
           DataWord codeAddress = program.stackPop();
 
@@ -1396,7 +1397,7 @@ public class VM {
             value = DataWord.ZERO;
           }
 
-          if (program.isStaticCall() && (op == CALL || op == CALLTOKEN) && !value.isZero()) {
+          if (program.isStaticCall() && (opByte == 0xf1 || opByte == 0xd0) && !value.isZero()) {
             throw new Program.StaticCallModificationException();
           }
 
@@ -1406,7 +1407,7 @@ public class VM {
 
           DataWord tokenId = new DataWord(0);
           boolean isTokenTransferMsg = false;
-          if (op == CALLTOKEN) {
+          if (opByte == 0xd0) {
             tokenId = program.stackPop();
             if (VMConfig.allowMultiSign()) { // allowMultiSign proposal
               isTokenTransferMsg = true;
@@ -1452,7 +1453,7 @@ public class VM {
           program.step();
           break;
         }
-        case STAKE: {
+        case 0xd5: {
           DataWord srAddress = program.stackPop();
           DataWord stakeAmount = program.stackPop();
           boolean result = program.stake(srAddress, stakeAmount);
@@ -1461,19 +1462,19 @@ public class VM {
           program.step();
         }
         break;
-        case UNSTAKE: {
+        case 0xd6: {
           boolean result = program.unstake();
           program.stackPush(new DataWord(result ? 1 : 0));
 
           program.step();
         }
         break;
-        case WITHDRAWREWARD: {
+        case 0xd7: {
           program.withdrawReward();
           program.step();
         }
         break;
-        case TOKENISSUE: {
+        case 0xda: {
           DataWord name = program.stackPop();
           DataWord abbr = program.stackPop();
           DataWord totalSupply = program.stackPop();
@@ -1483,7 +1484,7 @@ public class VM {
           program.step();
           break;
         }
-        case UPDATEASSET: {
+        case 0xdb: {
           program.stackPop();
           DataWord urlDataOffs = program.stackPop();
           DataWord descriptionDataOffs = program.stackPop();
@@ -1492,8 +1493,8 @@ public class VM {
           program.step();
           break;
         }
-        case RETURN:
-        case REVERT: {
+        case 0xf3:
+        case 0xfd: {
           DataWord offset = program.stackPop();
           DataWord size = program.stackPop();
 
@@ -1509,12 +1510,12 @@ public class VM {
           program.step();
           program.stop();
 
-          if (op == REVERT) {
+          if (opByte == 0xfd) {
             program.getResult().setRevert();
           }
           break;
         }
-        case SUICIDE: {
+        case 0xff: {
           if (program.isStaticCall()) {
             throw new Program.StaticCallModificationException();
           }
