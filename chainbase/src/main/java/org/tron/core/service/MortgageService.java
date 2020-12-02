@@ -1,4 +1,4 @@
-package org.tron.core.db;
+package org.tron.core.service;
 
 import com.google.protobuf.ByteString;
 import java.util.ArrayList;
@@ -21,9 +21,9 @@ import org.tron.core.store.DynamicPropertiesStore;
 import org.tron.core.store.WitnessStore;
 import org.tron.protos.Protocol.Vote;
 
-@Slf4j(topic = "delegation")
+@Slf4j(topic = "mortgage")
 @Component
-public class DelegationService {
+public class MortgageService {
 
   @Setter
   private WitnessStore witnessStore;
@@ -66,6 +66,8 @@ public class DelegationService {
         double eachVotePay = (double) totalPay / voteSum;
         long pay = (long) (getWitnessByAddress(b).getVoteCount() * eachVotePay);
         logger.debug("pay {} stand reward {}", Hex.toHexString(b.toByteArray()), pay);
+        delegationStore.addVoteReward(dynamicPropertiesStore
+            .getCurrentCycleNumber(), b.toByteArray(), pay);
         payReward(b.toByteArray(), pay);
       }
     }
@@ -74,6 +76,8 @@ public class DelegationService {
 
   public void payBlockReward(byte[] witnessAddress, long value) {
     logger.debug("pay {} block reward {}", Hex.toHexString(witnessAddress), value);
+    long cycle = dynamicPropertiesStore.getCurrentCycleNumber();
+    delegationStore.addBlockReward(cycle, witnessAddress, value);
     payReward(witnessAddress, value);
   }
 
@@ -119,6 +123,7 @@ public class DelegationService {
     //
     endCycle = currentCycle;
     if (CollectionUtils.isEmpty(accountCapsule.getVotesList())) {
+      delegationStore.setRemark(endCycle, address);
       delegationStore.setBeginCycle(address, endCycle + 1);
       return;
     }

@@ -973,15 +973,15 @@ public class Wallet {
         .setValue(dbManager.getDynamicPropertiesStore().getAllowPBFT())
         .build());
 
-    builder.addChainParameter(Protocol.ChainParameters.ChainParameter.newBuilder()
-        .setKey("getAllowTvmStake")
-        .setValue(dbManager.getDynamicPropertiesStore().getAllowTvmStake())
-        .build());
+    //builder.addChainParameter(Protocol.ChainParameters.ChainParameter.newBuilder()
+    //    .setKey("getAllowTvmStake")
+    //    .setValue(dbManager.getDynamicPropertiesStore().getAllowTvmStake())
+    //    .build());
 
-    builder.addChainParameter(Protocol.ChainParameters.ChainParameter.newBuilder()
-            .setKey("getAllowTvmAssetIssue")
-            .setValue(dbManager.getDynamicPropertiesStore().getAllowTvmAssetIssue())
-            .build());
+    //builder.addChainParameter(Protocol.ChainParameters.ChainParameter.newBuilder()
+    //        .setKey("getAllowTvmAssetIssue")
+    //        .setValue(dbManager.getDynamicPropertiesStore().getAllowTvmAssetIssue())
+    //        .build());
 
     return builder.build();
   }
@@ -1379,7 +1379,7 @@ public class Wallet {
     return blockNum;
   }
 
-  //in:outPoint,out:blockNumber
+  //in:outPoint, out:blockNumber
   private IncrementalMerkleVoucherContainer createWitness(OutputPoint outPoint, Long blockNumber)
       throws ItemNotFoundException, BadItemException,
       InvalidProtocolBufferException, ZksnarkException {

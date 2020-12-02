@@ -111,6 +111,7 @@ import org.tron.core.exception.ValidateSignatureException;
 import org.tron.core.exception.ZksnarkException;
 import org.tron.core.metrics.MetricsKey;
 import org.tron.core.metrics.MetricsUtil;
+import org.tron.core.service.MortgageService;
 import org.tron.core.store.AccountIdIndexStore;
 import org.tron.core.store.AccountIndexStore;
 import org.tron.core.store.AccountStore;
@@ -131,7 +132,6 @@ import org.tron.core.store.StorageRowStore;
 import org.tron.core.store.StoreFactory;
 import org.tron.core.store.TransactionHistoryStore;
 import org.tron.core.store.TransactionRetStore;
-import org.tron.core.store.TreeBlockIndexStore;
 import org.tron.core.store.VotesStore;
 import org.tron.core.store.WitnessScheduleStore;
 import org.tron.core.store.WitnessStore;
@@ -151,6 +151,8 @@ public class Manager {
 
   private static final int SHIELDED_TRANS_IN_BLOCK_COUNTS = 1;
   private static final String SAVE_BLOCK = "save block: ";
+  private static final int SLEEP_TIME_OUT = 50;
+  private static final int TX_ID_CACHE_SIZE = 100_000;
   private final int shieldedTransInPendingMaxCounts =
       Args.getInstance().getShieldedTransInPendingMaxCounts();
   @Getter
@@ -187,7 +189,7 @@ public class Manager {
   private BlockingQueue<TransactionCapsule> pushTransactionQueue = new LinkedBlockingQueue<>();
   @Getter
   private Cache<Sha256Hash, Boolean> transactionIdCache = CacheBuilder
-      .newBuilder().maximumSize(100_000).recordStats().build();
+      .newBuilder().maximumSize(TX_ID_CACHE_SIZE).recordStats().build();
   @Autowired
   private AccountStateCallBack accountStateCallBack;
   @Autowired
@@ -195,7 +197,7 @@ public class Manager {
   private Set<String> ownerAddressSet = new HashSet<>();
   @Getter
   @Autowired
-  private DelegationService delegationService;
+  private MortgageService mortgageService;
   @Autowired
   private Consensus consensus;
   @Autowired
@@ -224,7 +226,7 @@ public class Manager {
             if (tx != null) {
               this.rePush(tx);
             } else {
-              TimeUnit.MILLISECONDS.sleep(50L);
+              TimeUnit.MILLISECONDS.sleep(SLEEP_TIME_OUT);
             }
           } catch (Throwable ex) {
             logger.error("unknown exception happened in rePush loop", ex);
@@ -339,7 +341,7 @@ public class Manager {
   @PostConstruct
   public void init() {
     Message.setDynamicPropertiesStore(this.getDynamicPropertiesStore());
-    delegationService
+    mortgageService
         .initStore(chainBaseManager.getWitnessStore(), chainBaseManager.getDelegationStore(),
             chainBaseManager.getDynamicPropertiesStore(), chainBaseManager.getAccountStore());
     accountStateCallBack.setChainBaseManager(chainBaseManager);
@@ -354,7 +356,7 @@ public class Manager {
     this.rePushTransactions = new LinkedBlockingQueue<>();
     this.triggerCapsuleQueue = new LinkedBlockingQueue<>();
     chainBaseManager.setMerkleContainer(getMerkleContainer());
-    chainBaseManager.setDelegationService(delegationService);
+    chainBaseManager.setMortgageService(mortgageService);
 
     this.initGenesis();
     try {
@@ -787,7 +789,7 @@ public class Manager {
       while (!getDynamicPropertiesStore()
           .getLatestBlockHeaderHash()
           .equals(binaryTree.getValue().peekLast().getParentHash())) {
-        reorgContractTrigger();
+        reOrgContractTrigger();
         eraseBlock();
       }
     }
@@ -1261,8 +1263,8 @@ public class Manager {
         return true;
       }
       default:
+        return false;
     }
-    return false;
   }
 
   public TransactionStore getTransactionStore() {
@@ -1360,9 +1362,9 @@ public class Manager {
         chainBaseManager.getWitnessStore().getUnchecked(block.getInstance().getBlockHeader()
             .getRawData().getWitnessAddress().toByteArray());
     if (getDynamicPropertiesStore().allowChangeDelegation()) {
-      delegationService.payBlockReward(witnessCapsule.getAddress().toByteArray(),
+      mortgageService.payBlockReward(witnessCapsule.getAddress().toByteArray(),
           getDynamicPropertiesStore().getWitnessPayPerBlock());
-      delegationService.payStandbyWitness();
+      mortgageService.payStandbyWitness();
     } else {
       byte[] witness = block.getWitnessAddress().toByteArray();
       AccountCapsule account = getAccountStore().get(witness);
@@ -1372,7 +1374,7 @@ public class Manager {
     }
   }
 
-  private void postSolitityLogContractTrigger(Long blockNum, Long lastSolidityNum) {
+  private void postSolidityLogContractTrigger(Long blockNum, Long lastSolidityNum) {
     if (blockNum > lastSolidityNum) {
       return;
     }
@@ -1387,7 +1389,7 @@ public class Manager {
     Args.getSolidityContractLogTriggerMap().remove(blockNum);
   }
 
-  private void postSolitityEventContractTrigger(Long blockNum, Long lastSolidityNum) {
+  private void postSolidityEventContractTrigger(Long blockNum, Long lastSolidityNum) {
     if (blockNum > lastSolidityNum) {
       return;
     }
@@ -1416,6 +1418,10 @@ public class Manager {
   }
 
   public void updateFork(BlockCapsule block) {
+    int blockVersion = block.getInstance().getBlockHeader().getRawData().getVersion();
+    if (blockVersion > ChainConstant.BLOCK_VERSION) {
+      logger.warn("newer block version found: " + blockVersion + ", YOU MUST UPGRADE java-tron!");
+    }
     chainBaseManager
         .getForkController().update(block);
   }
@@ -1574,12 +1580,12 @@ public class Manager {
     }
     if (eventPluginLoaded && EventPluginLoader.getInstance().isSolidityLogTriggerEnable()) {
       for (Long i : Args.getSolidityContractLogTriggerMap().keySet()) {
-        postSolitityLogContractTrigger(i, latestSolidifiedBlockNumber);
+        postSolidityLogContractTrigger(i, latestSolidifiedBlockNumber);
       }
     }
     if (eventPluginLoaded && EventPluginLoader.getInstance().isSolidityEventTriggerEnable()) {
       for (Long i : Args.getSolidityContractEventTriggerMap().keySet()) {
-        postSolitityEventContractTrigger(i, latestSolidifiedBlockNumber);
+        postSolidityEventContractTrigger(i, latestSolidifiedBlockNumber);
       }
     }
   }
@@ -1611,11 +1617,11 @@ public class Manager {
     }
   }
 
-  private void reorgContractTrigger() {
+  private void reOrgContractTrigger() {
     if (eventPluginLoaded
         && (EventPluginLoader.getInstance().isContractEventTriggerEnable()
         || EventPluginLoader.getInstance().isContractLogTriggerEnable())) {
-      logger.info("switchfork occurred, post reorgContractTrigger");
+      logger.info("switchfork occurred, post reOrgContractTrigger");
       try {
         BlockCapsule oldHeadBlock = chainBaseManager.getBlockById(
             getDynamicPropertiesStore().getLatestBlockHeaderHash());
