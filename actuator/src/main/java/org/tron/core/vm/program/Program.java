@@ -41,6 +41,7 @@ import org.tron.core.vm.*;
 import org.tron.core.vm.config.VMConfig;
 import org.tron.core.vm.nativecontract.*;
 import org.tron.core.vm.nativecontract.param.*;
+import org.tron.core.vm.process.OpCodeV2;
 import org.tron.core.vm.program.invoke.ProgramInvoke;
 import org.tron.core.vm.program.invoke.ProgramInvokeFactory;
 import org.tron.core.vm.program.invoke.ProgramInvokeFactoryImpl;
@@ -883,10 +884,11 @@ public class Program {
         .convertToTronAddress(msg.getCodeAddress().getLast20Bytes());
     byte[] senderAddress = TransactionTrace
         .convertToTronAddress(getContractAddress().getLast20Bytes());
-    byte[] contextAddress = msg.getType().callIsStateless() ? senderAddress : codeAddress;
+    byte[] contextAddress = OpCodeV2.isStatelessCall(msg.getType()) ? senderAddress : codeAddress;
 
     if (logger.isDebugEnabled()) {
-      logger.debug(msg.getType().name()
+      // TODO: 2020/12/2 find a way to get type name
+      logger.debug(msg.getType()
               + " for existing contract: address: [{}], outDataOffs: [{}], outDataSize: [{}]  ",
           Hex.toHexString(contextAddress), msg.getOutDataOffs().longValue(),
           msg.getOutDataSize().longValue());
@@ -988,14 +990,14 @@ public class Program {
     ProgramResult callResult = null;
     if (isNotEmpty(programCode)) {
       long vmStartInUs = System.nanoTime() / 1000;
-      DataWord callValue = msg.getType().callIsDelegate() ? getCallValue() : msg.getEndowment();
+      DataWord callValue = OpCodeV2.isDelegateCall(msg.getType()) ? getCallValue() : msg.getEndowment();
       ProgramInvoke programInvoke = programInvokeFactory.createProgramInvoke(
           this, new DataWord(contextAddress),
-          msg.getType().callIsDelegate() ? getCallerAddress() : getContractAddress(),
+          OpCodeV2.isDelegateCall(msg.getType()) ? getCallerAddress() : getContractAddress(),
           !isTokenTransfer ? callValue : new DataWord(0),
           !isTokenTransfer ? new DataWord(0) : callValue,
           !isTokenTransfer ? new DataWord(0) : msg.getTokenId(),
-          contextBalance, data, deposit, msg.getType().callIsStatic() || isStaticCall(),
+          contextBalance, data, deposit, OpCodeV2.isStaticCall(msg.getType()) || isStaticCall(),
           byTestingSuite(), vmStartInUs, getVmShouldEndInUs(), msg.getEnergy().longValueSafe());
       if (isConstantCall()) {
         programInvoke.setConstantCall();
@@ -1499,7 +1501,7 @@ public class Program {
         .convertToTronAddress(this.getContractAddress().getLast20Bytes());
     byte[] codeAddress = TransactionTrace
         .convertToTronAddress(msg.getCodeAddress().getLast20Bytes());
-    byte[] contextAddress = msg.getType().callIsStateless() ? senderAddress : codeAddress;
+    byte[] contextAddress = OpCodeV2.isStatelessCall(msg.getType()) ? senderAddress : codeAddress;
 
     long endowment = msg.getEndowment().value().longValueExact();
     long senderBalance = 0;
@@ -1553,7 +1555,7 @@ public class Program {
       this.stackPushZero();
     } else {
       // Delegate or not. if is delegated, we will use msg sender, otherwise use contract address
-      contract.setCallerAddress(TransactionTrace.convertToTronAddress(msg.getType().callIsDelegate()
+      contract.setCallerAddress(TransactionTrace.convertToTronAddress(OpCodeV2.isDelegateCall(msg.getType())
           ? getCallerAddress().getLast20Bytes() : getContractAddress().getLast20Bytes()));
       // this is the depositImpl, not contractState as above
       contract.setRepository(deposit);
@@ -1657,7 +1659,7 @@ public class Program {
     }
   }
 
-  public DataWord getCallEnergy(OpCode op, DataWord requestedEnergy, DataWord availableEnergy) {
+  public DataWord getCallEnergy(int op, DataWord requestedEnergy, DataWord availableEnergy) {
     return requestedEnergy.compareTo(availableEnergy) > 0 ? availableEnergy : requestedEnergy;
   }
 
@@ -2012,8 +2014,8 @@ public class Program {
     }
 
 
-    public static OutOfMemoryException memoryOverflow(OpCode op) {
-      return new OutOfMemoryException("Out of Memory when '%s' operation executing", op.name());
+    public static OutOfMemoryException memoryOverflow(int op) {
+      return new OutOfMemoryException("Out of Memory when '%s' operation executing", OpCodeV2.getOpName(op));
     }
 
     public static OutOfStorageException notEnoughStorage() {

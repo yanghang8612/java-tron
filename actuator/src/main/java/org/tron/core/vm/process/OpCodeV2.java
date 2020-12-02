@@ -19,6 +19,7 @@ package org.tron.core.vm.process;
 
 
 import lombok.extern.slf4j.Slf4j;
+import org.tron.core.vm.OpCode;
 
 /**
  * Instruction set for the Ethereum Virtual Machine See Yellow Paper:
@@ -1143,6 +1144,34 @@ public class OpCodeV2 {
     return val & 0b11111;
   }
 
+  public static <T extends Number> String getOpName(T op) {
+    return OpCode.code(op.byteValue()).name();
+  }
+
+  public static <T extends Number> boolean isNormalCall(T op) {
+    return checkCallFlag(op.byteValue(), 1 << 4);
+  }
+
+  public static <T extends Number> boolean isStatelessCall(T op) {
+    return checkCallFlag(op.byteValue(), 1 << 3);
+  }
+
+  public static <T extends Number> boolean hasCallValue(T op) {
+    return checkCallFlag(op.byteValue(), 1 << 2);
+  }
+
+  public static <T extends Number> boolean isStaticCall(T op) {
+    return checkCallFlag(op.byteValue(), 1 << 1);
+  }
+
+  public static <T extends Number> boolean isDelegateCall(T op) {
+    return checkCallFlag(op.byteValue(), 1);
+  }
+
+  private static boolean checkCallFlag(byte op, int flag) {
+    return (opsBasic[op & 0xff] & flag) != 0;
+  }
+
   private static class CallFlags {
     /**
      * Indicates that opcode is a call
@@ -1172,6 +1201,11 @@ public class OpCodeV2 {
 
   private static boolean callFlagJudge(int callFlags, int callFlag) {
     return (callFlags & callFlag) > 0;
+  }
+
+  public static void main(String[] args) {
+    System.out.println(getOpName(0xf0));
+    System.out.println(getOpName((byte) 0xf0));
   }
 }
 

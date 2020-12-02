@@ -28,7 +28,7 @@ public class MessageCall {
   /**
    * Type of internal call. Either CALL, CALLCODE or POST
    */
-  private final OpCode type;
+  private final byte type;
 
   /**
    * energy to pay for the call, remaining energy will be refunded to the caller
@@ -63,7 +63,7 @@ public class MessageCall {
 
   private boolean isTokenTransferMsg;
 
-  public MessageCall(OpCode type, DataWord energy, DataWord codeAddress,
+  public MessageCall(byte type, DataWord energy, DataWord codeAddress,
       DataWord endowment, DataWord inDataOffs, DataWord inDataSize, DataWord tokenId,
       boolean isTokenTransferMsg) {
     this.type = type;
@@ -76,7 +76,7 @@ public class MessageCall {
     this.isTokenTransferMsg = isTokenTransferMsg;
   }
 
-  public MessageCall(OpCode type, DataWord energy, DataWord codeAddress,
+  public MessageCall(byte type, DataWord energy, DataWord codeAddress,
       DataWord endowment, DataWord inDataOffs, DataWord inDataSize,
       DataWord outDataOffs, DataWord outDataSize, DataWord tokenId, boolean isTokenTransferMsg) {
     this(type, energy, codeAddress, endowment, inDataOffs, inDataSize, tokenId, isTokenTransferMsg);
@@ -84,7 +84,7 @@ public class MessageCall {
     this.outDataSize = outDataSize;
   }
 
-  public OpCode getType() {
+  public byte getType() {
     return type;
   }
 
