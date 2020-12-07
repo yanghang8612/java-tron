@@ -3,13 +3,8 @@ package org.tron.common.logsfilter;
 import com.google.common.primitives.Bytes;
 import com.google.protobuf.ByteString;
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
+
 import lombok.extern.slf4j.Slf4j;
 import org.spongycastle.util.encoders.Hex;
 import org.springframework.util.CollectionUtils;
@@ -69,6 +64,10 @@ public class TRC20Utils {
   public static BigInteger toBigInteger(byte[] input) {
     if (input != null && input.length > 0) {
       try {
+        if (input.length > 32) {
+          input = Arrays.copyOfRange(input, 0, 32);
+        }
+
         String hex = Hex.toHexString(input);
         return hexStrToBigInteger(hex);
       } catch (Exception e) {
