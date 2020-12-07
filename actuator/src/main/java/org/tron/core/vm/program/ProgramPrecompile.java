@@ -21,8 +21,8 @@ import java.util.HashSet;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.tron.common.runtime.vm.DataWord;
-import org.tron.core.vm.OpCode;
 import org.tron.core.vm.config.VMConfig;
+import org.tron.core.vm.process.OpCodeV2;
 
 
 @Slf4j(topic = "VM")
@@ -37,18 +37,20 @@ public class ProgramPrecompile {
     ProgramPrecompile ret = new ProgramPrecompile();
     for (int i = 0; i < ops.length; ++i) {
 
-      OpCode op = OpCode.code(ops[i]);
-      if (op == null) {
+      int op = ops[i] & 0xff;
+      int val = OpCodeV2.opsBasic[op];
+      if (val == 0) {
         continue;
       }
 
-      if (op.equals(OpCode.JUMPDEST)) {
+      if (op == 0x5b) { // JUMPDEST=0x5b
         logger.debug("JUMPDEST:" + i);
         ret.jumpdest.add(i);
       }
 
-      if (op.asInt() >= OpCode.PUSH1.asInt() && op.asInt() <= OpCode.PUSH32.asInt()) {
-        i += op.asInt() - OpCode.PUSH1.asInt() + 1;
+
+      if (op >= 0x60 && op <= 0x7f) { // PUSH1=0x60  PUSH32=0x7f
+        i += op - 0x60 + 1;
       }
     }
     return ret;
@@ -57,17 +59,17 @@ public class ProgramPrecompile {
   public static byte[] getCode(byte[] ops) {
     for (int i = 0; i < ops.length; ++i) {
 
-      OpCode op = OpCode.code(ops[i]);
-      if (op == null) {
+      int op = ops[i] & 0xff;
+      int val = OpCodeV2.opsBasic[op];
+      if (val == 0) {
         continue;
       }
 
-      if (op.equals(OpCode.RETURN)) {
+      if (op == 0xf3) { // RETURN=0xf3
         logger.debug("return");
       }
 
-      if (op.equals(OpCode.RETURN) && i + 1 < ops.length && OpCode.code(ops[i + 1]) != null
-          && OpCode.code(ops[i + 1]).equals(OpCode.STOP)) {
+      if (op == 0xf3 && i + 1 < ops.length && (ops[i + 1] & 0xff) == 0x00) { // RETURN=0xf3 STOP=0x00
         byte[] ret;
         i++;
         ret = new byte[ops.length - i - 1];
@@ -76,8 +78,8 @@ public class ProgramPrecompile {
         return ret;
       }
 
-      if (op.asInt() >= OpCode.PUSH1.asInt() && op.asInt() <= OpCode.PUSH32.asInt()) {
-        i += op.asInt() - OpCode.PUSH1.asInt() + 1;
+      if (op >= 0x60 && op <= 0x7f) { // PUSH1=0x60  PUSH32=0x7f
+        i += op - 0x60 + 1;
       }
     }
     if (VMConfig.allowTvmConstantinople()) {

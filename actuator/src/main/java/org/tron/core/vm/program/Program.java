@@ -41,6 +41,7 @@ import org.tron.core.vm.*;
 import org.tron.core.vm.config.VMConfig;
 import org.tron.core.vm.nativecontract.*;
 import org.tron.core.vm.nativecontract.param.*;
+import org.tron.core.vm.process.OpCodeV2;
 import org.tron.core.vm.program.invoke.ProgramInvoke;
 import org.tron.core.vm.program.invoke.ProgramInvokeFactory;
 import org.tron.core.vm.program.invoke.ProgramInvokeFactoryImpl;
@@ -147,7 +148,7 @@ public class Program {
 
     while (index < code.length) {
       final byte opCode = code[index];
-      OpCode op = OpCode.code(opCode);
+      int op = OpCodeV2.getOp(opCode);
 
       if (!mask.get(index)) {
         if (binDataStartPC == -1) {
@@ -171,16 +172,17 @@ public class Program {
 
       sb.append(Utils.align("" + Integer.toHexString(index) + ":", ' ', 8, false));
 
-      if (op == null) {
+      if (op == OpCodeV2.NOT_EXIST_OP) {
         sb.append("<UNKNOWN>: ").append(0xFF & opCode).append("\n");
         index++;
         continue;
       }
 
-      if (op.name().startsWith("PUSH")) {
-        sb.append(' ').append(op.name()).append(' ');
+      String opName = OpCodeV2.getOpName(op);
+      if (opName.startsWith("PUSH")) {
+        sb.append(' ').append(opName).append(' ');
 
-        int nPush = op.val() - OpCode.PUSH1.val() + 1;
+        int nPush = op - OpCodeV2.PUSH1 + 1;
         byte[] data = Arrays.copyOfRange(code, index + 1, index + nPush + 1);
         BigInteger bi = new BigInteger(1, data);
         sb.append("0x").append(bi.toString(16));
@@ -190,7 +192,7 @@ public class Program {
 
         index += nPush + 1;
       } else {
-        sb.append(' ').append(op.name());
+        sb.append(' ').append(opName);
         index++;
       }
       sb.append('\n');
@@ -211,7 +213,7 @@ public class Program {
         lastPush = new BigInteger(1, it.getCurOpcodeArg()).intValue();
         lastPushPC = it.getPC();
       }
-      if (it.getCurOpcode() == OpCode.JUMP || it.getCurOpcode() == OpCode.JUMPI) {
+      if (it.getCurOpcode() == 0x56 || it.getCurOpcode() == 0x57) { //JUMP=0x56 JUMPI=0x57
         if (it.getPC() != lastPushPC + 1) {
           // some PC arithmetic we totally can't deal with
           // assuming all bytecodes are reachable as a fallback
@@ -224,8 +226,8 @@ public class Program {
           gotos.add(jumpPC);
         }
       }
-      if (it.getCurOpcode() == OpCode.JUMP || it.getCurOpcode() == OpCode.RETURN
-          || it.getCurOpcode() == OpCode.STOP) {
+      if (it.getCurOpcode() == 0x56 || it.getCurOpcode() == 0xf3
+          || it.getCurOpcode() == 0x00) {  //JUMP=0x56 RETURN=0xf3 STOP=0x00
         if (gotos.isEmpty()) {
           break;
         }
@@ -241,25 +243,26 @@ public class Program {
 
     while (index < code.length) {
       final byte opCode = code[index];
-      OpCode op = OpCode.code(opCode);
+      int op = OpCodeV2.getOp(opCode);
 
-      if (op == null) {
+      if (op == OpCodeV2.NOT_EXIST_OP) {
         sb.append(" <UNKNOWN>: ").append(0xFF & opCode).append(" ");
         index++;
         continue;
       }
 
-      if (op.name().startsWith("PUSH")) {
-        sb.append(' ').append(op.name()).append(' ');
+      String opName = OpCodeV2.getOpName(op);
+      if (opName.startsWith("PUSH")) {
+        sb.append(' ').append(opName).append(' ');
 
-        int nPush = op.val() - OpCode.PUSH1.val() + 1;
+        int nPush = op - OpCodeV2.PUSH1 + 1;
         byte[] data = Arrays.copyOfRange(code, index + 1, index + nPush + 1);
         BigInteger bi = new BigInteger(1, data);
         sb.append("0x").append(bi.toString(16)).append(" ");
 
         index += nPush + 1;
       } else {
-        sb.append(' ').append(op.name());
+        sb.append(' ').append(opName);
         index++;
       }
     }
@@ -883,10 +886,10 @@ public class Program {
         .convertToTronAddress(msg.getCodeAddress().getLast20Bytes());
     byte[] senderAddress = TransactionTrace
         .convertToTronAddress(getContractAddress().getLast20Bytes());
-    byte[] contextAddress = msg.getType().callIsStateless() ? senderAddress : codeAddress;
+    byte[] contextAddress = OpCodeV2.callIsStateless(msg.getType()) ? senderAddress : codeAddress;
 
     if (logger.isDebugEnabled()) {
-      logger.debug(msg.getType().name()
+      logger.debug(OpCodeV2.getOpName(msg.getType())
               + " for existing contract: address: [{}], outDataOffs: [{}], outDataSize: [{}]  ",
           Hex.toHexString(contextAddress), msg.getOutDataOffs().longValue(),
           msg.getOutDataSize().longValue());
@@ -988,14 +991,14 @@ public class Program {
     ProgramResult callResult = null;
     if (isNotEmpty(programCode)) {
       long vmStartInUs = System.nanoTime() / 1000;
-      DataWord callValue = msg.getType().callIsDelegate() ? getCallValue() : msg.getEndowment();
+      DataWord callValue = OpCodeV2.callIsDelegate(msg.getType()) ? getCallValue() : msg.getEndowment();
       ProgramInvoke programInvoke = programInvokeFactory.createProgramInvoke(
           this, new DataWord(contextAddress),
-          msg.getType().callIsDelegate() ? getCallerAddress() : getContractAddress(),
+          OpCodeV2.callIsDelegate(msg.getType()) ? getCallerAddress() : getContractAddress(),
           !isTokenTransfer ? callValue : new DataWord(0),
           !isTokenTransfer ? new DataWord(0) : callValue,
           !isTokenTransfer ? new DataWord(0) : msg.getTokenId(),
-          contextBalance, data, deposit, msg.getType().callIsStatic() || isStaticCall(),
+          contextBalance, data, deposit, OpCodeV2.callIsStatic(msg.getType()) || isStaticCall(),
           byTestingSuite(), vmStartInUs, getVmShouldEndInUs(), msg.getEnergy().longValueSafe());
       if (isConstantCall()) {
         programInvoke.setConstantCall();
@@ -1416,7 +1419,7 @@ public class Program {
       }
 
       if (pc != 0) {
-        globalOutput.append("[Op: ").append(OpCode.code(lastOp).name()).append("]\n");
+        globalOutput.append("[Op: ").append(OpCodeV2.getOpName(lastOp)).append("]\n");
       }
 
       globalOutput.append(" -- OPS --     ").append(opsString).append("\n");
@@ -1499,7 +1502,7 @@ public class Program {
         .convertToTronAddress(this.getContractAddress().getLast20Bytes());
     byte[] codeAddress = TransactionTrace
         .convertToTronAddress(msg.getCodeAddress().getLast20Bytes());
-    byte[] contextAddress = msg.getType().callIsStateless() ? senderAddress : codeAddress;
+    byte[] contextAddress = OpCodeV2.callIsStateless(msg.getType()) ? senderAddress : codeAddress;
 
     long endowment = msg.getEndowment().value().longValueExact();
     long senderBalance = 0;
@@ -1553,7 +1556,7 @@ public class Program {
       this.stackPushZero();
     } else {
       // Delegate or not. if is delegated, we will use msg sender, otherwise use contract address
-      contract.setCallerAddress(TransactionTrace.convertToTronAddress(msg.getType().callIsDelegate()
+      contract.setCallerAddress(TransactionTrace.convertToTronAddress(OpCodeV2.callIsDelegate(msg.getType())
           ? getCallerAddress().getLast20Bytes() : getContractAddress().getLast20Bytes()));
       // this is the depositImpl, not contractState as above
       contract.setRepository(deposit);
@@ -1657,7 +1660,7 @@ public class Program {
     }
   }
 
-  public DataWord getCallEnergy(OpCode op, DataWord requestedEnergy, DataWord availableEnergy) {
+  public DataWord getCallEnergy(int op, DataWord requestedEnergy, DataWord availableEnergy) {
     return requestedEnergy.compareTo(availableEnergy) > 0 ? availableEnergy : requestedEnergy;
   }
 
@@ -1719,17 +1722,17 @@ public class Program {
       this.pc = pc;
     }
 
-    public OpCode getCurOpcode() {
-      return pc < code.length ? OpCode.code(code[pc]) : null;
+    public int getCurOpcode() { //todo xiang
+      return pc < code.length ? (code[pc] & 0xff) : OpCodeV2.NOT_EXIST_OP;
     }
 
     public boolean isPush() {
-      return getCurOpcode() != null && getCurOpcode().name().startsWith("PUSH");
+      return OpCodeV2.isPush(getCurOpcode()); // PUSH1=0x60 PUSH32=0x7f
     }
 
     public byte[] getCurOpcodeArg() {
       if (isPush()) {
-        int nPush = getCurOpcode().val() - OpCode.PUSH1.val() + 1;
+        int nPush = getCurOpcode() - 0x60 + 1; // PUSH1=0x60
         byte[] data = Arrays.copyOfRange(code, pc + 1, pc + nPush + 1);
         return data;
       } else {
@@ -1982,7 +1985,7 @@ public class Program {
     private Exception() {
     }
 
-    public static OutOfEnergyException notEnoughOpEnergy(OpCode op, long opEnergy,
+    public static OutOfEnergyException notEnoughOpEnergy(String op, long opEnergy,
         long programEnergy) {
       return new OutOfEnergyException(
           "Not enough energy for '%s' operation executing: opEnergy[%d], programEnergy[%d];", op,
@@ -1990,7 +1993,7 @@ public class Program {
           programEnergy);
     }
 
-    public static OutOfEnergyException notEnoughOpEnergy(OpCode op, DataWord opEnergy,
+    public static OutOfEnergyException notEnoughOpEnergy(String op, DataWord opEnergy,
         DataWord programEnergy) {
       return notEnoughOpEnergy(op, opEnergy.longValue(), programEnergy.longValue());
     }
@@ -2012,8 +2015,8 @@ public class Program {
     }
 
 
-    public static OutOfMemoryException memoryOverflow(OpCode op) {
-      return new OutOfMemoryException("Out of Memory when '%s' operation executing", op.name());
+    public static OutOfMemoryException memoryOverflow(String op) {
+      return new OutOfMemoryException("Out of Memory when '%s' operation executing", op);
     }
 
     public static OutOfStorageException notEnoughStorage() {
