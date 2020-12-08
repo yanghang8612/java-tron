@@ -2,11 +2,13 @@ package stest.tron.wallet.benchmark;
 
 import com.google.protobuf.ByteString;
 import lombok.extern.slf4j.Slf4j;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.FixMethodOrder;
+import org.junit.Test;
+import org.junit.runners.MethodSorters;
 import org.spongycastle.util.encoders.Hex;
-import org.testng.Assert;
+import org.junit.Assert;
 import org.tron.common.application.TronApplicationContext;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.runtime.Runtime;
@@ -42,31 +44,32 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
+@FixMethodOrder(MethodSorters.JVM)
 @Slf4j
 public class Trc20TransferBenchMark {
   
   
-  protected Manager manager;
-  protected TronApplicationContext context;
-  protected String dbPath;
-  protected Deposit rootDeposit;
-  protected Runtime runtime;
+  protected static Manager manager;
+  protected static TronApplicationContext context;
+  protected static String dbPath;
+  protected static Deposit rootDeposit;
+  protected static Runtime runtime;
   
-  private byte[] trc20tokenAddress;
-  private String transferTarget = "TS7gnzsbbE72tM5n6M7foLnyLRNEhyjQKm";
+  private static byte[] trc20tokenAddress;
+  private static String transferTarget = "TS7gnzsbbE72tM5n6M7foLnyLRNEhyjQKm";
   
-  private String ownerAddr = "414948C2E8A756D9437037DCD8C7E0C73D560CA38D";
-  private String ownerAddr58 = "TGehVcNhud84JDCGrNHKVz9jEAVKUpbuiv";
-  private String ownerPrikey = "cba92a516ea09f620a16ff7ee95ce0df1d56550a8babe9964981a7144c8a784a";
-  private int transferNum = 0;
+  private static String ownerAddr = "414948C2E8A756D9437037DCD8C7E0C73D560CA38D";
+  private static String ownerAddr58 = "TGehVcNhud84JDCGrNHKVz9jEAVKUpbuiv";
+  private static String ownerPrikey = "cba92a516ea09f620a16ff7ee95ce0df1d56550a8babe9964981a7144c8a784a";
+  private static int transferNum = 0;
   
   
   private final int sampleSize = 5000;
   private final long simulateTimes = 10;
   
   @BeforeClass
-  public void init() {
-    dbPath = "output_" + this.getClass().getName();
+  public static void init() {
+    dbPath = "output_" + Trc20TransferBenchMark.class.getName();
     Args.setParam(new String[]{"--output-directory", dbPath, "--debug"}, "config-localtest.conf");
     context = new TronApplicationContext(DefaultConfig.class);
   
@@ -85,8 +88,8 @@ public class Trc20TransferBenchMark {
     trc20tokenAddress = Commons.decodeFromBase58Check("TKHBt5dqr2U9ScigACnk7hAv4kzbFAaVGU");
   }
   
-  @AfterClass(enabled = false)
-  public void destroy() {
+  @AfterClass()
+  public static void destroy() {
     Args.clearParam();
     context.destroy();
     if (FileUtil.deleteDir(new File(dbPath))) {
@@ -96,7 +99,7 @@ public class Trc20TransferBenchMark {
     }
   }
   
-  @Test(priority = 0)
+  @Test
   public void deployTrc20()
       throws Exception{
     
@@ -227,7 +230,7 @@ public class Trc20TransferBenchMark {
   
   }
   
-  @Test(priority = 1)
+  @Test
   public void mint() throws Exception{
     long fee = 100000000;
     String methodByAddr = "mint(address,uint256)";
@@ -241,7 +244,7 @@ public class Trc20TransferBenchMark {
         "0000000000000000000000000000000000000000000000000000000000000001");
   }
   
-  @Test(priority = 2)
+  @Test
   public void transferTest() throws Exception{
     long fee = 100000000;
     String methodByAddr;
@@ -299,7 +302,7 @@ public class Trc20TransferBenchMark {
     logger.info("[benchmark] balanceof:{}", Hex.toHexString(result.getRuntime().getResult().getHReturn()));
   }
   
-  @Test(priority = 100)
+  @Test
   public void benchmarkTransfer() throws Exception{
     
     long fee = 100000000;
