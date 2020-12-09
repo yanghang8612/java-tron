@@ -58,7 +58,7 @@ public class VM {
 
   private void checkMemorySize(int op, BigInteger newMemSize) {
     if (newMemSize.compareTo(MEM_LIMIT) > 0) {
-      throw Program.Exception.memoryOverflow(op);
+      throw Program.Exception.memoryOverflow(OpCodeV2.getOpName(op));
     }
   }
 
@@ -93,45 +93,51 @@ public class VM {
 
     try {
       int op = program.getCurrentOp() & 0xff;
-      int opV2 = OpCodeV2.opsBasic[op];
-      if (opV2 == 0) {
+      int val = OpCodeV2.opsBasic[op];
+      if (val == 0) {
         throw Program.Exception.invalidOpCode(program.getCurrentOp());
       }
+      String opName = OpCodeV2.getOpName(op);
 
       // hard fork for 3.2
-      if (!VMConfig.allowTvmTransferTrc10() && opV2 >= OpCodeV2.VER_TRC10_3_2_0) {
+      if (!VMConfig.allowTvmTransferTrc10()
+          && (OpCodeV2.hardForkJudge(val, OpCodeV2.VER_TRC10_3_2_0))) {
         throw Program.Exception.invalidOpCode(program.getCurrentOp());
       }
 
-      if (!VMConfig.allowTvmConstantinople() && opV2 >= OpCodeV2.VER_CONSTANTINOPLE_3_6_0) {
+      if (!VMConfig.allowTvmConstantinople()
+          && (OpCodeV2.hardForkJudge(val, OpCodeV2.VER_CONSTANTINOPLE_3_6_0))) {
         throw Program.Exception.invalidOpCode(program.getCurrentOp());
       }
 
-      if (!VMConfig.allowTvmSolidity059() && opV2 >= OpCodeV2.VER_SOLIDITY059_3_6_5) {
+      if (!VMConfig.allowTvmSolidity059() && OpCodeV2.hardForkJudge(val, OpCodeV2.VER_SOLIDITY059_3_6_5)) {
         throw Program.Exception.invalidOpCode(program.getCurrentOp());
       }
 
-      if (!VMConfig.allowTvmIstanbul() && opV2 >= OpCodeV2.VER_ISTANBUL_4_1_0) {
+      if (!VMConfig.allowTvmIstanbul() && (OpCodeV2.hardForkJudge(val, OpCodeV2.VER_ISTANBUL_4_1_0))) {
         throw Program.Exception.invalidOpCode(program.getCurrentOp());
       }
 
-      if (!VMConfig.allowTvmStake() && opV2 >= OpCodeV2.VER_STAKING_4_2_0) {
-        throw Program.Exception.invalidOpCode(program.getCurrentOp());
-      }
-
+      // todo xiang
+//      if (!VMConfig.allowTvmStake()
+//              && (op == ISSRCANDIDATE || op == REWARDBALANCE || op == STAKE || op == UNSTAKE
+//                || op == WITHDRAWREWARD)) {
+//        throw Program.Exception.invalidOpCode(program.getCurrentOp());
+//      }
+//
 //      if (!VMConfig.allowTvmAssetIssue() && (op == TOKENISSUE || op == UPDATEASSET)) {
 //        throw Program.Exception.invalidOpCode(program.getCurrentOp());
 //      }
 
       program.setLastOp((byte)op);
-      program.verifyStackSize(OpCodeV2.getRequire(opV2));
-      program.verifyStackOverflow(OpCodeV2.getRequire(opV2), OpCodeV2.getRet(opV2)); //Check not exceeding stack limits
+      program.verifyStackSize(OpCodeV2.getRequire(val));
+      program.verifyStackOverflow(OpCodeV2.getRequire(val), OpCodeV2.getRet(val)); //Check not exceeding stack limits
 
       long oldMemSize = program.getMemSize();
       Stack stack = program.getStack();
 
       String hint = "";
-      long energyCost = OpCodeV2.getTierLevel(opV2);
+      long energyCost = OpCodeV2.getTierLevel(val);
       EnergyCost energyCosts = EnergyCost.getInstance();
       DataWord adjustedCallEnergy = null;
 
@@ -236,7 +242,7 @@ public class VM {
           energyCost = energyCosts.getCALL();
           DataWord callEnergyWord = stack.get(stack.size() - 1);
           DataWord callAddressWord = stack.get(stack.size() - 2);
-          DataWord value = OpCodeV2.hasCallValue(op) ? stack.get(stack.size() - 3) : DataWord.ZERO;
+          DataWord value = OpCodeV2.callHasValue(op) ? stack.get(stack.size() - 3) : DataWord.ZERO;
 
           //check to see if account does not exist and is not a precompiled contract
           if ((op == 0xf1 || op == 0xd0)
@@ -250,7 +256,7 @@ public class VM {
             energyCost += energyCosts.getVT_CALL();
           }
 
-          int opOff = OpCodeV2.hasCallValue(op) ? 4 : 3;
+          int opOff = OpCodeV2.callHasValue(op) ? 4 : 3;
           if (op == 0xd0) {
             opOff++;
           }
@@ -264,7 +270,7 @@ public class VM {
           if (energyCost > program.getEnergyLimitLeft().longValueSafe()) {
             throw new OutOfEnergyException(
                 "Not enough energy for '%s' operation executing: opEnergy[%d], programEnergy[%d]",
-                OpCodeV2.getOpName(op),
+                opName,
                 energyCost, program.getEnergyLimitLeft().longValueSafe());
           }
           DataWord getEnergyLimitLeft = program.getEnergyLimitLeft().clone();
@@ -290,15 +296,14 @@ public class VM {
         case 0xa2:
         case 0xa3:
         case 0xa4:
-          // TODO: 2020/12/2 readable!!!
-          int nTopics = op - 0xa0;
+          int nTopics = op - OpCodeV2.LOG0;
           BigInteger dataSize = stack.get(stack.size() - 2).value();
           BigInteger dataCost = dataSize
               .multiply(BigInteger.valueOf(energyCosts.getLOG_DATA_ENERGY()));
           if (program.getEnergyLimitLeft().value().compareTo(dataCost) < 0) {
             throw new OutOfEnergyException(
                 "Not enough energy for '%s' operation executing: opEnergy[%d], programEnergy[%d]",
-                OpCodeV2.getOpName(op),
+                opName,
                 dataCost.longValueExact(), program.getEnergyLimitLeft().longValueSafe());
           }
           energyCost = energyCosts.getLOG_ENERGY()
@@ -333,19 +338,21 @@ public class VM {
           break;
       }
 
-      program.spendEnergy(energyCost, OpCodeV2.getOpName(op));
-      program.checkCPUTimeLimit(OpCodeV2.getOpName(op));
+      program.spendEnergy(energyCost, opName);
+      program.checkCPUTimeLimit(opName);
 
       // Execute operation
       switch (op) {
         /**
          * Stop and Arithmetic Operations
          */
+        // STOP
         case 0x00: {
           program.setHReturn(EMPTY_BYTE_ARRAY);
           program.stop();
         }
         break;
+        // ADD
         case 0x01: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
@@ -360,6 +367,7 @@ public class VM {
 
         }
         break;
+        // MUL
         case 0x02: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
@@ -373,6 +381,7 @@ public class VM {
           program.step();
         }
         break;
+        // SUB
         case 0x03: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
@@ -1104,8 +1113,7 @@ public class VM {
         case 0x8e:
         case 0x8f: {
 
-          // TODO: 2020/12/2 readable!!!
-          int n = op - 0x80 + 1;
+          int n = op - OpCodeV2.DUP1 + 1;
           DataWord word_1 = stack.get(stack.size() - n);
           program.stackPush(word_1.clone());
           program.step();
@@ -1129,8 +1137,7 @@ public class VM {
         case 0x9e:
         case 0x9f: {
 
-          // TODO: 2020/12/2 readable!!!
-          int n = op - 0x90 + 2;
+          int n = op - OpCodeV2.SWAP1 + 2;
           stack.swap(stack.size() - 1, stack.size() - n);
           program.step();
           break;
@@ -1149,8 +1156,7 @@ public class VM {
           DataWord memStart = stack.pop();
           DataWord memOffset = stack.pop();
 
-          // TODO: 2020/12/2 readable!!!
-          int nTopics = op - 0xa0;
+          int nTopics = op - OpCodeV2.LOG0;
 
           List<DataWord> topics = new ArrayList<>();
           for (int i = 0; i < nTopics; ++i) {
@@ -1205,17 +1211,17 @@ public class VM {
         break;
         case 0x54: {
           DataWord key = program.stackPop();
-          DataWord val = program.storageLoad(key);
+          DataWord value = program.storageLoad(key);
 
           if (logger.isDebugEnabled()) {
-            hint = "key: " + key + VALUE_LOG + val;
+            hint = "key: " + key + VALUE_LOG + value;
           }
 
-          if (val == null) {
-            val = key.and(DataWord.ZERO);
+          if (value == null) {
+            value = key.and(DataWord.ZERO);
           }
 
-          program.stackPush(val);
+          program.stackPush(value);
           program.step();
         }
         break;
@@ -1335,8 +1341,7 @@ public class VM {
         case 0x7e:
         case 0x7f: {
           program.step();
-          // TODO: 2020/12/2 readable!!!
-          int nPush = op - 0x60 + 1;
+          int nPush = op - PUSH1.val() + 1;
 
           byte[] data = program.sweep(nPush);
 
@@ -1393,7 +1398,7 @@ public class VM {
           DataWord codeAddress = program.stackPop();
 
           DataWord value;
-          if (OpCodeV2.hasCallValue(op)) {
+          if (OpCodeV2.callHasValue(op)) {
             value = program.stackPop();
           } else {
             value = DataWord.ZERO;
@@ -1428,7 +1433,7 @@ public class VM {
                 + " inOff: " + inDataOffs.shortHex()
                 + " inSize: " + inDataSize.shortHex();
             logger.debug(ENERGY_LOG_FORMATE, String.format("%5s", "[" + program.getPC() + "]"),
-                String.format("%-12s", OpCodeV2.getOpName(op)),
+                String.format("%-12s", opName),
                 program.getEnergyLimitLeft().value(),
                 program.getCallDeep(), hint);
           }
@@ -1436,13 +1441,13 @@ public class VM {
           program.memoryExpand(outDataOffs, outDataSize);
 
           MessageCall msg = new MessageCall(
-                  (byte) op, adjustedCallEnergy, codeAddress, value, inDataOffs, inDataSize,
+              op, adjustedCallEnergy, codeAddress, value, inDataOffs, inDataSize,
               outDataOffs, outDataSize, tokenId, isTokenTransferMsg);
 
           PrecompiledContracts.PrecompiledContract contract =
               PrecompiledContracts.getContractForAddress(codeAddress);
 
-          if (!OpCodeV2.isStatelessCall(op)) {
+          if (!OpCodeV2.callIsStateless(op)) {
             program.getResult().addTouchAccount(codeAddress.getLast20Bytes());
           }
 
@@ -1537,7 +1542,7 @@ public class VM {
           break;
       }
 
-      program.setPreviouslyExecutedOp((byte) op);
+      program.setPreviouslyExecutedOp(OpCodeV2.getOpByte(op));
     } catch (RuntimeException e) {
       logger.info("VM halted: [{}]", e.getMessage());
       if (!(e instanceof TransferException)) {
