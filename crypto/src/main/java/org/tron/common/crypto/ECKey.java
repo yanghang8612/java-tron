@@ -519,7 +519,14 @@ public class ECKey implements Serializable, SignInterface {
     // 1.0 For j from 0 to h   (h == recId here and the loop is outside
     // this function)
     //   1.1 Let x = r + jn
-    BigInteger n = CURVE.getN();  // Curve order.
+
+    org.bouncycastle.asn1.x9.X9ECParameters params =
+        org.bouncycastle.asn1.sec.SECNamedCurves.getByName("secp256k1");
+    org.bouncycastle.crypto.params.ECDomainParameters newCURVE =
+        new org.bouncycastle.crypto.params.ECDomainParameters(params.getCurve(), params.getG(),
+            params.getN(), params.getH());
+
+    BigInteger n = newCURVE.getN();  // Curve order.
     BigInteger i = BigInteger.valueOf((long) recId / 2);
     BigInteger x = sig.r.add(i.multiply(n));
     //   1.2. Convert the integer x to an octet string X of length mlen
@@ -534,7 +541,7 @@ public class ECKey implements Serializable, SignInterface {
     //
     // More concisely, what these points mean is to use X as a compressed
     // public key.
-    ECCurve.Fp curve = (ECCurve.Fp) CURVE.getCurve();
+    org.bouncycastle.math.ec.ECCurve.Fp curve = (org.bouncycastle.math.ec.ECCurve.Fp) newCURVE.getCurve();
     BigInteger prime = curve.getQ();  // Bouncy Castle is not consistent
     // about the letter it uses for the prime.
     if (x.compareTo(prime) >= 0) {
@@ -545,7 +552,11 @@ public class ECKey implements Serializable, SignInterface {
     // Compressed allKeys require you to know an extra bit of data about the
     // y-coord as there are two possibilities.
     // So it's encoded in the recId.
-    ECPoint R = decompressKey(x, (recId & 1) == 1);
+    org.bouncycastle.asn1.x9.X9IntegerConverter x9 = new org.bouncycastle.asn1.x9.X9IntegerConverter();
+    byte[] compEnc = x9.integerToBytes(x, 1 + x9.getByteLength(curve));
+    compEnc[0] = (byte) ((recId & 1) == 1 ? 0x03 : 0x02);
+
+    org.bouncycastle.math.ec.ECPoint R = curve.decodePoint(compEnc);
     //   1.4. If nR != point at infinity, then do another iteration of
     // Step 1 (callers responsibility).
     if (!R.multiply(n).isInfinity()) {
@@ -575,8 +586,9 @@ public class ECKey implements Serializable, SignInterface {
     BigInteger rInv = sig.r.modInverse(n);
     BigInteger srInv = rInv.multiply(sig.s).mod(n);
     BigInteger eInvrInv = rInv.multiply(eInv).mod(n);
-    ECPoint.Fp q = (ECPoint.Fp) ECAlgorithms.sumOfTwoMultiplies(CURVE
-        .getG(), eInvrInv, R, srInv);
+    org.bouncycastle.math.ec.ECPoint.Fp q =
+        (org.bouncycastle.math.ec.ECPoint.Fp) org.bouncycastle.math.ec.ECAlgorithms.sumOfTwoMultiplies(newCURVE
+            .getG(), eInvrInv, R, srInv);
     return q.getEncoded(/* compressed */ false);
   }
 
