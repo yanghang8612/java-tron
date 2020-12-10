@@ -100,23 +100,23 @@ public class VM {
       String opName = OpCodeV2.getOpName(op);
 
       // hard fork for 3.2
-      if (!VMConfig.allowTvmTransferTrc10()
-          && (OpCodeV2.hardForkJudge(val, OpCodeV2.VER_TRC10_3_2_0))) {
-        throw Program.Exception.invalidOpCode(program.getCurrentOp());
-      }
-
-      if (!VMConfig.allowTvmConstantinople()
-          && (OpCodeV2.hardForkJudge(val, OpCodeV2.VER_CONSTANTINOPLE_3_6_0))) {
-        throw Program.Exception.invalidOpCode(program.getCurrentOp());
-      }
-
-      if (!VMConfig.allowTvmSolidity059() && OpCodeV2.hardForkJudge(val, OpCodeV2.VER_SOLIDITY059_3_6_5)) {
-        throw Program.Exception.invalidOpCode(program.getCurrentOp());
-      }
-
-      if (!VMConfig.allowTvmIstanbul() && (OpCodeV2.hardForkJudge(val, OpCodeV2.VER_ISTANBUL_4_1_0))) {
-        throw Program.Exception.invalidOpCode(program.getCurrentOp());
-      }
+//      if (!VMConfig.allowTvmTransferTrc10()
+//          && (OpCodeV2.hardForkJudge(val, OpCodeV2.VER_TRC10_3_2_0))) {
+//        throw Program.Exception.invalidOpCode(program.getCurrentOp());
+//      }
+//
+//      if (!VMConfig.allowTvmConstantinople()
+//          && (OpCodeV2.hardForkJudge(val, OpCodeV2.VER_CONSTANTINOPLE_3_6_0))) {
+//        throw Program.Exception.invalidOpCode(program.getCurrentOp());
+//      }
+//
+//      if (!VMConfig.allowTvmSolidity059() && OpCodeV2.hardForkJudge(val, OpCodeV2.VER_SOLIDITY059_3_6_5)) {
+//        throw Program.Exception.invalidOpCode(program.getCurrentOp());
+//      }
+//
+//      if (!VMConfig.allowTvmIstanbul() && (OpCodeV2.hardForkJudge(val, OpCodeV2.VER_ISTANBUL_4_1_0))) {
+//        throw Program.Exception.invalidOpCode(program.getCurrentOp());
+//      }
 
       // todo xiang
 //      if (!VMConfig.allowTvmStake()

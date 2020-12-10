@@ -89,7 +89,9 @@ public class BandwidthProcessor extends ResourceProcessor {
         bytesSize += Constant.MAX_RESULT_SIZE_IN_TX;
       }
 
-      logger.debug("trxId {}, bandwidth cost: {}", trx.getTransactionId(), bytesSize);
+      if (logger.isDebugEnabled()) {
+        logger.debug("trxId {}, bandwidth cost: {}", trx.getTransactionId(), bytesSize);
+      }
       trace.setNetBill(bytesSize, 0);
       byte[] address = TransactionCapsule.getOwner(contract);
       AccountCapsule accountCapsule = chainBaseManager.getAccountStore().get(address);
@@ -369,7 +371,9 @@ public class BandwidthProcessor extends ResourceProcessor {
     long newNetUsage = increase(netUsage, 0, latestConsumeTime, now);
 
     if (bytes > (netLimit - newNetUsage)) {
-      logger.debug("net usage is running out, now use free net usage");
+      if (logger.isDebugEnabled()) {
+        logger.debug("net usage is running out, now use free net usage");
+      }
       return false;
     }
 
@@ -392,7 +396,9 @@ public class BandwidthProcessor extends ResourceProcessor {
     long newFreeNetUsage = increase(freeNetUsage, 0, latestConsumeFreeTime, now);
 
     if (bytes > (freeNetLimit - newFreeNetUsage)) {
-      logger.debug("free net usage is running out");
+      if (logger.isDebugEnabled()) {
+        logger.debug("free net usage is running out");
+      }
       return false;
     }
 
@@ -403,7 +409,9 @@ public class BandwidthProcessor extends ResourceProcessor {
     long newPublicNetUsage = increase(publicNetUsage, 0, publicNetTime, now);
 
     if (bytes > (publicNetLimit - newPublicNetUsage)) {
-      logger.debug("free public net usage is running out");
+      if (logger.isDebugEnabled()) {
+        logger.debug("free public net usage is running out");
+      }
       return false;
     }
 

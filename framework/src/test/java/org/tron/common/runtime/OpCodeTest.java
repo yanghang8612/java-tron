@@ -57,13 +57,13 @@ public class OpCodeTest {
     opSetIstanbul_4_1_0.add(OpCode.SELFBALANCE.val());
 
     Set<Byte> opSetStaking_4_2_0 = new HashSet<>();
-    opSetStaking_4_2_0.add(OpCode.STAKE.val());
-    opSetStaking_4_2_0.add(OpCode.UNSTAKE.val());
-    opSetStaking_4_2_0.add(OpCode.WITHDRAWREWARD.val());
-    opSetStaking_4_2_0.add(OpCode.REWARDBALANCE.val());
-    opSetStaking_4_2_0.add(OpCode.ISSRCANDIDATE.val());
-    opSetStaking_4_2_0.add(OpCode.TOKENISSUE.val());
-    opSetStaking_4_2_0.add(OpCode.UPDATEASSET.val());
+//    opSetStaking_4_2_0.add(OpCode.STAKE.val());
+//    opSetStaking_4_2_0.add(OpCode.UNSTAKE.val());
+//    opSetStaking_4_2_0.add(OpCode.WITHDRAWREWARD.val());
+//    opSetStaking_4_2_0.add(OpCode.REWARDBALANCE.val());
+//    opSetStaking_4_2_0.add(OpCode.ISSRCANDIDATE.val());
+//    opSetStaking_4_2_0.add(OpCode.TOKENISSUE.val());
+//    opSetStaking_4_2_0.add(OpCode.UPDATEASSET.val());
 
     int opCountBasic = 134;
 
