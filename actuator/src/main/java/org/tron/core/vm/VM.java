@@ -26,14 +26,8 @@ import org.tron.core.vm.program.Stack;
 @Slf4j(topic = "VM")
 public class VM {
 
-  public static final String ADDRESS_LOG = "address: ";
-  private static final String DATA_LOG = "data: ";
-  private static final String SIZE_LOG = "size: ";
-  private static final String VALUE_LOG = " value: ";
   private static final BigInteger _32_ = BigInteger.valueOf(32);
-  private static final String ENERGY_LOG_FORMATE = "{} Op:[{}]  Energy:[{}] Deep:[{}] Hint:[{}]";
-  // 3MB
-  private static final BigInteger MEM_LIMIT = BigInteger.valueOf(3L * 1024 * 1024);
+  private static final BigInteger MEM_LIMIT = BigInteger.valueOf(3L * 1024 * 1024); // 3MB
   private final VMConfig config;
 
   public VM() {
@@ -62,7 +56,7 @@ public class VM {
     }
   }
 
-  private long calcMemEnergy(EnergyCost energyCosts, long oldMemSize, BigInteger newMemSize,
+  private long calcMemEnergy(long oldMemSize, BigInteger newMemSize,
       long copySize, int op) {
     long energyCost = 0;
 
@@ -74,20 +68,20 @@ public class VM {
       long memWords = (memoryUsage / 32);
       long memWordsOld = (oldMemSize / 32);
       //TODO #POC9 c_quadCoeffDiv = 512, this should be a constant, not magic number
-      long memEnergy = (energyCosts.getMEMORY() * memWords + memWords * memWords / 512)
-          - (energyCosts.getMEMORY() * memWordsOld + memWordsOld * memWordsOld / 512);
+      long memEnergy = (EnergyCost.MEMORY * memWords + memWords * memWords / 512)
+          - (EnergyCost.MEMORY * memWordsOld + memWordsOld * memWordsOld / 512);
       energyCost += memEnergy;
     }
 
     if (copySize > 0) {
-      long copyEnergy = energyCosts.getCOPY_ENERGY() * ((copySize + 31) / 32);
+      long copyEnergy = EnergyCost.COPY_ENERGY * ((copySize + 31) / 32);
       energyCost += copyEnergy;
     }
     return energyCost;
   }
 
   public void step(Program program) {
-    if (config.vmTrace()) {
+    if (VMConfig.vmTrace()) {
       program.saveOpTrace();
     }
 
@@ -136,22 +130,20 @@ public class VM {
       long oldMemSize = program.getMemSize();
       Stack stack = program.getStack();
 
-      String hint = "";
       long energyCost = OpCodeV2.getTierLevel(val);
-      EnergyCost energyCosts = EnergyCost.getInstance();
       DataWord adjustedCallEnergy = null;
 
       // Calculate fees and spend energy
       switch (op) {
         case 0x00:
-          energyCost = energyCosts.getSTOP();
+          energyCost = EnergyCost.STOP;
           break;
         case 0xff:
-          energyCost = energyCosts.getSUICIDE();
+          energyCost = EnergyCost.SUICIDE;
           DataWord suicideAddressWord = stack.get(stack.size() - 1);
           if (isDeadAccount(program, suicideAddressWord)
               && !program.getBalance(program.getContractAddress()).isZero()) {
-            energyCost += energyCosts.getNEW_ACCT_SUICIDE();
+            energyCost += EnergyCost.NEW_ACCT_SUICIDE;
           }
           break;
         case 0x55:
@@ -160,78 +152,74 @@ public class VM {
           DataWord oldValue = program.storageLoad(stack.peek());
           if (oldValue == null && !newValue.isZero()) {
             // set a new not-zero value
-            energyCost = energyCosts.getSET_SSTORE();
+            energyCost = EnergyCost.SET_SSTORE;
           } else if (oldValue != null && newValue.isZero()) {
             // set zero to an old value
-            program.futureRefundEnergy(energyCosts.getREFUND_SSTORE());
-            energyCost = energyCosts.getCLEAR_SSTORE();
+            program.futureRefundEnergy(EnergyCost.REFUND_SSTORE);
+            energyCost = EnergyCost.CLEAR_SSTORE;
           } else {
             // include:
             // [1] oldValue == null && newValue == 0
             // [2] oldValue != null && newValue != 0
-            energyCost = energyCosts.getRESET_SSTORE();
+            energyCost = EnergyCost.RESET_SSTORE;
           }
           break;
         case 0x54:
-          energyCost = energyCosts.getSLOAD();
+          energyCost = EnergyCost.SLOAD;
           break;
         case 0xd1:
         case 0x31:
         case 0xd8:
         case 0xd4:
         case 0xd9:
-          energyCost = energyCosts.getBALANCE();
+          energyCost = EnergyCost.BALANCE;
           break;
 
         // These all operate on memory and therefore potentially expand it:
+        case 0x51:
         case 0x52:
-          energyCost = calcMemEnergy(energyCosts, oldMemSize,
+          energyCost = calcMemEnergy(
+              oldMemSize,
               memNeeded(stack.peek(), new DataWord(32)),
-              0, op);
+              0,
+              op);
           break;
         case 0x53:
-          energyCost = calcMemEnergy(energyCosts, oldMemSize,
+          energyCost = calcMemEnergy(
+              oldMemSize,
               memNeeded(stack.peek(), new DataWord(1)),
-              0, op);
-          break;
-        case 0x51:
-          energyCost = calcMemEnergy(energyCosts, oldMemSize,
-              memNeeded(stack.peek(), new DataWord(32)),
-              0, op);
+              0,
+              op);
           break;
         case 0xf3:
         case 0xfd:
-          energyCost = energyCosts.getSTOP() + calcMemEnergy(energyCosts, oldMemSize,
+          energyCost = EnergyCost.STOP + calcMemEnergy(oldMemSize,
               memNeeded(stack.peek(), stack.get(stack.size() - 2)), 0, op);
           break;
         case 0x20:
-          energyCost = energyCosts.getSHA3() + calcMemEnergy(energyCosts, oldMemSize,
+          energyCost = EnergyCost.SHA3 + calcMemEnergy(oldMemSize,
               memNeeded(stack.peek(), stack.get(stack.size() - 2)), 0, op);
           DataWord size = stack.get(stack.size() - 2);
           long chunkUsed = (size.longValueSafe() + 31) / 32;
-          energyCost += chunkUsed * energyCosts.getSHA3_WORD();
+          energyCost += chunkUsed * EnergyCost.SHA3_WORD;
           break;
         case 0x37:
-        case 0x3e:
-          energyCost = calcMemEnergy(energyCosts, oldMemSize,
-              memNeeded(stack.peek(), stack.get(stack.size() - 3)),
-              stack.get(stack.size() - 3).longValueSafe(), op);
-          break;
         case 0x39:
-          energyCost = calcMemEnergy(energyCosts, oldMemSize,
+        case 0x3e:
+          energyCost = calcMemEnergy(oldMemSize,
               memNeeded(stack.peek(), stack.get(stack.size() - 3)),
               stack.get(stack.size() - 3).longValueSafe(), op);
           break;
         case 0x3b:
-          energyCost = energyCosts.getEXT_CODE_SIZE();
+          energyCost = EnergyCost.EXT_CODE_SIZE;
           break;
         case 0x3c:
-          energyCost = energyCosts.getEXT_CODE_COPY() + calcMemEnergy(energyCosts, oldMemSize,
+          energyCost = EnergyCost.EXT_CODE_COPY + calcMemEnergy(oldMemSize,
               memNeeded(stack.get(stack.size() - 2), stack.get(stack.size() - 4)),
               stack.get(stack.size() - 4).longValueSafe(), op);
           break;
         case 0x3f:
-          energyCost = energyCosts.getEXT_CODE_HASH();
+          energyCost = EnergyCost.EXT_CODE_HASH;
           break;
         case 0xf1:
         case 0xf2:
@@ -239,7 +227,7 @@ public class VM {
         case 0xfa:
         case 0xd0:
           // here, contract call an other contract, or a library, and so on
-          energyCost = energyCosts.getCALL();
+          energyCost = EnergyCost.CALL;
           DataWord callEnergyWord = stack.get(stack.size() - 1);
           DataWord callAddressWord = stack.get(stack.size() - 2);
           DataWord value = OpCodeV2.callHasValue(op) ? stack.get(stack.size() - 3) : DataWord.ZERO;
@@ -248,12 +236,12 @@ public class VM {
           if ((op == 0xf1 || op == 0xd0)
               && isDeadAccount(program, callAddressWord)
               && !value.isZero()) {
-            energyCost += energyCosts.getNEW_ACCT_CALL();
+            energyCost += EnergyCost.NEW_ACCT_CALL;
           }
 
           // TODO #POC9 Make sure this is converted to BigInteger (256num support)
           if (!value.isZero()) {
-            energyCost += energyCosts.getVT_CALL();
+            energyCost += EnergyCost.VT_CALL;
           }
 
           int opOff = OpCodeV2.callHasValue(op) ? 4 : 3;
@@ -264,7 +252,7 @@ public class VM {
               stack.get(stack.size() - opOff - 1)); // in offset+size
           BigInteger out = memNeeded(stack.get(stack.size() - opOff - 2),
               stack.get(stack.size() - opOff - 3)); // out offset+size
-          energyCost += calcMemEnergy(energyCosts, oldMemSize, in.max(out), 0, op);
+          energyCost += calcMemEnergy(oldMemSize, in.max(out), 0, op);
           checkMemorySize(op, in.max(out));
 
           if (energyCost > program.getEnergyLimitLeft().longValueSafe()) {
@@ -280,15 +268,15 @@ public class VM {
           energyCost += adjustedCallEnergy.longValueSafe();
           break;
         case 0xf0:
-          energyCost = energyCosts.getCREATE() + calcMemEnergy(energyCosts, oldMemSize,
+          energyCost = EnergyCost.CREATE + calcMemEnergy(oldMemSize,
               memNeeded(stack.get(stack.size() - 2), stack.get(stack.size() - 3)), 0, op);
           break;
         case 0xf5:
           DataWord codeSize = stack.get(stack.size() - 3);
-          energyCost = energyCosts.getCREATE();
-          energyCost += calcMemEnergy(energyCosts, oldMemSize,
+          energyCost = EnergyCost.CREATE;
+          energyCost += calcMemEnergy(oldMemSize,
               memNeeded(stack.get(stack.size() - 2), stack.get(stack.size() - 3)), 0, op);
-          energyCost += DataWord.sizeInWords(codeSize.intValueSafe()) * energyCosts.getSHA3_WORD();
+          energyCost += DataWord.sizeInWords(codeSize.intValueSafe()) * EnergyCost.SHA3_WORD;
 
           break;
         case 0xa0:
@@ -299,17 +287,17 @@ public class VM {
           int nTopics = op - OpCodeV2.LOG0;
           BigInteger dataSize = stack.get(stack.size() - 2).value();
           BigInteger dataCost = dataSize
-              .multiply(BigInteger.valueOf(energyCosts.getLOG_DATA_ENERGY()));
+              .multiply(BigInteger.valueOf(EnergyCost.LOG_DATA_ENERGY));
           if (program.getEnergyLimitLeft().value().compareTo(dataCost) < 0) {
             throw new OutOfEnergyException(
                 "Not enough energy for '%s' operation executing: opEnergy[%d], programEnergy[%d]",
                 opName,
                 dataCost.longValueExact(), program.getEnergyLimitLeft().longValueSafe());
           }
-          energyCost = energyCosts.getLOG_ENERGY()
-              + energyCosts.getLOG_TOPIC_ENERGY() * nTopics
-              + energyCosts.getLOG_DATA_ENERGY() * stack.get(stack.size() - 2).longValue()
-              + calcMemEnergy(energyCosts, oldMemSize,
+          energyCost = EnergyCost.LOG_ENERGY
+              + EnergyCost.LOG_TOPIC_ENERGY * nTopics
+              + EnergyCost.LOG_DATA_ENERGY * stack.get(stack.size() - 2).longValue()
+              + calcMemEnergy(oldMemSize,
               memNeeded(stack.peek(), stack.get(stack.size() - 2)), 0, op);
 
           checkMemorySize(op, memNeeded(stack.peek(), stack.get(stack.size() - 2)));
@@ -319,20 +307,20 @@ public class VM {
           DataWord exp = stack.get(stack.size() - 2);
           int bytesOccupied = exp.bytesOccupied();
           energyCost =
-              (long) energyCosts.getEXP_ENERGY() + energyCosts.getEXP_BYTE_ENERGY() * bytesOccupied;
+              EnergyCost.EXP_ENERGY + (long) EnergyCost.EXP_BYTE_ENERGY * bytesOccupied;
           break;
         case 0xd5:
         case 0xd6:
-          energyCost = energyCosts.getStakeAndUnstake();
+          energyCost = EnergyCost.STAKE_UNSTAKE;
           break;
         case 0xd7:
-          energyCost = energyCosts.getWithdrawReward();
+          energyCost = EnergyCost.WITHDRAW_REWARD;
           break;
         case 0xda:
-          energyCost = energyCosts.getTokenIssue();
+          energyCost = EnergyCost.TOKEN_ISSUE;
           break;
         case 0xdb:
-          energyCost = energyCosts.getUpdateAsset();
+          energyCost = EnergyCost.UPDATE_ASSET;
           break;
         default:
           break;
@@ -343,52 +331,33 @@ public class VM {
 
       // Execute operation
       switch (op) {
-        /**
-         * Stop and Arithmetic Operations
-         */
-        // STOP
+        // Stop and Arithmetic Operations
         case 0x00: {
           program.setHReturn(EMPTY_BYTE_ARRAY);
           program.stop();
         }
         break;
-        // ADD
         case 0x01: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
 
-          if (logger.isDebugEnabled()) {
-            hint = word1.value() + " + " + word2.value();
-          }
-
           word1.add(word2);
           program.stackPush(word1);
           program.step();
-
         }
         break;
-        // MUL
         case 0x02: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
-
-          if (logger.isDebugEnabled()) {
-            hint = word1.value() + " * " + word2.value();
-          }
 
           word1.mul(word2);
           program.stackPush(word1);
           program.step();
         }
         break;
-        // SUB
         case 0x03: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
-
-          if (logger.isDebugEnabled()) {
-            hint = word1.value() + " - " + word2.value();
-          }
 
           word1.sub(word2);
           program.stackPush(word1);
@@ -399,10 +368,6 @@ public class VM {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
 
-          if (logger.isDebugEnabled()) {
-            hint = word1.value() + " / " + word2.value();
-          }
-
           word1.div(word2);
           program.stackPush(word1);
           program.step();
@@ -411,10 +376,6 @@ public class VM {
         case 0x05: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
-
-          if (logger.isDebugEnabled()) {
-            hint = word1.sValue() + " / " + word2.sValue();
-          }
 
           word1.sDiv(word2);
           program.stackPush(word1);
@@ -425,10 +386,6 @@ public class VM {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
 
-          if (logger.isDebugEnabled()) {
-            hint = word1.value() + " % " + word2.value();
-          }
-
           word1.mod(word2);
           program.stackPush(word1);
           program.step();
@@ -438,10 +395,6 @@ public class VM {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
 
-          if (logger.isDebugEnabled()) {
-            hint = word1.sValue() + " #% " + word2.sValue();
-          }
-
           word1.sMod(word2);
           program.stackPush(word1);
           program.step();
@@ -450,10 +403,6 @@ public class VM {
         case 0x0a: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
-
-          if (logger.isDebugEnabled()) {
-            hint = word1.value() + " ** " + word2.value();
-          }
 
           word1.exp(word2);
           program.stackPush(word1);
@@ -466,9 +415,6 @@ public class VM {
 
           if (k.compareTo(_32_) < 0) {
             DataWord word2 = program.stackPop();
-            if (logger.isDebugEnabled()) {
-              hint = word1 + "  " + word2.value();
-            }
             word2.signExtend(k.byteValue());
             program.stackPush(word2);
           }
@@ -479,22 +425,13 @@ public class VM {
           DataWord word1 = program.stackPop();
           word1.bnot();
 
-          if (logger.isDebugEnabled()) {
-            hint = "" + word1.value();
-          }
-
           program.stackPush(word1);
           program.step();
         }
         break;
         case 0x10: {
-          // TODO: can be improved by not using BigInteger
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
-
-          if (logger.isDebugEnabled()) {
-            hint = word1.value() + " < " + word2.value();
-          }
 
           if (word1.value().compareTo(word2.value()) < 0) {
             word1.and(DataWord.ZERO);
@@ -507,13 +444,8 @@ public class VM {
         }
         break;
         case 0x12: {
-          // TODO: can be improved by not using BigInteger
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
-
-          if (logger.isDebugEnabled()) {
-            hint = word1.sValue() + " < " + word2.sValue();
-          }
 
           if (word1.sValue().compareTo(word2.sValue()) < 0) {
             word1.and(DataWord.ZERO);
@@ -526,13 +458,8 @@ public class VM {
         }
         break;
         case 0x13: {
-          // TODO: can be improved by not using BigInteger
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
-
-          if (logger.isDebugEnabled()) {
-            hint = word1.sValue() + " > " + word2.sValue();
-          }
 
           if (word1.sValue().compareTo(word2.sValue()) > 0) {
             word1.and(DataWord.ZERO);
@@ -545,13 +472,8 @@ public class VM {
         }
         break;
         case 0x11: {
-          // TODO: can be improved by not using BigInteger
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
-
-          if (logger.isDebugEnabled()) {
-            hint = word1.value() + " > " + word2.value();
-          }
 
           if (word1.value().compareTo(word2.value()) > 0) {
             word1.and(DataWord.ZERO);
@@ -566,10 +488,6 @@ public class VM {
         case 0x14: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
-
-          if (logger.isDebugEnabled()) {
-            hint = word1.value() + " == " + word2.value();
-          }
 
           if (word1.xor(word2).isZero()) {
             word1.and(DataWord.ZERO);
@@ -589,25 +507,15 @@ public class VM {
             word1.and(DataWord.ZERO);
           }
 
-          if (logger.isDebugEnabled()) {
-            hint = "" + word1.value();
-          }
-
           program.stackPush(word1);
           program.step();
         }
         break;
 
-        /**
-         * Bitwise Logic Operations
-         */
+        // Bitwise Logic Operations
         case 0x16: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
-
-          if (logger.isDebugEnabled()) {
-            hint = word1.value() + " && " + word2.value();
-          }
 
           word1.and(word2);
           program.stackPush(word1);
@@ -618,10 +526,6 @@ public class VM {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
 
-          if (logger.isDebugEnabled()) {
-            hint = word1.value() + " || " + word2.value();
-          }
-
           word1.or(word2);
           program.stackPush(word1);
           program.step();
@@ -631,10 +535,6 @@ public class VM {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
 
-          if (logger.isDebugEnabled()) {
-            hint = word1.value() + " ^ " + word2.value();
-          }
-
           word1.xor(word2);
           program.stackPush(word1);
           program.step();
@@ -643,6 +543,7 @@ public class VM {
         case 0x1a: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
+
           final DataWord result;
           if (word1.value().compareTo(_32_) < 0) {
             byte tmp = word2.getData()[word1.intValue()];
@@ -653,10 +554,6 @@ public class VM {
             result = new DataWord();
           }
 
-          if (logger.isDebugEnabled()) {
-            hint = "" + result.value();
-          }
-
           program.stackPush(result);
           program.step();
         }
@@ -664,12 +561,8 @@ public class VM {
         case 0x1b: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
+
           final DataWord result = word2.shiftLeft(word1);
-
-          if (logger.isInfoEnabled()) {
-            hint = "" + result.value();
-          }
-
           program.stackPush(result);
           program.step();
         }
@@ -677,12 +570,8 @@ public class VM {
         case 0x1c: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
+
           final DataWord result = word2.shiftRight(word1);
-
-          if (logger.isInfoEnabled()) {
-            hint = "" + result.value();
-          }
-
           program.stackPush(result);
           program.step();
         }
@@ -690,12 +579,8 @@ public class VM {
         case 0x1d: {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
+
           final DataWord result = word2.shiftRightSigned(word1);
-
-          if (logger.isInfoEnabled()) {
-            hint = "" + result.value();
-          }
-
           program.stackPush(result);
           program.step();
         }
@@ -704,6 +589,7 @@ public class VM {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
           DataWord word3 = program.stackPop();
+
           word1.addmod(word2, word3);
           program.stackPush(word1);
           program.step();
@@ -713,44 +599,35 @@ public class VM {
           DataWord word1 = program.stackPop();
           DataWord word2 = program.stackPop();
           DataWord word3 = program.stackPop();
+
           word1.mulmod(word2, word3);
           program.stackPush(word1);
           program.step();
         }
         break;
 
-        /**
-         * SHA3
-         */
+        // SHA3
         case 0x20: {
           DataWord memOffsetData = program.stackPop();
           DataWord lengthData = program.stackPop();
+
           byte[] buffer = program
               .memoryChunk(memOffsetData.intValueSafe(), lengthData.intValueSafe());
 
           byte[] encoded = sha3(buffer);
           DataWord word = new DataWord(encoded);
 
-          if (logger.isDebugEnabled()) {
-            hint = word.toString();
-          }
-
           program.stackPush(word);
           program.step();
         }
         break;
 
-        /**
-         * Environmental Information
-         */
+        // Environmental Information
         case 0x30: {
           DataWord address = program.getContractAddress();
+
           if (VMConfig.allowMultiSign()) { // allowMultiSigns proposal
             address = new DataWord(address.getLast20Bytes());
-          }
-
-          if (logger.isDebugEnabled()) {
-            hint = ADDRESS_LOG + Hex.toHexString(address.getLast20Bytes());
           }
 
           program.stackPush(address);
@@ -761,12 +638,6 @@ public class VM {
           DataWord address = program.stackPop();
           DataWord balance = program.getBalance(address);
 
-          if (logger.isDebugEnabled()) {
-            hint = ADDRESS_LOG
-                + Hex.toHexString(address.getLast20Bytes())
-                + " balance: " + balance.toString();
-          }
-
           program.stackPush(balance);
           program.step();
         }
@@ -774,12 +645,6 @@ public class VM {
         case 0xd8: {
           DataWord address = program.stackPop();
           DataWord rewardBalance = program.getRewardBalance(address);
-
-          if (logger.isDebugEnabled()) {
-            hint = ADDRESS_LOG
-                    + Hex.toHexString(address.getLast20Bytes())
-                    + " reward balance: " + rewardBalance.toString();
-          }
 
           program.stackPush(rewardBalance);
           program.step();
@@ -808,24 +673,16 @@ public class VM {
             originAddress = new DataWord(originAddress.getLast20Bytes());
           }
 
-          if (logger.isDebugEnabled()) {
-            hint = ADDRESS_LOG + Hex.toHexString(originAddress.getLast20Bytes());
-          }
-
           program.stackPush(originAddress);
           program.step();
         }
         break;
         case 0x33: {
           DataWord callerAddress = program.getCallerAddress();
-          /**
-           since we use 21 bytes address instead of 20 as etherum, we need to make sure
-           the address length in vm is matching with 20
-           */
+
+          // since we use 21 bytes address instead of 20 as etherum, we need to make sure
+          // the address length in vm is matching with 20
           callerAddress = new DataWord(callerAddress.getLast20Bytes());
-          if (logger.isDebugEnabled()) {
-            hint = ADDRESS_LOG + Hex.toHexString(callerAddress.getLast20Bytes());
-          }
 
           program.stackPush(callerAddress);
           program.step();
@@ -834,10 +691,6 @@ public class VM {
         case 0x34: {
           DataWord callValue = program.getCallValue();
 
-          if (logger.isDebugEnabled()) {
-            hint = "value: " + callValue;
-          }
-
           program.stackPush(callValue);
           program.step();
         }
@@ -845,19 +698,11 @@ public class VM {
         case 0xd2:
           DataWord tokenValue = program.getTokenValue();
 
-          if (logger.isDebugEnabled()) {
-            hint = "tokenValue: " + tokenValue;
-          }
-
           program.stackPush(tokenValue);
           program.step();
           break;
         case 0xd3:
           DataWord _tokenId = program.getTokenId();
-
-          if (logger.isDebugEnabled()) {
-            hint = "tokenId: " + _tokenId;
-          }
 
           program.stackPush(_tokenId);
           program.step();
@@ -866,20 +711,12 @@ public class VM {
           DataWord dataOffs = program.stackPop();
           DataWord value = program.getDataValue(dataOffs);
 
-          if (logger.isDebugEnabled()) {
-            hint = DATA_LOG + value;
-          }
-
           program.stackPush(value);
           program.step();
         }
         break;
         case 0x36: {
           DataWord dataSize = program.getDataSize();
-
-          if (logger.isDebugEnabled()) {
-            hint = SIZE_LOG + dataSize.value();
-          }
 
           program.stackPush(dataSize);
           program.step();
@@ -892,20 +729,12 @@ public class VM {
 
           byte[] msgData = program.getDataCopy(dataOffsetData, lengthData);
 
-          if (logger.isDebugEnabled()) {
-            hint = DATA_LOG + Hex.toHexString(msgData);
-          }
-
           program.memorySave(memOffsetData.intValueSafe(), msgData);
           program.step();
         }
         break;
         case 0x3d: {
           DataWord dataSize = program.getReturnDataBufferSize();
-
-          if (logger.isDebugEnabled()) {
-            hint = SIZE_LOG + dataSize.value();
-          }
 
           program.stackPush(dataSize);
           program.step();
@@ -923,17 +752,12 @@ public class VM {
                 program.getReturnDataBufferSize().longValueSafe());
           }
 
-          if (logger.isDebugEnabled()) {
-            hint = DATA_LOG + Hex.toHexString(msgData);
-          }
-
           program.memorySave(memOffsetData.intValueSafe(), msgData);
           program.step();
         }
         break;
         case 0x38:
         case 0x3b: {
-
           int length;
           if (op == 0x38) {
             length = program.getCode().length;
@@ -943,17 +767,12 @@ public class VM {
           }
           DataWord codeLength = new DataWord(length);
 
-          if (logger.isDebugEnabled()) {
-            hint = SIZE_LOG + length;
-          }
-
           program.stackPush(codeLength);
           program.step();
           break;
         }
         case 0x39:
         case 0x3c: {
-
           byte[] fullCode = EMPTY_BYTE_ARRAY;
           if (op == 0x39) {
             fullCode = program.getCode();
@@ -979,10 +798,6 @@ public class VM {
             System.arraycopy(fullCode, codeOffset, codeCopy, 0, sizeToBeCopied);
           }
 
-          if (logger.isDebugEnabled()) {
-            hint = "code: " + Hex.toHexString(codeCopy);
-          }
-
           program.memorySave(memOffset, codeCopy);
           program.step();
           break;
@@ -997,97 +812,53 @@ public class VM {
         case 0x3a: {
           DataWord energyPrice = new DataWord(0);
 
-          if (logger.isDebugEnabled()) {
-            hint = "price: " + energyPrice.toString();
-          }
-
           program.stackPush(energyPrice);
           program.step();
         }
         break;
 
-        /**
-         * Block Information
-         */
+        // Block Information
         case 0x40: {
-
           int blockIndex = program.stackPop().intValueSafe();
-
           DataWord blockHash = program.getBlockHash(blockIndex);
-
-          if (logger.isDebugEnabled()) {
-            hint = "blockHash: " + blockHash;
-          }
 
           program.stackPush(blockHash);
           program.step();
         }
         break;
         case 0x41: {
-          DataWord coinbase = program.getCoinbase();
-
-          if (logger.isDebugEnabled()) {
-            hint = "coinbase: " + Hex.toHexString(coinbase.getLast20Bytes());
-          }
-
-          program.stackPush(coinbase);
+          program.stackPush(program.getCoinbase());
           program.step();
         }
         break;
         case 0x42: {
-          DataWord timestamp = program.getTimestamp();
-
-          if (logger.isDebugEnabled()) {
-            hint = "timestamp: " + timestamp.value();
-          }
-
-          program.stackPush(timestamp);
+          program.stackPush(program.getTimestamp());
           program.step();
         }
         break;
         case 0x43: {
-          DataWord number = program.getNumber();
-
-          if (logger.isDebugEnabled()) {
-            hint = "number: " + number.value();
-          }
-
-          program.stackPush(number);
+          program.stackPush(program.getNumber());
           program.step();
         }
         break;
         case 0x44: {
-          DataWord difficulty = program.getDifficulty();
-
-          if (logger.isDebugEnabled()) {
-            hint = "difficulty: " + difficulty;
-          }
-
-          program.stackPush(difficulty);
+          program.stackPush(program.getDifficulty());
           program.step();
         }
         break;
         case 0x45: {
           // todo: this energylimit is the block's energy limit
-          DataWord energyLimit = new DataWord(0);
-
-          if (logger.isDebugEnabled()) {
-            hint = "energylimit: " + energyLimit;
-          }
-
-          program.stackPush(energyLimit);
+          program.stackPush(new DataWord(0));
           program.step();
         }
         break;
         case 0x46: {
-          DataWord chainId = program.getChainId();
-          program.stackPush(chainId);
+          program.stackPush(program.getChainId());
           program.step();
           break;
         }
         case 0x47: {
-          DataWord selfBalance = program.getBalance(program.getContractAddress());
-          program.stackPush(selfBalance);
+          program.stackPush(program.getBalance(program.getContractAddress()));
           program.step();
           break;
         }
@@ -1112,12 +883,10 @@ public class VM {
         case 0x8d:
         case 0x8e:
         case 0x8f: {
-
           int n = op - OpCodeV2.DUP1 + 1;
           DataWord word_1 = stack.get(stack.size() - n);
           program.stackPush(word_1.clone());
           program.step();
-
           break;
         }
         case 0x90:
@@ -1136,7 +905,6 @@ public class VM {
         case 0x9d:
         case 0x9e:
         case 0x9f: {
-
           int n = op - OpCodeV2.SWAP1 + 2;
           stack.swap(stack.size() - 1, stack.size() - n);
           program.step();
@@ -1147,7 +915,6 @@ public class VM {
         case 0xa2:
         case 0xa3:
         case 0xa4: {
-
           if (program.isStaticCall()) {
             throw new Program.StaticCallModificationException();
           }
@@ -1169,10 +936,6 @@ public class VM {
           LogInfo logInfo =
               new LogInfo(address.getLast20Bytes(), topics, data);
 
-          if (logger.isDebugEnabled()) {
-            hint = logInfo.toString();
-          }
-
           program.getResult().addLogInfo(logInfo);
           program.step();
           break;
@@ -1180,10 +943,6 @@ public class VM {
         case 0x51: {
           DataWord addr = program.stackPop();
           DataWord data = program.memoryLoad(addr);
-
-          if (logger.isDebugEnabled()) {
-            hint = DATA_LOG + data;
-          }
 
           program.stackPush(data);
           program.step();
@@ -1193,10 +952,6 @@ public class VM {
           DataWord addr = program.stackPop();
           DataWord value = program.stackPop();
 
-          if (logger.isDebugEnabled()) {
-            hint = "addr: " + addr + VALUE_LOG + value;
-          }
-
           program.memorySave(addr, value);
           program.step();
         }
@@ -1204,6 +959,7 @@ public class VM {
         case 0x53: {
           DataWord addr = program.stackPop();
           DataWord value = program.stackPop();
+
           byte[] byteVal = {value.getData()[31]};
           program.memorySave(addr.intValueSafe(), byteVal);
           program.step();
@@ -1212,10 +968,6 @@ public class VM {
         case 0x54: {
           DataWord key = program.stackPop();
           DataWord value = program.storageLoad(key);
-
-          if (logger.isDebugEnabled()) {
-            hint = "key: " + key + VALUE_LOG + value;
-          }
 
           if (value == null) {
             value = key.and(DataWord.ZERO);
@@ -1233,12 +985,6 @@ public class VM {
           DataWord addr = program.stackPop();
           DataWord value = program.stackPop();
 
-          if (logger.isDebugEnabled()) {
-            hint =
-                "[" + program.getContractAddress().toPrefixString() + "] key: " + addr + VALUE_LOG
-                    + value;
-          }
-
           program.storageSave(addr, value);
           program.step();
         }
@@ -1246,10 +992,6 @@ public class VM {
         case 0x56: {
           DataWord pos = program.stackPop();
           int nextPC = program.verifyJumpDest(pos);
-
-          if (logger.isDebugEnabled()) {
-            hint = "~> " + nextPC;
-          }
 
           program.setPC(nextPC);
 
@@ -1261,25 +1003,15 @@ public class VM {
 
           if (!cond.isZero()) {
             int nextPC = program.verifyJumpDest(pos);
-
-            if (logger.isDebugEnabled()) {
-              hint = "~> " + nextPC;
-            }
-
             program.setPC(nextPC);
           } else {
             program.step();
           }
-
         }
         break;
         case 0x58: {
           int pc = program.getPC();
           DataWord pcWord = new DataWord(pc);
-
-          if (logger.isDebugEnabled()) {
-            hint = pcWord.toString();
-          }
 
           program.stackPush(pcWord);
           program.step();
@@ -1289,25 +1021,15 @@ public class VM {
           int memSize = program.getMemSize();
           DataWord wordMemSize = new DataWord(memSize);
 
-          if (logger.isDebugEnabled()) {
-            hint = "" + memSize;
-          }
-
           program.stackPush(wordMemSize);
           program.step();
         }
         break;
         case 0x5a: {
-          DataWord energy = program.getEnergyLimitLeft();
-          if (logger.isDebugEnabled()) {
-            hint = "" + energy;
-          }
-
-          program.stackPush(energy);
+          program.stackPush(program.getEnergyLimitLeft());
           program.step();
         }
         break;
-
         case 0x60:
         case 0x61:
         case 0x62:
@@ -1341,13 +1063,9 @@ public class VM {
         case 0x7e:
         case 0x7f: {
           program.step();
+
           int nPush = op - PUSH1.val() + 1;
-
           byte[] data = program.sweep(nPush);
-
-          if (logger.isDebugEnabled()) {
-            hint = "" + Hex.toHexString(data);
-          }
 
           program.stackPush(data);
           break;
@@ -1360,11 +1078,12 @@ public class VM {
           if (program.isStaticCall()) {
             throw new Program.StaticCallModificationException();
           }
+
           DataWord value = program.stackPop();
           DataWord inOffset = program.stackPop();
           DataWord inSize = program.stackPop();
-          program.createContract(value, inOffset, inSize);
 
+          program.createContract(value, inOffset, inSize);
           program.step();
         }
         break;
@@ -1372,10 +1091,12 @@ public class VM {
           if (program.isStaticCall()) {
             throw new Program.StaticCallModificationException();
           }
+
           DataWord value = program.stackPop();
           DataWord inOffset = program.stackPop();
           DataWord inSize = program.stackPop();
           DataWord salt = program.stackPop();
+
           program.createContract2(value, inOffset, inSize, salt);
           program.step();
         }
@@ -1384,8 +1105,8 @@ public class VM {
           DataWord tokenId = program.stackPop();
           DataWord address = program.stackPop();
           DataWord tokenBalance = program.getTokenBalance(address, tokenId);
-          program.stackPush(tokenBalance);
 
+          program.stackPush(tokenBalance);
           program.step();
         }
         break;
@@ -1409,7 +1130,7 @@ public class VM {
           }
 
           if (!value.isZero()) {
-            adjustedCallEnergy.add(new DataWord(energyCosts.getSTIPEND_CALL()));
+            adjustedCallEnergy.add(new DataWord(EnergyCost.STIPEND_CALL));
           }
 
           DataWord tokenId = new DataWord(0);
@@ -1426,17 +1147,6 @@ public class VM {
 
           DataWord outDataOffs = program.stackPop();
           DataWord outDataSize = program.stackPop();
-
-          if (logger.isDebugEnabled()) {
-            hint = "addr: " + Hex.toHexString(codeAddress.getLast20Bytes())
-                + " energy: " + adjustedCallEnergy.shortHex()
-                + " inOff: " + inDataOffs.shortHex()
-                + " inSize: " + inDataSize.shortHex();
-            logger.debug(ENERGY_LOG_FORMATE, String.format("%5s", "[" + program.getPC() + "]"),
-                String.format("%-12s", opName),
-                program.getEnergyLimitLeft().value(),
-                program.getCallDeep(), hint);
-          }
 
           program.memoryExpand(outDataOffs, outDataSize);
 
@@ -1463,16 +1173,15 @@ public class VM {
         case 0xd5: {
           DataWord srAddress = program.stackPop();
           DataWord stakeAmount = program.stackPop();
+
           boolean result = program.stake(srAddress, stakeAmount);
           program.stackPush(new DataWord(result ? 1 : 0));
-
           program.step();
         }
         break;
         case 0xd6: {
           boolean result = program.unstake();
           program.stackPush(new DataWord(result ? 1 : 0));
-
           program.step();
         }
         break;
@@ -1508,12 +1217,6 @@ public class VM {
           byte[] hReturn = program.memoryChunk(offset.intValueSafe(), size.intValueSafe());
           program.setHReturn(hReturn);
 
-          if (logger.isDebugEnabled()) {
-            hint = DATA_LOG + Hex.toHexString(hReturn)
-                + " offset: " + offset.value()
-                + " size: " + size.value();
-          }
-
           program.step();
           program.stop();
 
@@ -1530,11 +1233,6 @@ public class VM {
           DataWord address = program.stackPop();
           program.suicide(address);
           program.getResult().addTouchAccount(address.getLast20Bytes());
-
-          if (logger.isDebugEnabled()) {
-            hint = ADDRESS_LOG + Hex.toHexString(program.getContractAddress().getLast20Bytes());
-          }
-
           program.stop();
         }
         break;

@@ -138,7 +138,7 @@ shadowJar {
 }
 
 test {
-    useTestNG{}
+    useTestNG {}
     testLogging {
         exceptionFormat = 'full'
     }
