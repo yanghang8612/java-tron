@@ -62,7 +62,7 @@ public class Trc20TransferBenchMark {
   
   
   private final int sampleSize = 5000;
-  private final long simulateTimes = 10;
+  private final long simulateTimes = 20;
   
   @BeforeClass
   public void init() {
@@ -85,7 +85,7 @@ public class Trc20TransferBenchMark {
     trc20tokenAddress = Commons.decodeFromBase58Check("TKHBt5dqr2U9ScigACnk7hAv4kzbFAaVGU");
   }
   
-  @AfterClass(enabled = false)
+  @AfterClass
   public void destroy() {
     Args.clearParam();
     context.destroy();
@@ -99,7 +99,7 @@ public class Trc20TransferBenchMark {
   @Test(priority = 0)
   public void deployTrc20()
       throws Exception{
-    
+
     String contractName = "TronToken";
     byte[] address = Hex.decode(ownerAddr);
     String factoryCode = "60806040526100163364010000000061001b810204565b6100f8565b6100336003826"
