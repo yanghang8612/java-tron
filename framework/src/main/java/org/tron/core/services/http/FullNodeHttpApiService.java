@@ -228,6 +228,8 @@ public class FullNodeHttpApiService implements Service {
   @Autowired
   private BroadcastHexServlet broadcastHexServlet;
   @Autowired
+  private GetBurnTrxServlet getBurnTrxServlet;
+  @Autowired
   private GetBrokerageServlet getBrokerageServlet;
   @Autowired
   private GetRewardServlet getRewardServlet;
@@ -267,6 +269,12 @@ public class FullNodeHttpApiService implements Service {
   private GetMarketOrderListByPairServlet getMarketOrderListByPairServlet;
   @Autowired
   private GetMarketPairListServlet getMarketPairListServlet;
+
+  @Autowired
+  private GetAccountBalanceServlet getAccountBalanceServlet;
+
+  @Autowired
+  private GetBlockBalanceServlet getBlockBalanceServlet;
 
   @Autowired
   private LiteFnQueryHttpFilter liteFnQueryHttpFilter;
@@ -465,7 +473,6 @@ public class FullNodeHttpApiService implements Service {
       //          "/wallet/createshieldnullifier");
       //      context.addServlet(new ServletHolder(getShieldTransactionHashServlet),
       //      "/wallet/getshieldtransactionhash");
-
       context
           .addServlet(new ServletHolder(isShieldedTRC20ContractNoteSpentServlet),
               "/wallet/isshieldedtrc20contractnotespent");
@@ -505,6 +512,12 @@ public class FullNodeHttpApiService implements Service {
       context.addServlet(new ServletHolder(getMarketPairListServlet),
           "/wallet/getmarketpairlist");
 
+      context.addServlet(new ServletHolder(getAccountBalanceServlet),
+          "/wallet/getaccountbalance");
+      context.addServlet(new ServletHolder(getBlockBalanceServlet),
+          "/wallet/getblockbalance");
+      context.addServlet(new ServletHolder(getBurnTrxServlet), "/wallet/getburntrx");
+
       int maxHttpConnectNumber = Args.getInstance().getMaxHttpConnectNumber();
       if (maxHttpConnectNumber > 0) {
         server.addBean(new ConnectionLimit(maxHttpConnectNumber, server));
@@ -513,7 +526,7 @@ public class FullNodeHttpApiService implements Service {
       // filters the specified APIs
       // when node is lite fullnode and openHistoryQueryWhenLiteFN is false
       context.addFilter(new FilterHolder(liteFnQueryHttpFilter), "/*",
-              EnumSet.allOf(DispatcherType.class));
+          EnumSet.allOf(DispatcherType.class));
 
       // filter
       ServletHandler handler = new ServletHandler();

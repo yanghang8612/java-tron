@@ -24,6 +24,7 @@ import org.tron.core.services.interfaceOnSolidity.http.GetBlockByLatestNumOnSoli
 import org.tron.core.services.interfaceOnSolidity.http.GetBlockByLimitNextOnSolidityServlet;
 import org.tron.core.services.interfaceOnSolidity.http.GetBlockByNumOnSolidityServlet;
 import org.tron.core.services.interfaceOnSolidity.http.GetBrokerageOnSolidityServlet;
+import org.tron.core.services.interfaceOnSolidity.http.GetBurnTrxOnSolidityServlet;
 import org.tron.core.services.interfaceOnSolidity.http.GetDelegatedResourceAccountIndexOnSolidityServlet;
 import org.tron.core.services.interfaceOnSolidity.http.GetDelegatedResourceOnSolidityServlet;
 import org.tron.core.services.interfaceOnSolidity.http.GetExchangeByIdOnSolidityServlet;
@@ -126,6 +127,8 @@ public class HttpApiOnSolidityService implements Service {
   @Autowired
   private GetRewardOnSolidityServlet getRewardServlet;
   @Autowired
+  private GetBurnTrxOnSolidityServlet getBurnTrxOnSolidityServlet;
+  @Autowired
   private TriggerConstantContractOnSolidityServlet triggerConstantContractOnSolidityServlet;
   @Autowired
   private GetTransactionInfoByBlockNumOnSolidityServlet
@@ -196,16 +199,16 @@ public class HttpApiOnSolidityService implements Service {
           "/walletsolidity/getblockbylimitnext");
       context.addServlet(new ServletHolder(getBlockByLatestNumOnSolidityServlet),
           "/walletsolidity/getblockbylatestnum");
-      // context.addServlet(new ServletHolder(getMerkleTreeVoucherInfoOnSolidityServlet),
-      //     "/walletsolidity/getmerkletreevoucherinfo");
-      // context.addServlet(new ServletHolder(scanAndMarkNoteByIvkOnSolidityServlet),
-      //     "/walletsolidity/scanandmarknotebyivk");
-      // context.addServlet(new ServletHolder(scanNoteByIvkOnSolidityServlet),
-      //     "/walletsolidity/scannotebyivk");
-      // context.addServlet(new ServletHolder(scanNoteByOvkOnSolidityServlet),
-      //     "/walletsolidity/scannotebyovk");
-      // context.addServlet(new ServletHolder(isSpendOnSolidityServlet),
-      //     "/walletsolidity/isspend");
+      context.addServlet(new ServletHolder(getMerkleTreeVoucherInfoOnSolidityServlet),
+          "/walletsolidity/getmerkletreevoucherinfo");
+      context.addServlet(new ServletHolder(scanAndMarkNoteByIvkOnSolidityServlet),
+          "/walletsolidity/scanandmarknotebyivk");
+      context.addServlet(new ServletHolder(scanNoteByIvkOnSolidityServlet),
+          "/walletsolidity/scannotebyivk");
+      context.addServlet(new ServletHolder(scanNoteByOvkOnSolidityServlet),
+          "/walletsolidity/scannotebyovk");
+      context.addServlet(new ServletHolder(isSpendOnSolidityServlet),
+          "/walletsolidity/isspend");
       context.addServlet(new ServletHolder(scanShieldedTRC20NotesByIvkOnSolidityServlet),
           "/walletsolidity/scanshieldedtrc20notesbyivk");
       context.addServlet(new ServletHolder(scanShieldedTRC20NotesByOvkOnSolidityServlet),
@@ -239,11 +242,13 @@ public class HttpApiOnSolidityService implements Service {
       context.addServlet(new ServletHolder(getNodeInfoOnSolidityServlet), "/wallet/getnodeinfo");
       context.addServlet(new ServletHolder(getBrokerageServlet), "/walletsolidity/getBrokerage");
       context.addServlet(new ServletHolder(getRewardServlet), "/walletsolidity/getReward");
+      context
+          .addServlet(new ServletHolder(getBurnTrxOnSolidityServlet), "/walletsolidity/getburntrx");
 
       // filters the specified APIs
       // when node is lite fullnode and openHistoryQueryWhenLiteFN is false
       context.addFilter(new FilterHolder(liteFnQueryHttpFilter), "/*",
-              EnumSet.allOf(DispatcherType.class));
+          EnumSet.allOf(DispatcherType.class));
 
       int maxHttpConnectNumber = Args.getInstance().getMaxHttpConnectNumber();
       if (maxHttpConnectNumber > 0) {

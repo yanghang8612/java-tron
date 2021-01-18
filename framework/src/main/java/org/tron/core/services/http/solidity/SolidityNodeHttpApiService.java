@@ -22,6 +22,7 @@ import org.tron.core.services.http.GetBlockByLatestNumServlet;
 import org.tron.core.services.http.GetBlockByLimitNextServlet;
 import org.tron.core.services.http.GetBlockByNumServlet;
 import org.tron.core.services.http.GetBrokerageServlet;
+import org.tron.core.services.http.GetBurnTrxServlet;
 import org.tron.core.services.http.GetDelegatedResourceAccountIndexServlet;
 import org.tron.core.services.http.GetDelegatedResourceServlet;
 import org.tron.core.services.http.GetExchangeByIdServlet;
@@ -127,7 +128,8 @@ public class SolidityNodeHttpApiService implements Service {
   private GetMarketOrderListByPairServlet getMarketOrderListByPairServlet;
   @Autowired
   private GetMarketPairListServlet getMarketPairListServlet;
-
+  @Autowired
+  private GetBurnTrxServlet getBurnTrxServlet;
   @Autowired
   private GetBrokerageServlet getBrokerageServlet;
   @Autowired
@@ -189,16 +191,16 @@ public class SolidityNodeHttpApiService implements Service {
       context.addServlet(new ServletHolder(getBlockByLatestNumServlet),
           "/walletsolidity/getblockbylatestnum");
 
-      // context.addServlet(new ServletHolder(getMerkleTreeVoucherInfoServlet),
-      //     "/walletsolidity/getmerkletreevoucherinfo");
-      // context.addServlet(new ServletHolder(scanAndMarkNoteByIvkServlet),
-      //     "/walletsolidity/scanandmarknotebyivk");
-      // context.addServlet(new ServletHolder(scanNoteByIvkServlet),
-      //     "/walletsolidity/scannotebyivk");
-      // context.addServlet(new ServletHolder(scanNoteByOvkServlet),
-      //     "/walletsolidity/scannotebyovk");
-      // context.addServlet(new ServletHolder(isSpendServlet),
-      //     "/walletsolidity/isspend");
+      context.addServlet(new ServletHolder(getMerkleTreeVoucherInfoServlet),
+          "/walletsolidity/getmerkletreevoucherinfo");
+      context.addServlet(new ServletHolder(scanAndMarkNoteByIvkServlet),
+          "/walletsolidity/scanandmarknotebyivk");
+      context.addServlet(new ServletHolder(scanNoteByIvkServlet),
+          "/walletsolidity/scannotebyivk");
+      context.addServlet(new ServletHolder(scanNoteByOvkServlet),
+          "/walletsolidity/scannotebyovk");
+      context.addServlet(new ServletHolder(isSpendServlet),
+          "/walletsolidity/isspend");
 
       context.addServlet(new ServletHolder(scanShieldedTRC20NotesByIvkServlet),
           "/walletsolidity/scanshieldedtrc20notesbyivk");
@@ -237,6 +239,7 @@ public class SolidityNodeHttpApiService implements Service {
       context.addServlet(new ServletHolder(getNodeInfoServlet), "/wallet/getnodeinfo");
       context.addServlet(new ServletHolder(getBrokerageServlet), "/walletsolidity/getBrokerage");
       context.addServlet(new ServletHolder(getRewardServlet), "/walletsolidity/getReward");
+      context.addServlet(new ServletHolder(getBurnTrxServlet), "/walletsolidity/getburntrx");
 
       int maxHttpConnectNumber = Args.getInstance().getMaxHttpConnectNumber();
       if (maxHttpConnectNumber > 0) {
