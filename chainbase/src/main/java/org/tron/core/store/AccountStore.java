@@ -100,16 +100,6 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
 
   @Override
   public void delete(byte[] key) {
-    final AccountCapsule oldAccount = get(key);
-    super.delete(key);
-
-    if (!ByteUtil.equals(key, getBlackhole().getAddress().toByteArray())) {
-      accountChangeRecord.delete(key, oldAccount);
-    }
-  }
-
-  @Override
-  public void delete(byte[] key) {
     if (CommonParameter.getInstance().isHistoryBalanceLookup()) {
       AccountCapsule old = super.getUnchecked(key);
       if (old != null) {
@@ -121,7 +111,14 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
         accountTraceStore.recordBalanceWithBlock(key, blockId.getNum(), 0);
       }
     }
+
+    final AccountCapsule oldAccount = get(key);
+
     super.delete(key);
+
+    if (!ByteUtil.equals(key, getBlackhole().getAddress().toByteArray())) {
+      accountChangeRecord.delete(key, oldAccount);
+    }
   }
 
   /**
