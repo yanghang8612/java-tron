@@ -51,18 +51,25 @@ public class DataWord implements Comparable<DataWord> {
   }
 
   public DataWord(int num) {
-    this(ByteBuffer.allocate(4).putInt(num));
+//    this(ByteBuffer.allocate(4).putInt(num).array());
+    this.data = new byte[WORD_SIZE];
+    this.data[WORD_SIZE - 4] = (byte) ((num >> 24) & 0xff);
+    this.data[WORD_SIZE - 3] = (byte) ((num >> 16) & 0xff);
+    this.data[WORD_SIZE - 2] = (byte) ((num >> 8) & 0xff);
+    this.data[WORD_SIZE - 1] = (byte) (num & 0xff);
   }
 
   public DataWord(long num) {
-    this(ByteBuffer.allocate(8).putLong(num));
-  }
-
-  private DataWord(ByteBuffer buffer) {
-    final ByteBuffer targetByteBuffer = ByteBuffer.allocate(WORD_SIZE);
-    final byte[] array = buffer.array();
-    System.arraycopy(array, 0, targetByteBuffer.array(), WORD_SIZE - array.length, array.length);
-    this.data = targetByteBuffer.array();
+//    this(ByteBuffer.allocate(8).putLong(num).array());
+    this.data = new byte[WORD_SIZE];
+    this.data[WORD_SIZE - 8] = (byte) ((num >> 56) & 0xff);
+    this.data[WORD_SIZE - 7] = (byte) ((num >> 48) & 0xff);
+    this.data[WORD_SIZE - 6] = (byte) ((num >> 40) & 0xff);
+    this.data[WORD_SIZE - 5] = (byte) ((num >> 32) & 0xff);
+    this.data[WORD_SIZE - 4] = (byte) ((num >> 24) & 0xff);
+    this.data[WORD_SIZE - 3] = (byte) ((num >> 16) & 0xff);
+    this.data[WORD_SIZE - 2] = (byte) ((num >> 8) & 0xff);
+    this.data[WORD_SIZE - 1] = (byte) (num & 0xff);
   }
 
   @JsonCreator
@@ -106,12 +113,9 @@ public class DataWord implements Comparable<DataWord> {
   }
 
   public static boolean isZero(byte[] data) {
-    for (byte tmp : data) {
-      if (tmp != 0) {
-        return false;
-      }
-    }
-    return true;
+    int i = WORD_SIZE - 1;
+    while (i >= 0 && data[i] == 0) i -= 1;
+    return i < 0;
   }
 
   public static String shortHex(byte[] data) {
@@ -195,9 +199,8 @@ public class DataWord implements Comparable<DataWord> {
    */
   public int intValue() {
     int intVal = 0;
-
-    for (byte aData : data) {
-      intVal = (intVal << 8) + (aData & 0xff);
+    for (int i = 4; i > 0; i--) {
+      intVal = (intVal << 8) + (data[WORD_SIZE - i] & 0xff);
     }
 
     return intVal;
@@ -225,8 +228,8 @@ public class DataWord implements Comparable<DataWord> {
   public long longValue() {
 
     long longVal = 0;
-    for (byte aData : data) {
-      longVal = (longVal << 8) + (aData & 0xff);
+    for (int i = 8; i > 0; i--) {
+      longVal = (longVal << 8) + (data[WORD_SIZE - i] & 0xff);
     }
 
     return longVal;
@@ -253,12 +256,9 @@ public class DataWord implements Comparable<DataWord> {
   }
 
   public boolean isZero() {
-    for (byte tmp : data) {
-      if (tmp != 0) {
-        return false;
-      }
-    }
-    return true;
+    int i = WORD_SIZE - 1;
+    while (i >= 0 && data[i] == 0) i -= 1;
+    return i < 0;
   }
 
   // only in case of signed operation
