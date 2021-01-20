@@ -34,6 +34,7 @@ import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
 @Slf4j(topic = "capsule")
 public class ContractCapsule implements ProtoCapsule<SmartContract> {
 
+  private byte[] data;
   private SmartContract smartContract;
   private byte[] runtimecode;
 
@@ -46,6 +47,7 @@ public class ContractCapsule implements ProtoCapsule<SmartContract> {
 
   public ContractCapsule(byte[] data) {
     try {
+      this.data = data;
       this.smartContract = SmartContract.parseFrom(data);
     } catch (InvalidProtocolBufferException e) {
       // logger.debug(e.getMessage());
@@ -77,6 +79,7 @@ public class ContractCapsule implements ProtoCapsule<SmartContract> {
   }
 
   public void setCodeHash(byte[] codeHash) {
+    this.data = null;
     this.smartContract = this.smartContract.toBuilder().setCodeHash(ByteString.copyFrom(codeHash))
         .build();
   }
@@ -92,7 +95,7 @@ public class ContractCapsule implements ProtoCapsule<SmartContract> {
 
   @Override
   public byte[] getData() {
-    return this.smartContract.toByteArray();
+    return data == null ? data = this.smartContract.toByteArray() : data;
   }
 
   @Override
@@ -123,6 +126,7 @@ public class ContractCapsule implements ProtoCapsule<SmartContract> {
   }
 
   public void clearABI() {
+    this.data = null;
     this.smartContract = this.smartContract.toBuilder().setAbi(ABI.getDefaultInstance()).build();
   }
 

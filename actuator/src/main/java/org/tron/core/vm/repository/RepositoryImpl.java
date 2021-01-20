@@ -498,10 +498,10 @@ public class RepositoryImpl implements Repository {
       }
     } else {
       storage = new Storage(address, getStorageRowStore());
-    }
-    ContractCapsule contract = getContract(address);
-    if (contract != null && !ByteUtil.isNullOrZeroArray(contract.getTrxHash())) {
-      storage.generateAddrHash(contract.getTrxHash());
+      ContractCapsule contract = getContract(address);
+      if (contract != null && !ByteUtil.isNullOrZeroArray(contract.getTrxHash())) {
+        storage.generateAddrHash(contract.getTrxHash());
+      }
     }
     return storage;
   }
