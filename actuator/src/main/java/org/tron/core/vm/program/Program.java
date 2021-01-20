@@ -1477,7 +1477,7 @@ public class Program {
       throw Exception.badJumpDestination(-1);
     }
     int ret = nextPC.intValue();
-    if (!getProgramPrecompile().hasJumpDest(ret)) {
+    if (ops[ret] != 0x5b) {
       throw Exception.badJumpDestination(ret);
     }
     return ret;
