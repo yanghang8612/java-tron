@@ -70,6 +70,7 @@ import org.tron.consensus.base.Param.Miner;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.Constant;
 import org.tron.core.actuator.ActuatorCreator;
+import org.tron.core.actuator.VMActuator;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.BlockBalanceTraceCapsule;
 import org.tron.core.capsule.BlockCapsule;
@@ -149,6 +150,9 @@ import org.tron.protos.contract.BalanceContract;
 @Slf4j(topic = "DB")
 @Component
 public class Manager {
+
+  public static long cnt = 0;
+  public static long time = 0;
 
   private static final int SHIELDED_TRANS_IN_BLOCK_COUNTS = 1;
   private static final String SAVE_BLOCK = "save block: ";
@@ -629,14 +633,14 @@ public class Manager {
       throw new TooBigTransactionException(
           "too big transaction, the size is " + transactionCapsule.getData().length + " bytes");
     }
-    long transactionExpiration = transactionCapsule.getExpiration();
-    long headBlockTime = chainBaseManager.getHeadBlockTimeStamp();
-    if (transactionExpiration <= headBlockTime
-        || transactionExpiration > headBlockTime + Constant.MAXIMUM_TIME_UNTIL_EXPIRATION) {
-      throw new TransactionExpirationException(
-          "transaction expiration, transaction expiration time is " + transactionExpiration
-              + ", but headBlockTime is " + headBlockTime);
-    }
+//    long transactionExpiration = transactionCapsule.getExpiration();
+//    long headBlockTime = chainBaseManager.getHeadBlockTimeStamp();
+//    if (transactionExpiration <= headBlockTime
+//        || transactionExpiration > headBlockTime + Constant.MAXIMUM_TIME_UNTIL_EXPIRATION) {
+//      throw new TransactionExpirationException(
+//          "transaction expiration, transaction expiration time is " + transactionExpiration
+//              + ", but headBlockTime is " + headBlockTime);
+//    }
   }
 
   void validateDup(TransactionCapsule transactionCapsule) throws DupTransactionException {
@@ -1050,6 +1054,11 @@ public class Manager {
         block.getNum(),
         System.currentTimeMillis() - start,
         block.getTransactions().size());
+
+    System.out.printf("pushBlock block number:%d, cost/txs:%d/%d%n",
+        block.getNum(),
+        System.currentTimeMillis() - start,
+        block.getTransactions().size());
   }
 
   public void updateDynamicProperties(BlockCapsule block) {
@@ -1113,8 +1122,8 @@ public class Manager {
       chainBaseManager.getBalanceTraceStore().initCurrentTransactionBalanceTrace(trxCap);
     }
 
-    validateTapos(trxCap);
-    validateCommon(trxCap);
+//    validateTapos(trxCap);
+//    validateCommon(trxCap);
 
     if (trxCap.getInstance().getRawData().getContractList().size() != 1) {
       throw new ContractSizeNotEqualToOneException(
@@ -1192,6 +1201,7 @@ public class Manager {
   public synchronized BlockCapsule generateBlock(Miner miner, long blockTime, long timeout) {
 
     long postponedTrxCount = 0;
+    long startTime = System.nanoTime();
 
     BlockCapsule blockCapsule = new BlockCapsule(chainBaseManager.getHeadBlockNum() + 1,
         chainBaseManager.getHeadBlockId(),
@@ -1281,6 +1291,14 @@ public class Manager {
 
     logger.info("Generate block success, pendingCount: {}, rePushCount: {}, postponedCount: {}",
         pendingTransactions.size(), rePushTransactions.size(), postponedTrxCount);
+
+    time += System.nanoTime() - startTime;
+    cnt += blockCapsule.getTransactions().size();
+    System.out.printf("Block tx count: %d, cost: %d, tps: %.3f, speed: %.3fms%n",
+        cnt, time, (double) cnt / time * 1_000_000_000, (double) time / cnt / 1_000_000);
+    System.out.printf("VM play count: %d, cost: %d, tps: %.3f, speed: %.3fms%n",
+        VMActuator.cnt, VMActuator.time, (double) VMActuator.cnt / VMActuator.time * 1_000_000_000,
+        (double) VMActuator.time / VMActuator.cnt / 1_000_000);
 
     blockCapsule.setMerkleRoot();
     blockCapsule.sign(miner.getPrivateKey());

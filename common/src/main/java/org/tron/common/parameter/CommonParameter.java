@@ -48,6 +48,18 @@ public class CommonParameter {
   @Parameter(names = {"--debug"})
   public boolean debug = false;
   @Getter
+  @Parameter(names = {"--test-cnt"})
+  public int testCnt = 10_000;
+  @Getter
+  @Parameter(names = {"--test-contract"})
+  public String testContract = "";
+  @Getter
+  @Parameter(names = {"--test-method"})
+  public String testMethod = "";
+  @Getter
+  @Parameter(names = {"--test-params"})
+  public String testParams = "";
+  @Getter
   @Setter
   @Parameter(names = {"--min-time-ratio"})
   public double minTimeRatio = 0.0;

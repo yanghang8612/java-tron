@@ -1409,7 +1409,8 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
 
 
   public boolean supportTransactionFeePool() {
-    return getAllowTransactionFeePool() == 1L;
+//    return getAllowTransactionFeePool() == 1L;
+    return true;
   }
 
   public void saveAllowTransactionFeePool(long value) {

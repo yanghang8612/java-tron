@@ -31,7 +31,7 @@ public class PendingManager implements AutoCloseable {
           db.getPendingTransactions().size() - tmpTransactions.size());
     }
 
-    db.getPendingTransactions().clear();
+    //db.getPendingTransactions().clear();
     db.getSession().reset();
     db.getShieldedTransInPendingCounts().set(0);
   }
