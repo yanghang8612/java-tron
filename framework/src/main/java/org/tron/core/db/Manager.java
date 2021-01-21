@@ -1296,7 +1296,7 @@ public class Manager {
     blkCnt += 1;
     trxCnt += curTrx;
     System.out.printf("Block %d: %dtxs, %.3ftxs, %.3fms, %.3fms, %.3fms, %.3fms%n",
-        blockCapsule.getBlockId().getNum(),
+        blockCapsule.getNum(),
         curTrx,
         (double) trxCnt / blkCnt,
         (double) (VMActuator.time - vmTime) / curTrx / 1_000_000,
