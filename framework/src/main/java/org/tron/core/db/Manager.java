@@ -151,7 +151,8 @@ import org.tron.protos.contract.BalanceContract;
 @Component
 public class Manager {
 
-  public static long cnt = 0;
+  public static long blkCnt = 0;
+  public static long trxCnt = 0;
   public static long time = 0;
 
   private static final int SHIELDED_TRANS_IN_BLOCK_COUNTS = 1;
@@ -1202,6 +1203,9 @@ public class Manager {
 
     long postponedTrxCount = 0;
     long startTime = System.nanoTime();
+    long vmTime = VMActuator.time;
+    long blkTime = Manager.time;
+    VMActuator.record = true;
 
     BlockCapsule blockCapsule = new BlockCapsule(chainBaseManager.getHeadBlockNum() + 1,
         chainBaseManager.getHeadBlockId(),
@@ -1292,13 +1296,24 @@ public class Manager {
     logger.info("Generate block success, pendingCount: {}, rePushCount: {}, postponedCount: {}",
         pendingTransactions.size(), rePushTransactions.size(), postponedTrxCount);
 
+    long curTrx = blockCapsule.getTransactions().size();
     time += System.nanoTime() - startTime;
-    cnt += blockCapsule.getTransactions().size();
-    System.out.printf("Block tx count: %d, cost: %d, tps: %.3f, speed: %.3fms%n",
-        cnt, time, (double) cnt / time * 1_000_000_000, (double) time / cnt / 1_000_000);
-    System.out.printf("VM play count: %d, cost: %d, tps: %.3f, speed: %.3fms%n",
-        VMActuator.cnt, VMActuator.time, (double) VMActuator.cnt / VMActuator.time * 1_000_000_000,
-        (double) VMActuator.time / VMActuator.cnt / 1_000_000);
+    blkCnt += 1;
+    trxCnt += curTrx;
+    System.out.printf("Block %d: %dtxs, %.3ftxs, %.3fms, %.3fms, %.3fms, %.3fms%n",
+        blockCapsule.getBlockId().getNum(),
+        curTrx,
+        (double) trxCnt / blkCnt,
+        (double) (VMActuator.time - vmTime) / curTrx,
+        (double) VMActuator.time / trxCnt,
+        (double) (Manager.time - blkTime) / curTrx,
+        (double) Manager.time / trxCnt);
+//    System.out.printf("Block tx count: %d, cost: %d, tps: %.3f, speed: %.3fms%n",
+//        cnt, time, (double) cnt / time * 1_000_000_000, (double) time / cnt / 1_000_000);
+//    System.out.printf("VM play count: %d, cost: %d, tps: %.3f, speed: %.3fms%n",
+//        VMActuator.cnt, VMActuator.time, (double) VMActuator.cnt / VMActuator.time * 1_000_000_000,
+//        (double) VMActuator.time / VMActuator.cnt / 1_000_000);
+    VMActuator.record = false;
 
     blockCapsule.setMerkleRoot();
     blockCapsule.sign(miner.getPrivateKey());
