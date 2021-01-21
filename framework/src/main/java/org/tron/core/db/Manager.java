@@ -1055,11 +1055,6 @@ public class Manager {
         block.getNum(),
         System.currentTimeMillis() - start,
         block.getTransactions().size());
-
-    System.out.printf("pushBlock block number:%d, cost/txs:%d/%d%n",
-        block.getNum(),
-        System.currentTimeMillis() - start,
-        block.getTransactions().size());
   }
 
   public void updateDynamicProperties(BlockCapsule block) {
@@ -1304,10 +1299,10 @@ public class Manager {
         blockCapsule.getBlockId().getNum(),
         curTrx,
         (double) trxCnt / blkCnt,
-        (double) (VMActuator.time - vmTime) / curTrx,
-        (double) VMActuator.time / trxCnt,
-        (double) (Manager.time - blkTime) / curTrx,
-        (double) Manager.time / trxCnt);
+        (double) (VMActuator.time - vmTime) / curTrx / 1_000_000,
+        (double) VMActuator.time / trxCnt / 1_000_000,
+        (double) (Manager.time - blkTime) / curTrx / 1_000_000,
+        (double) Manager.time / trxCnt / 1_000_000);
 //    System.out.printf("Block tx count: %d, cost: %d, tps: %.3f, speed: %.3fms%n",
 //        cnt, time, (double) cnt / time * 1_000_000_000, (double) time / cnt / 1_000_000);
 //    System.out.printf("VM play count: %d, cost: %d, tps: %.3f, speed: %.3fms%n",
