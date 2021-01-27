@@ -1295,7 +1295,7 @@ public class Manager {
     time += System.nanoTime() - startTime;
     blkCnt += 1;
     trxCnt += curTrx;
-    System.out.printf("Block %d: %dtxs, %.3ftxs, %.3fms, %.3fms, %.3fms, %.3fms%n -- %.1f%%",
+    System.out.printf("Block %d: %dtxs, %.3ftxs, %.3fms, %.3fms, %.3fms, %.3fms -- %.1f%%%n",
         blockCapsule.getNum(),
         curTrx,
         (double) trxCnt / blkCnt,
