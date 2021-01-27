@@ -1295,14 +1295,15 @@ public class Manager {
     time += System.nanoTime() - startTime;
     blkCnt += 1;
     trxCnt += curTrx;
-    System.out.printf("Block %d: %dtxs, %.3ftxs, %.3fms, %.3fms, %.3fms, %.3fms%n",
+    System.out.printf("Block %d: %dtxs, %.3ftxs, %.3fms, %.3fms, %.3fms, %.3fms%n -- %.1f%%",
         blockCapsule.getNum(),
         curTrx,
         (double) trxCnt / blkCnt,
         (double) (VMActuator.time - vmTime) / curTrx / 1_000_000,
         (double) VMActuator.time / trxCnt / 1_000_000,
         (double) (Manager.time - blkTime) / curTrx / 1_000_000,
-        (double) Manager.time / trxCnt / 1_000_000);
+        (double) Manager.time / trxCnt / 1_000_000,
+        (double) trxCnt * 100 / CommonParameter.getInstance().getTestCnt());
 //    System.out.printf("Block tx count: %d, cost: %d, tps: %.3f, speed: %.3fms%n",
 //        cnt, time, (double) cnt / time * 1_000_000_000, (double) time / cnt / 1_000_000);
 //    System.out.printf("VM play count: %d, cost: %d, tps: %.3f, speed: %.3fms%n",
