@@ -307,7 +307,7 @@ public class VM {
 
       program.spendEnergy(energyCost, op.name());
       if (isTimeUp && !CommonParameter.getInstance().isDebug()
-          && CommonParameter.getInstance().isSolidityNode()) {
+          && !CommonParameter.getInstance().isSolidityNode()) {
         logger.info(
             "minTimeRatio: {}, maxTimeRatio: {}, vm should end time in us: {}, "
                 + "vm now time in us: {}, vm start time in us: {}",
