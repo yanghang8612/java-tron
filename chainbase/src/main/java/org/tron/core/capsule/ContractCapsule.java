@@ -31,6 +31,8 @@ import org.tron.protos.contract.SmartContractOuterClass.SmartContractDataWrapper
 import org.tron.protos.contract.SmartContractOuterClass.SmartContractDataWrapperOrBuilder;
 import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
 
+import java.util.Arrays;
+
 @Slf4j(topic = "capsule")
 public class ContractCapsule implements ProtoCapsule<SmartContract> {
 
@@ -95,7 +97,10 @@ public class ContractCapsule implements ProtoCapsule<SmartContract> {
 
   @Override
   public byte[] getData() {
-    return data == null ? data = this.smartContract.toByteArray() : data;
+    if (data == null) {
+      data = this.smartContract.toByteArray();
+    }
+    return Arrays.copyOf(data, data.length);
   }
 
   @Override
