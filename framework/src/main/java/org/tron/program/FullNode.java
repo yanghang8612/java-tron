@@ -4,9 +4,11 @@ import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.joran.JoranConfigurator;
 import java.io.File;
 import java.util.List;
+import java.util.Objects;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import lombok.extern.slf4j.Slf4j;
+import org.joda.time.DateTime;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.tron.common.application.Application;
@@ -121,19 +123,36 @@ public class FullNode {
     appT.startServices();
     appT.startup();
 
-    new Thread(() -> {
+    for (int i = 0; i < 6; i++) {
+      new Thread(new TraversalTask(i), "Traversal-" + i).start();
+    }
+
+    rpcApiService.blockUntilShutdown();
+  }
+
+  private static class TraversalTask implements Runnable {
+
+    private int blk = 0;
+
+    TraversalTask(int idx) {
+      this.blk = 27_328_691 - idx * 1_728_000;
+    }
+
+    @Override
+    public void run() {
       Repository repository = RepositoryImpl.createRoot(StoreFactory.getInstance());
       byte[] selector = Hash.sha3("transfer(address,uint256)".getBytes());
       long txCnt = 0, outOfTime = 0, curTxCnt = 0, curOutOfTime = 0, start = System.currentTimeMillis();
-      for (int i = 1; i <= 10512000; i++) {
-        BlockCapsule blockCapsule = repository.getBlockByNum(27328691 - i);
-        List<TransactionCapsule> transactions = blockCapsule.getTransactions();
-        for (TransactionCapsule cap : transactions) {
-          Protocol.Transaction t = cap.getInstance();
-          List<Protocol.Transaction.Contract> contracts = t.getRawData().getContractList();
-          if (contracts.size() > 0 && contracts.get(0).getType()
-              == Protocol.Transaction.Contract.ContractType.TriggerSmartContract) {
-            try {
+      for (int i = 1; i <= 1_728_000; i++) {
+        BlockCapsule blockCapsule = null;
+        try {
+          blockCapsule = repository.getBlockByNum(blk - i);
+          List<TransactionCapsule> transactions = blockCapsule.getTransactions();
+          for (TransactionCapsule cap : transactions) {
+            Protocol.Transaction t = cap.getInstance();
+            List<Protocol.Transaction.Contract> contracts = t.getRawData().getContractList();
+            if (contracts.size() > 0 && contracts.get(0).getType()
+                == Protocol.Transaction.Contract.ContractType.TriggerSmartContract) {
               SmartContractOuterClass.TriggerSmartContract contract =
                   contracts.get(0).getParameter().unpack(SmartContractOuterClass.TriggerSmartContract.class);
               if ("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t".equals(StringUtil.encode58Check(contract.getContractAddress().toByteArray()))
@@ -141,24 +160,26 @@ public class FullNode {
                 curTxCnt += 1;
                 if (cap.getContractResult() == Protocol.Transaction.Result.contractResult.OUT_OF_TIME) {
                   curOutOfTime += 1;
-                  System.out.println(cap.getTransactionId().toString() + " " + StringUtil.encode58Check(contract.getOwnerAddress().toByteArray()));
+                  //System.out.println(cap.getTransactionId().toString() + " " + StringUtil.encode58Check(contract.getOwnerAddress().toByteArray()));
                 }
               }
-            } catch (InvalidProtocolBufferException e) {
-              e.printStackTrace();
             }
           }
+        } catch (Exception e) {
+          e.printStackTrace();
         }
         if (i % 28800 == 0) {
           txCnt += curTxCnt;
           outOfTime += curOutOfTime;
-          System.out.println(curTxCnt + " " + curOutOfTime + " " + txCnt + " " + outOfTime + " " + (System.currentTimeMillis() - start));
-          curTxCnt = curOutOfTime = start = 0;
+          System.out.println(Thread.currentThread().getName() + ": "
+              + new DateTime(Objects.requireNonNull(blockCapsule).getTimeStamp())
+              + curTxCnt + " " + curOutOfTime + " " + txCnt + " " + outOfTime
+              + " " + (System.currentTimeMillis() - start));
+          curTxCnt = curOutOfTime = 0;
+          start = System.currentTimeMillis();
         }
       }
-    }).start();
-
-    rpcApiService.blockUntilShutdown();
+    }
   }
 
   private static boolean check(byte[] a, byte[] b) {
