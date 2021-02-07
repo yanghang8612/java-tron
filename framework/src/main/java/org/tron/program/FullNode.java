@@ -177,7 +177,6 @@ public class FullNode {
       for (int i = 1, days = 0, j = 0; true; i++) {
         BlockCapsule blockCapsule = repository.getBlockByNum(blk - i);
         String sr = StringUtil.encode58Check(blockCapsule.getWitnessAddress().toByteArray());
-        if (!map.containsKey(sr)) map.put(sr, new Data());
         LocalDateTime date = Instant.ofEpochMilli(blockCapsule.getTimeStamp())
             .atZone(ZoneOffset.ofHours(8)).toLocalDateTime();
         if (days == 0) days = date.getDayOfYear();
@@ -185,7 +184,7 @@ public class FullNode {
           j += 1;
           txCnt += curTxCnt;
           outOfTime += curOutOfTime;
-          System.out.println(Thread.currentThread().getName() + ": " + date.plusSeconds(3)
+          System.out.println(Thread.currentThread().getName() + ": " + date.plusSeconds(6)
               + " " + curTxCnt + " " + curOutOfTime + " " + txCnt + " " + outOfTime
               + " " + (System.currentTimeMillis() - start) + "ms");
           try {
@@ -221,6 +220,7 @@ public class FullNode {
             if ("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t".equals(StringUtil.encode58Check(contract.getContractAddress().toByteArray()))
                 && check(selector, contract.getData().toByteArray())) {
               curTxCnt += 1;
+              if (!map.containsKey(sr)) map.put(sr, new Data());
               map.get(sr).txCnt += 1;
               if (cap.getContractResult() == Protocol.Transaction.Result.contractResult.OUT_OF_TIME) {
                 curOutOfTime += 1;
