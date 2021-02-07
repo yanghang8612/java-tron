@@ -2,7 +2,11 @@ package org.tron.program;
 
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.joran.JoranConfigurator;
+
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -47,10 +51,6 @@ import org.tron.protos.contract.SmartContractOuterClass;
 public class FullNode {
   
   public static final int dbVersion = 2;
-
-  public static ConcurrentHashMap<String, Map<String, Data>> totalMap = new ConcurrentHashMap<>();
-
-  public static boolean[] ok = new boolean[3];
 
   public static void load(String path) {
     try {
@@ -170,19 +170,16 @@ public class FullNode {
 
     @Override
     public void run() {
-      Map<String, Map<String, Data>> map = new HashMap<>();
+      Map<String, Data> map = new HashMap<>();
       Repository repository = RepositoryImpl.createRoot(StoreFactory.getInstance());
       byte[] selector = Hash.sha3("transfer(address,uint256)".getBytes());
       long txCnt = 0, outOfTime = 0, curTxCnt = 0, curOutOfTime = 0, start = System.currentTimeMillis();
       for (int i = 1, days = 0, j = 0; true; i++) {
         BlockCapsule blockCapsule = repository.getBlockByNum(blk - i);
         String sr = StringUtil.encode58Check(blockCapsule.getWitnessAddress().toByteArray());
-        if (!map.containsKey(sr)) map.put(sr, new HashMap<>());
-        DateTimeFormatter df = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        if (!map.containsKey(sr)) map.put(sr, new Data());
         LocalDateTime date = Instant.ofEpochMilli(blockCapsule.getTimeStamp())
             .atZone(ZoneOffset.ofHours(8)).toLocalDateTime();
-        String dateKey = df.format(date);
-        if (!map.get(sr).containsKey(dateKey)) map.get(sr).put(dateKey, new Data());
         if (days == 0) days = date.getDayOfYear();
         if (date.getDayOfYear() != days) {
           j += 1;
@@ -191,9 +188,21 @@ public class FullNode {
           System.out.println(Thread.currentThread().getName() + ": " + date.plusSeconds(3)
               + " " + curTxCnt + " " + curOutOfTime + " " + txCnt + " " + outOfTime
               + " " + (System.currentTimeMillis() - start) + "ms");
+          try {
+            for (String key : map.keySet()) {
+              BufferedWriter bw = new BufferedWriter(new FileWriter(key, true));
+              DateTimeFormatter df = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+              bw.write(String.format("%s %d %d%n", df.format(date.plusDays(1)), map.get(key).outOfTime, map.get(key).txCnt));
+              bw.flush();
+              bw.close();
+            }
+          } catch (IOException e) {
+            e.printStackTrace();
+          }
           curTxCnt = curOutOfTime = 0;
           start = System.currentTimeMillis();
           days = date.getDayOfYear();
+          map = new HashMap<>();
         }
         if (j > 30) break;
         List<TransactionCapsule> transactions = blockCapsule.getTransactions();
@@ -212,31 +221,15 @@ public class FullNode {
             if ("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t".equals(StringUtil.encode58Check(contract.getContractAddress().toByteArray()))
                 && check(selector, contract.getData().toByteArray())) {
               curTxCnt += 1;
+              map.get(sr).txCnt += 1;
               if (cap.getContractResult() == Protocol.Transaction.Result.contractResult.OUT_OF_TIME) {
                 curOutOfTime += 1;
+                map.get(sr).outOfTime += 1;
                 //System.out.println(cap.getTransactionId().toString() + " " + StringUtil.encode58Check(contract.getOwnerAddress().toByteArray()));
               }
             }
           }
         }
-        map.get(sr).get(dateKey).outOfTime += curOutOfTime;
-        map.get(sr).get(dateKey).txCnt += curTxCnt;
-      }
-      for (String k1 : map.keySet()) {
-        if (!totalMap.containsKey(k1)) totalMap.put(k1, new ConcurrentHashMap<>());
-        Map<String, Data> sub = totalMap.get(k1);
-        sub.putAll(map.get(k1));
-      }
-      int cnt = 0;
-      for (boolean b : ok) {
-        if (b) cnt += 1;
-      }
-      if (cnt == 2) {
-        for (String k : totalMap.keySet()) {
-          System.out.println(totalMap.get(k));
-        }
-      } else {
-        ok[idx] = true;
       }
     }
   }
