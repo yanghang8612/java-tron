@@ -173,7 +173,7 @@ public class FullNode {
           outOfTime += curOutOfTime;
           System.out.println(Thread.currentThread().getName() + ": "
               + new DateTime(Objects.requireNonNull(blockCapsule).getTimeStamp())
-              + curTxCnt + " " + curOutOfTime + " " + txCnt + " " + outOfTime
+              + " " + curTxCnt + " " + curOutOfTime + " " + txCnt + " " + outOfTime
               + " " + (System.currentTimeMillis() - start));
           curTxCnt = curOutOfTime = 0;
           start = System.currentTimeMillis();
