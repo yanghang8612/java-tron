@@ -5,8 +5,10 @@ import ch.qos.logback.classic.joran.JoranConfigurator;
 import java.io.File;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.sun.org.apache.bcel.internal.generic.NEW;
 import lombok.extern.slf4j.Slf4j;
 import org.joda.time.DateTime;
 import org.slf4j.LoggerFactory;
@@ -38,6 +40,10 @@ import org.tron.protos.contract.SmartContractOuterClass;
 public class FullNode {
   
   public static final int dbVersion = 2;
+
+  public static ConcurrentHashMap<String, Integer> map = new ConcurrentHashMap<>();
+
+  public static boolean[] ok = new boolean[3];
 
   public static void load(String path) {
     try {
@@ -123,19 +129,26 @@ public class FullNode {
     appT.startServices();
     appT.startup();
 
-    new Thread(new TraversalTask(27328691), "Traversal-" + 0).start();
-    new Thread(new TraversalTask(23875349), "Traversal-" + 1).start();
-    new Thread(new TraversalTask(20397939), "Traversal-" + 2).start();
+//    new Thread(new TraversalTask(0, 27328691), "Traversal-" + 0).start();
+//    new Thread(new TraversalTask(1, 23875349), "Traversal-" + 1).start();
+//    new Thread(new TraversalTask(2, 20397939), "Traversal-" + 2).start();
+
+    new Thread(new TraversalTask(0, 27328691), "Traversal-" + 0).start();
+    new Thread(new TraversalTask(1, 26442019), "Traversal-" + 1).start();
+    new Thread(new TraversalTask(2, 25560083), "Traversal-" + 2).start();
 
     rpcApiService.blockUntilShutdown();
   }
 
   private static class TraversalTask implements Runnable {
 
+    private int idx = 0;
+
     private int blk = 0;
 
-    TraversalTask(int idx) {
-      this.blk = idx;
+    TraversalTask(int idx, int blk) {
+      this.idx = idx;
+      this.blk = blk;
     }
 
     @Override
@@ -151,14 +164,14 @@ public class FullNode {
           j += 1;
           txCnt += curTxCnt;
           outOfTime += curOutOfTime;
-          System.out.println(Thread.currentThread().getName() + ": " + time
-              + " " + curTxCnt + " " + curOutOfTime + " " + txCnt + " " + outOfTime
-              + " " + (System.currentTimeMillis() - start) + "ms");
+//          System.out.println(Thread.currentThread().getName() + ": " + time.plusSeconds(3)
+//              + " " + curTxCnt + " " + curOutOfTime + " " + txCnt + " " + outOfTime
+//              + " " + (System.currentTimeMillis() - start) + "ms");
           curTxCnt = curOutOfTime = 0;
           start = System.currentTimeMillis();
           days = time.getDayOfYear();
         }
-        if (j > 120) break;
+        if (j > 30) break;
         List<TransactionCapsule> transactions = blockCapsule.getTransactions();
         for (TransactionCapsule cap : transactions) {
           Protocol.Transaction t = cap.getInstance();
@@ -177,11 +190,22 @@ public class FullNode {
               curTxCnt += 1;
               if (cap.getContractResult() == Protocol.Transaction.Result.contractResult.OUT_OF_TIME) {
                 curOutOfTime += 1;
+                String sr = StringUtil.encode58Check(blockCapsule.getWitnessAddress().toByteArray());
+                map.put(sr, map.getOrDefault(sr, 0) + 1);
                 //System.out.println(cap.getTransactionId().toString() + " " + StringUtil.encode58Check(contract.getOwnerAddress().toByteArray()));
               }
             }
           }
         }
+      }
+      int cnt = 0;
+      for (boolean b : ok) {
+        if (b) cnt += 1;
+      }
+      if (cnt == 2) {
+        System.out.println(map.toString());
+      } else {
+        ok[idx] = true;
       }
     }
   }
