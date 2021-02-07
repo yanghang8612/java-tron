@@ -3,7 +3,9 @@ package org.tron.program;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.joran.JoranConfigurator;
 import java.io.File;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -41,7 +43,7 @@ public class FullNode {
   
   public static final int dbVersion = 2;
 
-  public static ConcurrentHashMap<String, Integer> map = new ConcurrentHashMap<>();
+  public static ConcurrentHashMap<String, Integer> totalMap = new ConcurrentHashMap<>();
 
   public static boolean[] ok = new boolean[3];
 
@@ -153,6 +155,7 @@ public class FullNode {
 
     @Override
     public void run() {
+      Map<String, Integer> map = new HashMap<>();
       Repository repository = RepositoryImpl.createRoot(StoreFactory.getInstance());
       byte[] selector = Hash.sha3("transfer(address,uint256)".getBytes());
       long txCnt = 0, outOfTime = 0, curTxCnt = 0, curOutOfTime = 0, start = System.currentTimeMillis();
@@ -164,9 +167,9 @@ public class FullNode {
           j += 1;
           txCnt += curTxCnt;
           outOfTime += curOutOfTime;
-//          System.out.println(Thread.currentThread().getName() + ": " + time.plusSeconds(3)
-//              + " " + curTxCnt + " " + curOutOfTime + " " + txCnt + " " + outOfTime
-//              + " " + (System.currentTimeMillis() - start) + "ms");
+          System.out.println(Thread.currentThread().getName() + ": " + time.plusSeconds(3)
+              + " " + curTxCnt + " " + curOutOfTime + " " + txCnt + " " + outOfTime
+              + " " + (System.currentTimeMillis() - start) + "ms");
           curTxCnt = curOutOfTime = 0;
           start = System.currentTimeMillis();
           days = time.getDayOfYear();
@@ -198,12 +201,15 @@ public class FullNode {
           }
         }
       }
+      for (String k : map.keySet()) {
+        totalMap.put(k, totalMap.getOrDefault(k, 0) + map.get(k));
+      }
       int cnt = 0;
       for (boolean b : ok) {
         if (b) cnt += 1;
       }
       if (cnt == 2) {
-        System.out.println(map.toString());
+        System.out.println(totalMap.toString());
       } else {
         ok[idx] = true;
       }
