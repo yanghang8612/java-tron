@@ -124,9 +124,8 @@ public class FullNode {
     new Thread(() -> {
       Repository repository = RepositoryImpl.createRoot(StoreFactory.getInstance());
       byte[] selector = Hash.sha3("transfer(address,uint256)".getBytes());
-      long txCnt = 0, outOfTime = 0;
+      long txCnt = 0, outOfTime = 0, curTxCnt = 0, curOutOfTime = 0, start = System.currentTimeMillis();
       for (int i = 1; i <= 10512000; i++) {
-        long curTxCnt = 0, curOutOfTime = 0;
         BlockCapsule blockCapsule = repository.getBlockByNum(27328691 - i);
         List<TransactionCapsule> transactions = blockCapsule.getTransactions();
         for (TransactionCapsule cap : transactions) {
@@ -153,7 +152,8 @@ public class FullNode {
         if (i % 28800 == 0) {
           txCnt += curTxCnt;
           outOfTime += curOutOfTime;
-          System.out.println(curTxCnt + " " + curOutOfTime + " " + txCnt + " " + outOfTime);
+          System.out.println(curTxCnt + " " + curOutOfTime + " " + txCnt + " " + outOfTime + " " + (System.currentTimeMillis() - start));
+          curTxCnt = curOutOfTime = start = 0;
         }
       }
     }).start();
