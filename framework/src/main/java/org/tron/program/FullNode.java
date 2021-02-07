@@ -126,11 +126,13 @@ public class FullNode {
       byte[] selector = Hash.sha3("transfer(address,uint256)".getBytes());
       long txCnt = 0, outOfTime = 0;
       for (int i = 0; i < 10512000; i++) {
-        if (i % 100000 == 1) {
-          System.out.println("total: " + txCnt + ", outoftime: " + outOfTime);
+        long curTxCnt = 0, curOutOfTime = 0;
+        if (i % 28800 == 1) {
+          txCnt += curTxCnt;
+          outOfTime += curOutOfTime;
+          System.out.println(curTxCnt + " " + curOutOfTime + " " + txCnt + " " + outOfTime);
         }
-        long num = 27328000;
-        BlockCapsule blockCapsule = repository.getBlockByNum(num - i);
+        BlockCapsule blockCapsule = repository.getBlockByNum(27328690 - i);
         List<TransactionCapsule> transactions = blockCapsule.getTransactions();
         for (TransactionCapsule cap : transactions) {
           Protocol.Transaction t = cap.getInstance();
@@ -142,10 +144,10 @@ public class FullNode {
                   contracts.get(0).getParameter().unpack(SmartContractOuterClass.TriggerSmartContract.class);
               if ("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t".equals(StringUtil.encode58Check(contract.getContractAddress().toByteArray()))
                   && check(selector, contract.getData().toByteArray())) {
-                txCnt += 1;
+                curTxCnt += 1;
                 if (cap.getContractResult() == Protocol.Transaction.Result.contractResult.OUT_OF_TIME) {
-                  outOfTime += 1;
-                  System.out.println(cap.getTransactionId().toString());
+                  curOutOfTime += 1;
+                  System.out.println(cap.getTransactionId().toString() + " " + StringUtil.encode58Check(contract.getOwnerAddress().toByteArray()));
                 }
               }
             } catch (InvalidProtocolBufferException e) {
