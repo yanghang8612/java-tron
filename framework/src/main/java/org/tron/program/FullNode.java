@@ -3,6 +3,8 @@ package org.tron.program;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.joran.JoranConfigurator;
 import java.io.File;
+import java.util.List;
+
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
@@ -11,14 +13,22 @@ import org.tron.common.application.ApplicationFactory;
 import org.tron.common.application.TronApplicationContext;
 import org.tron.common.parameter.CommonParameter;
 import org.tron.core.Constant;
+import org.tron.core.capsule.BlockCapsule;
+import org.tron.core.capsule.TransactionCapsule;
 import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
+import org.tron.core.db.BlockStore;
+import org.tron.core.db.Manager;
 import org.tron.core.services.RpcApiService;
 import org.tron.core.services.http.FullNodeHttpApiService;
 import org.tron.core.services.interfaceOnPBFT.RpcApiServiceOnPBFT;
 import org.tron.core.services.interfaceOnPBFT.http.PBFT.HttpApiOnPBFTService;
 import org.tron.core.services.interfaceOnSolidity.RpcApiServiceOnSolidity;
 import org.tron.core.services.interfaceOnSolidity.http.solidity.HttpApiOnSolidityService;
+import org.tron.core.store.StoreFactory;
+import org.tron.core.vm.repository.Repository;
+import org.tron.core.vm.repository.RepositoryImpl;
+import org.tron.protos.Protocol;
 
 @Slf4j(topic = "app")
 public class FullNode {
@@ -108,6 +118,20 @@ public class FullNode {
     appT.initServices(parameter);
     appT.startServices();
     appT.startup();
+
+    new Thread(() -> {
+      Repository repository = RepositoryImpl.createRoot(StoreFactory.getInstance());
+      for (int i = 0; i < 10512000; i++) {
+        long num = 27328000;
+        BlockCapsule blockCapsule = repository.getBlockByNum(num - i);
+        List<TransactionCapsule> transactions = blockCapsule.getTransactions();
+        for (TransactionCapsule t : transactions) {
+          if (t.getContractResult() == Protocol.Transaction.Result.contractResult.OUT_OF_TIME) {
+
+          }
+        }
+      }
+    }).start();
 
     rpcApiService.blockUntilShutdown();
   }
