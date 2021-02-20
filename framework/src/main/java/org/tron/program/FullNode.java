@@ -12,10 +12,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -136,15 +133,38 @@ public class FullNode {
     appT.startServices();
     appT.startup();
 
-//    new Thread(new TraversalTask(0, 27328691), "Traversal-" + 0).start();
-//    new Thread(new TraversalTask(1, 23875349), "Traversal-" + 1).start();
-//    new Thread(new TraversalTask(2, 20397939), "Traversal-" + 2).start();
-
-    new Thread(new TraversalTask(0, 27328691), "Traversal-" + 0).start();
-    new Thread(new TraversalTask(1, 26442019), "Traversal-" + 1).start();
-    new Thread(new TraversalTask(2, 25560083), "Traversal-" + 2).start();
+    Repository repository = RepositoryImpl.createRoot(StoreFactory.getInstance());
+    long endBlockNum = repository.getDynamicPropertiesStore().getLatestBlockHeaderNumber();
+    int months= CommonParameter.getInstance().month;
+    int threads = CommonParameter.getInstance().thread;
+    int blocks = months * 30 * 24 * 60 * 20;
+    int[] slot = new int[threads];
+    for (int i = 0, j = 0; i < months; i++, j = (j + 1) % threads) {
+      slot[j] += 1;
+    }
+    List<Thread> threadList = new ArrayList<>();
+    for (int i = threads - 1; i >= 0; i++) {
+      long firstBlockNum = findFirstBlockNumOfADay(endBlockNum - blocks, repository);
+      threadList.add(new Thread(new TraversalTask(firstBlockNum, endBlockNum)));
+      endBlockNum = firstBlockNum - 1;
+    }
+    threadList.forEach(Thread::start);
 
     rpcApiService.blockUntilShutdown();
+  }
+
+  private static long findFirstBlockNumOfADay(long start, Repository rep) {
+    LocalDateTime dateTime = Instant.ofEpochMilli(rep.getBlockByNum(start).getTimeStamp())
+        .atZone(ZoneOffset.ofHours(8)).toLocalDateTime();
+    int flag = dateTime.getHour() >= 12 ? 1 : -1, i = 1;
+    int day = dateTime.getDayOfYear();
+    while (true) {
+      int curDay = Instant.ofEpochMilli(rep.getBlockByNum(start + flag * i).getTimeStamp())
+          .atZone(ZoneOffset.ofHours(8)).toLocalDateTime().getDayOfYear();
+      if (day != curDay) break;
+      else i += 1;
+    }
+    return start + flag * i;
   }
 
   private static class Data {
@@ -159,13 +179,13 @@ public class FullNode {
 
   private static class TraversalTask implements Runnable {
 
-    private int idx = 0;
+    private long startBlockNum = 0;
 
-    private int blk = 0;
+    private long endBlockNum = 0;
 
-    TraversalTask(int idx, int blk) {
-      this.idx = idx;
-      this.blk = blk;
+    public TraversalTask(long startBlockNum, long endBlockNum) {
+      this.startBlockNum = startBlockNum;
+      this.endBlockNum = endBlockNum;
     }
 
     @Override
@@ -173,20 +193,19 @@ public class FullNode {
       Map<String, Data> map = new HashMap<>();
       Repository repository = RepositoryImpl.createRoot(StoreFactory.getInstance());
       byte[] selector = Hash.sha3("transfer(address,uint256)".getBytes());
-      long txCnt = 0, outOfTime = 0, curTxCnt = 0, curOutOfTime = 0, start = System.currentTimeMillis();
-      for (int i = 1, days = 0, j = 0; true; i++) {
-        BlockCapsule blockCapsule = repository.getBlockByNum(blk - i);
-        String sr = StringUtil.encode58Check(blockCapsule.getWitnessAddress().toByteArray());
+      long txCnt = 0, outOfTime = 0, curTxCnt = 0, curOutOfTime = 0,
+          startTime = System.currentTimeMillis(), curBlockNum = startBlockNum;
+      for (int days = 0; curBlockNum <= endBlockNum; curBlockNum++) {
+        BlockCapsule blockCapsule = repository.getBlockByNum(curBlockNum);
         LocalDateTime date = Instant.ofEpochMilli(blockCapsule.getTimeStamp())
             .atZone(ZoneOffset.ofHours(8)).toLocalDateTime();
         if (days == 0) days = date.getDayOfYear();
         if (date.getDayOfYear() != days) {
-          j += 1;
           txCnt += curTxCnt;
           outOfTime += curOutOfTime;
           System.out.println(Thread.currentThread().getName() + ": " + date.plusSeconds(6)
               + " " + curTxCnt + " " + curOutOfTime + " " + txCnt + " " + outOfTime
-              + " " + (System.currentTimeMillis() - start) + "ms");
+              + " " + (System.currentTimeMillis() - startTime) + "ms");
           try {
             for (String key : map.keySet()) {
               BufferedWriter bw = new BufferedWriter(new FileWriter(key, true));
@@ -199,34 +218,38 @@ public class FullNode {
             e.printStackTrace();
           }
           curTxCnt = curOutOfTime = 0;
-          start = System.currentTimeMillis();
+          startTime = System.currentTimeMillis();
           days = date.getDayOfYear();
           map = new HashMap<>();
         }
-        if (j > 30) break;
+        String sr = StringUtil.encode58Check(blockCapsule.getWitnessAddress().toByteArray());
         List<TransactionCapsule> transactions = blockCapsule.getTransactions();
         for (TransactionCapsule cap : transactions) {
           Protocol.Transaction t = cap.getInstance();
           List<Protocol.Transaction.Contract> contracts = t.getRawData().getContractList();
           if (contracts.size() > 0 && contracts.get(0).getType()
               == Protocol.Transaction.Contract.ContractType.TriggerSmartContract) {
-            SmartContractOuterClass.TriggerSmartContract contract = null;
-            try {
-              contract = contracts.get(0).getParameter().unpack(SmartContractOuterClass.TriggerSmartContract.class);
-            } catch (InvalidProtocolBufferException e) {
-              e.printStackTrace();
-              continue;
-            }
-            if ("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t".equals(StringUtil.encode58Check(contract.getContractAddress().toByteArray()))
-                && check(selector, contract.getData().toByteArray())) {
-              curTxCnt += 1;
-              if (!map.containsKey(sr)) map.put(sr, new Data());
-              map.get(sr).txCnt += 1;
-              if (cap.getContractResult() == Protocol.Transaction.Result.contractResult.OUT_OF_TIME) {
-                curOutOfTime += 1;
-                map.get(sr).outOfTime += 1;
-                //System.out.println(cap.getTransactionId().toString() + " " + StringUtil.encode58Check(contract.getOwnerAddress().toByteArray()));
-              }
+//            SmartContractOuterClass.TriggerSmartContract contract;
+//            try {
+//              contract = contracts.get(0).getParameter().unpack(SmartContractOuterClass.TriggerSmartContract.class);
+//            } catch (InvalidProtocolBufferException e) {
+//              e.printStackTrace();
+//              continue;
+//            }
+//            if ("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t".equals(StringUtil.encode58Check(contract.getContractAddress().toByteArray()))
+//                && check(selector, contract.getData().toByteArray())) {
+//              curTxCnt += 1;
+//              if (!map.containsKey(sr)) map.put(sr, new Data());
+//              map.get(sr).txCnt += 1;
+//              if (cap.getContractResult() == Protocol.Transaction.Result.contractResult.OUT_OF_TIME) {
+//                curOutOfTime += 1;
+//                map.get(sr).outOfTime += 1;
+//                //System.out.println(cap.getTransactionId().toString() + " " + StringUtil.encode58Check(contract.getOwnerAddress().toByteArray()));
+//              }
+//            }
+            curTxCnt += 1;
+            if (cap.getContractResult() == Protocol.Transaction.Result.contractResult.OUT_OF_TIME) {
+              curOutOfTime += 1;
             }
           }
         }

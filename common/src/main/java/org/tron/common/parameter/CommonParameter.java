@@ -48,6 +48,12 @@ public class CommonParameter {
   @Parameter(names = {"--debug"})
   public boolean debug = false;
   @Getter
+  @Parameter(names = {"--month"})
+  public int month = 3;
+  @Getter
+  @Parameter(names = {"--thread"})
+  public int thread = 3;
+  @Getter
   @Setter
   @Parameter(names = {"--min-time-ratio"})
   public double minTimeRatio = 0.0;
