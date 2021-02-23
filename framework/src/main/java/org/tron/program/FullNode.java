@@ -41,7 +41,9 @@ import org.tron.core.services.interfaceOnPBFT.http.PBFT.HttpApiOnPBFTService;
 import org.tron.core.services.interfaceOnSolidity.RpcApiServiceOnSolidity;
 import org.tron.core.services.interfaceOnSolidity.http.solidity.HttpApiOnSolidityService;
 import org.tron.protos.Protocol;
+import org.tron.protos.contract.AssetIssueContractOuterClass;
 import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
+import org.tron.protos.contract.AssetIssueContractOuterClass.AssetIssueContract;
 
 import static org.tron.common.utils.Commons.decodeFromBase58Check;
 
@@ -151,14 +153,30 @@ public class FullNode {
     if ("#".equals(params)) params = "";
 
     // build transaction
-    TriggerSmartContract.Builder builder = TriggerSmartContract.newBuilder();
-    builder.setOwnerAddress(ByteString.copyFrom(decodeFromBase58Check("TQE8qF59U3d4pHmiKaixAHgbXx1xcUZioA")));
-    builder.setContractAddress(ByteString.copyFrom(decodeFromBase58Check(CommonParameter.getInstance().testContract)));
-    builder.setData(ByteString.copyFrom(Hex.decode(AbiUtil.parseMethod(method, params))));
-    builder.setCallValue(0);
-    TriggerSmartContract contract = builder.build();
+//    TriggerSmartContract.Builder builder = TriggerSmartContract.newBuilder();
+//    builder.setOwnerAddress(ByteString.copyFrom(decodeFromBase58Check("TQE8qF59U3d4pHmiKaixAHgbXx1xcUZioA")));
+//    builder.setContractAddress(ByteString.copyFrom(decodeFromBase58Check(CommonParameter.getInstance().testContract)));
+//    builder.setData(ByteString.copyFrom(Hex.decode(AbiUtil.parseMethod(method, params))));
+//    builder.setCallValue(0);
+//    TriggerSmartContract contract = builder.build();
+    AssetIssueContract.Builder sbBuilder = AssetIssueContract.newBuilder();
+    sbBuilder.setOwnerAddress(ByteString.copyFrom(decodeFromBase58Check("TQE8qF59U3d4pHmiKaixAHgbXx1xcUZioA")));
+    sbBuilder.setName(ByteString.copyFrom("ShaBi".getBytes()));
+    sbBuilder.setAbbr(ByteString.copyFrom("SB".getBytes()));
+    sbBuilder.setTotalSupply(100_000_000);
+    sbBuilder.setTrxNum(1);
+    sbBuilder.setNum(1);
+    sbBuilder.setPrecision(6);
+    sbBuilder.setStartTime(System.currentTimeMillis() + 1000L * 30 * 60);
+    sbBuilder.setStartTime(System.currentTimeMillis() + 1000L * 30 * 60 + 1000L * 365 * 24 * 60 * 60);
+    sbBuilder.setVoteScore(0);
+    sbBuilder.setDescription(ByteString.copyFrom("This is a ShaBi".getBytes()));
+    sbBuilder.setUrl(ByteString.copyFrom("http://shabi.com".getBytes()));
+    sbBuilder.setFreeAssetNetLimit(0);
+    sbBuilder.setPublicFreeAssetNetLimit(0);
+    AssetIssueContract contract = sbBuilder.build();
     TransactionCapsule trxCapWithoutFeeLimit = new TransactionCapsule(contract,
-        Protocol.Transaction.Contract.ContractType.TriggerSmartContract);
+        Protocol.Transaction.Contract.ContractType.AssetIssueContract);
     Protocol.Transaction.Builder transactionBuilder = trxCapWithoutFeeLimit.getInstance().toBuilder();
     Protocol.Transaction.raw.Builder rawBuilder = trxCapWithoutFeeLimit.getInstance().getRawData()
         .toBuilder();
