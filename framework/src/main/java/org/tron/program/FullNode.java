@@ -8,6 +8,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import com.google.protobuf.ByteString;
 import lombok.extern.slf4j.Slf4j;
@@ -170,12 +173,30 @@ public class FullNode {
     ECKey ecKey = ECKey.fromPrivate(priK);
 
     Manager manager = context.getBean(Manager.class);
-    for (int i = 0; i < CommonParameter.getInstance().testCnt; i++) {
-      Protocol.Transaction trx = transactionBuilder.build();
-      trx = setTimestamp(trx);
-      trx = sign(trx, ecKey);
+    ExecutorService es = Executors.newFixedThreadPool(4);
+    CountDownLatch countDown = new CountDownLatch(4);
+    for (int i = 0; i < 4; i++) {
+      int cnt;
+      if (i != 3) {
+        cnt = CommonParameter.getInstance().testCnt / 4;
+      } else {
+        cnt = CommonParameter.getInstance().testCnt - CommonParameter.getInstance().testCnt / 4 * 3;
+      }
+      es.submit(() -> {
+        for (int j = 0; j < cnt; j++) {
+          Protocol.Transaction trx = transactionBuilder.build();
+          trx = setTimestamp(trx);
+          trx = sign(trx, ecKey);
 
-      manager.getPendingTransactions().add(new TransactionCapsule(trx));
+          manager.getPendingTransactions().add(new TransactionCapsule(trx));
+        }
+        countDown.countDown();
+      });
+    }
+    try {
+      countDown.await();
+    } catch (InterruptedException e) {
+      e.printStackTrace();
     }
   }
 
