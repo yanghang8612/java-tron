@@ -137,15 +137,15 @@ public class FullNode {
     long endBlockNum = repository.getDynamicPropertiesStore().getLatestBlockHeaderNumber();
     int months= CommonParameter.getInstance().month;
     int threads = CommonParameter.getInstance().thread;
-    int blocks = months * 30 * 24 * 60 * 20;
+    int blocks = 30 * 24 * 60 * 20;
     int[] slot = new int[threads];
     for (int i = 0, j = 0; i < months; i++, j = (j + 1) % threads) {
       slot[j] += 1;
     }
     List<Thread> threadList = new ArrayList<>();
-    for (int i = threads - 1; i >= 0; i++) {
-      long firstBlockNum = findFirstBlockNumOfADay(endBlockNum - blocks, repository);
-      threadList.add(new Thread(new TraversalTask(firstBlockNum, endBlockNum)));
+    for (int i = threads - 1; i >= 0; i--) {
+      long firstBlockNum = findFirstBlockNumOfADay(endBlockNum - (long) slot[i] * blocks, repository);
+      threadList.add(new Thread(new TraversalTask(firstBlockNum, endBlockNum), "Traversal-" + i));
       endBlockNum = firstBlockNum - 1;
     }
     threadList.forEach(Thread::start);
@@ -186,6 +186,7 @@ public class FullNode {
     public TraversalTask(long startBlockNum, long endBlockNum) {
       this.startBlockNum = startBlockNum;
       this.endBlockNum = endBlockNum;
+      System.out.println(startBlockNum + ":" + endBlockNum);
     }
 
     @Override
