@@ -212,7 +212,6 @@ public class FullNode {
               BufferedWriter bw = new BufferedWriter(new FileWriter(key, true));
               DateTimeFormatter df = DateTimeFormatter.ofPattern("yyyy-MM-dd");
               bw.write(String.format("%s %d %d%n", df.format(date.plusDays(1)), map.get(key).outOfTime, map.get(key).txCnt));
-              bw.flush();
               bw.close();
             }
           } catch (IOException e) {
@@ -249,8 +248,20 @@ public class FullNode {
 //              }
 //            }
             curTxCnt += 1;
+            if (!map.containsKey(sr)) map.put(sr, new Data());
+            map.get(sr).txCnt += 1;
             if (cap.getContractResult() == Protocol.Transaction.Result.contractResult.OUT_OF_TIME) {
               curOutOfTime += 1;
+              map.get(sr).outOfTime += 1;
+              SmartContractOuterClass.TriggerSmartContract contract;
+              try {
+                contract = contracts.get(0).getParameter().unpack(SmartContractOuterClass.TriggerSmartContract.class);
+                BufferedWriter bw = new BufferedWriter(new FileWriter("contract", true));
+                bw.write(StringUtil.encode58Check(contract.getContractAddress().toByteArray()) + " " + cap.getTransactionId().toString());
+                bw.close();
+              } catch (IOException e) {
+                e.printStackTrace();
+              }
             }
           }
         }
