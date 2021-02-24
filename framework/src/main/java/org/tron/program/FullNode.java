@@ -258,7 +258,9 @@ public class FullNode {
               try {
                 contract = contracts.get(0).getParameter().unpack(SmartContractOuterClass.TriggerSmartContract.class);
                 BufferedWriter bw = new BufferedWriter(new FileWriter("contract", true));
-                bw.write(StringUtil.encode58Check(contract.getContractAddress().toByteArray()) + " " + cap.getTransactionId().toString());
+                bw.write(String.format("%s %s%n",
+                    StringUtil.encode58Check(contract.getContractAddress().toByteArray()),
+                    cap.getTransactionId().toString()));
                 bw.flush();
                 bw.close();
               } catch (IOException e) {
