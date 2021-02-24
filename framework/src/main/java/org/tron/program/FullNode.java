@@ -164,7 +164,7 @@ public class FullNode {
       if (day != curDay) break;
       else i += 1;
     }
-    return start + flag * i;
+    return start + flag * i + (flag == -1 ? 1 : 0);
   }
 
   private static class Data {
@@ -212,6 +212,7 @@ public class FullNode {
               BufferedWriter bw = new BufferedWriter(new FileWriter(key, true));
               DateTimeFormatter df = DateTimeFormatter.ofPattern("yyyy-MM-dd");
               bw.write(String.format("%s %d %d%n", df.format(date.plusDays(1)), map.get(key).outOfTime, map.get(key).txCnt));
+              bw.flush();
               bw.close();
             }
           } catch (IOException e) {
@@ -258,6 +259,7 @@ public class FullNode {
                 contract = contracts.get(0).getParameter().unpack(SmartContractOuterClass.TriggerSmartContract.class);
                 BufferedWriter bw = new BufferedWriter(new FileWriter("contract", true));
                 bw.write(StringUtil.encode58Check(contract.getContractAddress().toByteArray()) + " " + cap.getTransactionId().toString());
+                bw.flush();
                 bw.close();
               } catch (IOException e) {
                 e.printStackTrace();
