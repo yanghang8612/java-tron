@@ -169,7 +169,18 @@ public class VMActuator implements Actuator2 {
           throw e;
         }
 
+        VM.isTimeUp = false;
+        long maxPlayTime = (program.getVmShouldEndInUs() - program.getVmStartInUs()) * 1000;
+        new Thread(() -> {
+          long startTime = System.nanoTime();
+          while (VM.isRunning && System.nanoTime() - startTime < maxPlayTime) {
+            Thread.yield();
+          }
+          VM.isTimeUp = true;
+        }).start();
+        VM.isRunning = true;
         vm.play(program);
+        VM.isRunning = false;
         result = program.getResult();
 
         if (isConstantCall) {

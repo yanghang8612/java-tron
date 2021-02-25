@@ -8,11 +8,6 @@ import static org.tron.core.vm.OpCode.*;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-
 import lombok.extern.slf4j.Slf4j;
 import org.spongycastle.util.encoders.Hex;
 import org.springframework.util.StringUtils;
@@ -40,8 +35,8 @@ public class VM {
   // 3MB
   private static final BigInteger MEM_LIMIT = BigInteger.valueOf(3L * 1024 * 1024);
   private final VMConfig config;
-  private volatile boolean isTimeUp;
-  private final static ScheduledExecutorService executors = Executors.newScheduledThreadPool(64);
+  public static volatile boolean isTimeUp;
+  public static volatile boolean isRunning;
 
   public VM() {
     config = VMConfig.getInstance();
@@ -1222,9 +1217,6 @@ public class VM {
   }
 
   public void play(Program program) {
-    ScheduledFuture<?> sf = executors.schedule(() -> isTimeUp = true,
-        program.getVmShouldEndInUs() - program.getVmStartInUs(),
-        TimeUnit.MICROSECONDS);
     try {
       if (program.byTestingSuite()) {
         return;
@@ -1248,8 +1240,6 @@ public class VM {
       logger
           .info("\n !!! StackOverflowError: update your java run command with -Xss !!!\n", soe);
       throw new JVMStackOverFlowException();
-    } finally {
-      sf.cancel(true);
     }
   }
 
