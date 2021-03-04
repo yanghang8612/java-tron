@@ -129,9 +129,19 @@ public class FullNode {
       while (it.hasNext()) {
         AccountCapsule accountCapsule = accountStore.get(it.next().getKey());
         if (accountCapsule.getFrozenBalance() != 0) {
-          System.out.println(StringUtil.encode58Check(accountCapsule.getAddress().toByteArray()));
+          System.out.println(StringUtil.encode58Check(accountCapsule.getAddress().toByteArray())
+              + " has " + accountCapsule.getFrozenBalance() + " frozen");
+        }
+        if (accountCapsule.getAcquiredDelegatedFrozenBalanceForEnergy() != 0) {
+          System.out.println(StringUtil.encode58Check(accountCapsule.getAddress().toByteArray())
+              + " has " + accountCapsule.getFrozenBalance() + " energy");
+        }
+        if (accountCapsule.getAcquiredDelegatedFrozenBalanceForBandwidth() != 0) {
+          System.out.println(StringUtil.encode58Check(accountCapsule.getAddress().toByteArray())
+              + " has " + accountCapsule.getFrozenBalance() + " bandwidth");
         }
       }
+      System.out.println("finished");
     }).start();
 
     rpcApiService.blockUntilShutdown();
