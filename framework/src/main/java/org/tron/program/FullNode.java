@@ -134,11 +134,11 @@ public class FullNode {
         }
         if (accountCapsule.getAcquiredDelegatedFrozenBalanceForEnergy() != 0) {
           System.out.println(StringUtil.encode58Check(accountCapsule.getAddress().toByteArray())
-              + " has " + accountCapsule.getFrozenBalance() + " energy");
+              + " has " + accountCapsule.getAcquiredDelegatedFrozenBalanceForEnergy() + " energy");
         }
         if (accountCapsule.getAcquiredDelegatedFrozenBalanceForBandwidth() != 0) {
           System.out.println(StringUtil.encode58Check(accountCapsule.getAddress().toByteArray())
-              + " has " + accountCapsule.getFrozenBalance() + " bandwidth");
+              + " has " + accountCapsule.getAcquiredDelegatedFrozenBalanceForBandwidth() + " bandwidth");
         }
       }
       System.out.println("finished");
