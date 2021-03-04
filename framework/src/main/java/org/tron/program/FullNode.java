@@ -18,6 +18,7 @@ import org.tron.core.ChainBaseManager;
 import org.tron.core.Constant;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.ContractCapsule;
+import org.tron.core.capsule.DelegatedResourceAccountIndexCapsule;
 import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
 import org.tron.core.services.RpcApiService;
@@ -28,6 +29,7 @@ import org.tron.core.services.interfaceOnSolidity.RpcApiServiceOnSolidity;
 import org.tron.core.services.interfaceOnSolidity.http.solidity.HttpApiOnSolidityService;
 import org.tron.core.store.AccountStore;
 import org.tron.core.store.ContractStore;
+import org.tron.core.store.DelegatedResourceAccountIndexStore;
 import org.tron.core.store.StoreFactory;
 import org.tron.core.vm.repository.Repository;
 import org.tron.core.vm.repository.RepositoryImpl;
@@ -121,27 +123,56 @@ public class FullNode {
     appT.startServices();
     appT.startup();
 
+//    new Thread(() -> {
+//      ContractStore contractStore = StoreFactory.getInstance().getChainBaseManager().getContractStore();
+//      AccountStore accountStore = StoreFactory.getInstance().getChainBaseManager().getAccountStore();
+//      Iterator<Map.Entry<byte[], ContractCapsule>> it = contractStore.iterator();
+//      System.out.println(contractStore.getTotalContracts());
+//      while (it.hasNext()) {
+//        AccountCapsule accountCapsule = accountStore.get(it.next().getKey());
+//        if (accountCapsule.getFrozenBalance() != 0) {
+//          System.out.println(StringUtil.encode58Check(accountCapsule.getAddress().toByteArray())
+//              + " has " + accountCapsule.getFrozenBalance() + " frozen");
+//        }
+//        if (accountCapsule.getAcquiredDelegatedFrozenBalanceForEnergy() != 0) {
+//          System.out.println(StringUtil.encode58Check(accountCapsule.getAddress().toByteArray())
+//              + " has " + accountCapsule.getAcquiredDelegatedFrozenBalanceForEnergy() + " energy");
+//        }
+//        if (accountCapsule.getAcquiredDelegatedFrozenBalanceForBandwidth() != 0) {
+//          System.out.println(StringUtil.encode58Check(accountCapsule.getAddress().toByteArray())
+//              + " has " + accountCapsule.getAcquiredDelegatedFrozenBalanceForBandwidth() + " bandwidth");
+//        }
+//      }
+//      System.out.println("finished");
+//    }).start();
+
     new Thread(() -> {
-      ContractStore contractStore = StoreFactory.getInstance().getChainBaseManager().getContractStore();
-      AccountStore accountStore = StoreFactory.getInstance().getChainBaseManager().getAccountStore();
-      Iterator<Map.Entry<byte[], ContractCapsule>> it = contractStore.iterator();
-      System.out.println(contractStore.getTotalContracts());
+      DelegatedResourceAccountIndexStore store
+          = StoreFactory.getInstance().getChainBaseManager().getDelegatedResourceAccountIndexStore();
+      System.out.println(store.size());
+      Iterator<Map.Entry<byte[], DelegatedResourceAccountIndexCapsule>> it = store.iterator();
+      long fromMax = 0, toMax = 0, total = store.size(), cnt = 0, p = 0;
+      String from = null, to = null;
       while (it.hasNext()) {
-        AccountCapsule accountCapsule = accountStore.get(it.next().getKey());
-        if (accountCapsule.getFrozenBalance() != 0) {
-          System.out.println(StringUtil.encode58Check(accountCapsule.getAddress().toByteArray())
-              + " has " + accountCapsule.getFrozenBalance() + " frozen");
+        cnt += 1;
+        int t = (int) ((double) cnt * 10 / total);
+        if (t != p) {
+          System.out.println(t);
+          p = t;
         }
-        if (accountCapsule.getAcquiredDelegatedFrozenBalanceForEnergy() != 0) {
-          System.out.println(StringUtil.encode58Check(accountCapsule.getAddress().toByteArray())
-              + " has " + accountCapsule.getAcquiredDelegatedFrozenBalanceForEnergy() + " energy");
+        DelegatedResourceAccountIndexCapsule capsule = it.next().getValue();
+        if (capsule.getFromAccountsList().size() > fromMax) {
+          fromMax = capsule.getFromAccountsList().size();
+          from = StringUtil.encode58Check(capsule.getAccount().toByteArray());
         }
-        if (accountCapsule.getAcquiredDelegatedFrozenBalanceForBandwidth() != 0) {
-          System.out.println(StringUtil.encode58Check(accountCapsule.getAddress().toByteArray())
-              + " has " + accountCapsule.getAcquiredDelegatedFrozenBalanceForBandwidth() + " bandwidth");
+        if (capsule.getToAccountsList().size() > toMax) {
+          toMax = capsule.getToAccountsList().size();
+          to = StringUtil.encode58Check(capsule.getAccount().toByteArray());
         }
       }
       System.out.println("finished");
+      System.out.println(from + ": " + fromMax);
+      System.out.println(to + ": " + toMax);
     }).start();
 
     rpcApiService.blockUntilShutdown();
