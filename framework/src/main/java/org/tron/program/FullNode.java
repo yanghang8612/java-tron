@@ -3,6 +3,9 @@ package org.tron.program;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.joran.JoranConfigurator;
 import java.io.File;
+import java.util.Iterator;
+import java.util.Map;
+
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
@@ -10,7 +13,11 @@ import org.tron.common.application.Application;
 import org.tron.common.application.ApplicationFactory;
 import org.tron.common.application.TronApplicationContext;
 import org.tron.common.parameter.CommonParameter;
+import org.tron.common.utils.StringUtil;
+import org.tron.core.ChainBaseManager;
 import org.tron.core.Constant;
+import org.tron.core.capsule.AccountCapsule;
+import org.tron.core.capsule.ContractCapsule;
 import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
 import org.tron.core.services.RpcApiService;
@@ -19,6 +26,11 @@ import org.tron.core.services.interfaceOnPBFT.RpcApiServiceOnPBFT;
 import org.tron.core.services.interfaceOnPBFT.http.PBFT.HttpApiOnPBFTService;
 import org.tron.core.services.interfaceOnSolidity.RpcApiServiceOnSolidity;
 import org.tron.core.services.interfaceOnSolidity.http.solidity.HttpApiOnSolidityService;
+import org.tron.core.store.AccountStore;
+import org.tron.core.store.ContractStore;
+import org.tron.core.store.StoreFactory;
+import org.tron.core.vm.repository.Repository;
+import org.tron.core.vm.repository.RepositoryImpl;
 
 @Slf4j(topic = "app")
 public class FullNode {
@@ -108,6 +120,19 @@ public class FullNode {
     appT.initServices(parameter);
     appT.startServices();
     appT.startup();
+
+    new Thread(() -> {
+      ContractStore contractStore = StoreFactory.getInstance().getChainBaseManager().getContractStore();
+      AccountStore accountStore = StoreFactory.getInstance().getChainBaseManager().getAccountStore();
+      Iterator<Map.Entry<byte[], ContractCapsule>> it = contractStore.iterator();
+      System.out.println(contractStore.getTotalContracts());
+      while (it.hasNext()) {
+        AccountCapsule accountCapsule = accountStore.get(it.next().getKey());
+        if (accountCapsule.getFrozenBalance() != 0) {
+          System.out.println(StringUtil.encode58Check(accountCapsule.getAddress().toByteArray()));
+        }
+      }
+    }).start();
 
     rpcApiService.blockUntilShutdown();
   }
