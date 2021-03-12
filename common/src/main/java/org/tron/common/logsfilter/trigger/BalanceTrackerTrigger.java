@@ -54,7 +54,23 @@ public class BalanceTrackerTrigger extends Trigger {
     private String incrementAcquiredDelegatedFrozenBalanceForBandwidth;
   }
 
-  public enum ConcernTopics {
+  @Data
+  public static class Trc721Info {
+
+    public String fromAccountAddress;
+
+    public String toAccountAddress;
+
+    public String tokenAddress;
+
+    public String assetId;
+
+    public String assetUrl;
+
+    public Long assetUrlTime;
+  }
+
+    public enum ConcernTopics {
     TRANSFER("Transfer(address,address,uint256)",
         "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
     Withdrawal("Withdrawal(address,uint256)",
@@ -108,6 +124,8 @@ public class BalanceTrackerTrigger extends Trigger {
   private List<Trc10StatusPojo> trc10StatusList = new ArrayList<>();
 
   private List<TrxStatusPojo> trxStatusList = new ArrayList<>();
+
+  private List<Trc721Info> trc721InfoList = new ArrayList<>();
 
   public BalanceTrackerTrigger() {
     super();

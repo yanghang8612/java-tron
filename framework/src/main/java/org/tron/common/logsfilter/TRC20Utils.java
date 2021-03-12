@@ -1,5 +1,6 @@
 package org.tron.common.logsfilter;
 
+import com.google.common.collect.Lists;
 import com.google.common.primitives.Bytes;
 import com.google.protobuf.ByteString;
 import java.math.BigInteger;
@@ -9,11 +10,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.spongycastle.util.encoders.Hex;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
+import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger;
 import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger.AssetStatusPojo;
 import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger.ConcernTopics;
 import org.tron.common.parameter.CommonParameter;
 import org.tron.common.runtime.ProgramResult;
+import org.tron.common.runtime.vm.DataWord;
 import org.tron.common.runtime.vm.LogInfo;
+import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Commons;
 import org.tron.common.utils.StringUtil;
 import org.tron.core.actuator.VMActuator;
@@ -47,12 +51,28 @@ public class TRC20Utils {
 
     logger.error(" >>>>> getTRC20Decimal get error, {}", contractAddress);
     return null;
+  }
 
+  public static String getTRC721Url(String contractAddress, String assetId, BlockCapsule baseBlockCap) {
+    final DataWord dataWord = new DataWord(new BigInteger(assetId).toByteArray());
+    byte[] data = Bytes.concat(Hex.decode("c87b56dda"), dataWord.getData());
+    ProgramResult result = triggerFromVM(contractAddress, data, baseBlockCap);
+    if (Objects.isNull(result.getException()) && !result.isRevert() && StringUtils
+        .isEmpty(result.getRuntimeError())
+        && result.getHReturn() != null) {
+      try {
+        return ByteArray.toStr(result.getHReturn());
+      } catch (Exception e) {
+      }
+    }
+
+    logger.error(" >>>>> getTRC721Url get error, {}", contractAddress);
+    return "";
   }
 
 
   public static BigInteger hexStrToBigInteger(String hexStr) {
-    if (org.apache.commons.lang3.StringUtils.isNotBlank(hexStr)) {
+    if (!StringUtils.isEmpty(hexStr)) {
       try {
         return new BigInteger(hexStr, 16);
       } catch (Exception e) {
@@ -78,8 +98,10 @@ public class TRC20Utils {
 
   public static BigInteger getTRC20Balance(String ownerAddress, String contractAddress,
       BlockCapsule baseBlockCap) {
+    // 70a08231 balanceOf(address)
+    // 000000000000000000000041DDB2CC247E543F1462711989FCC89379F943B623
     byte[] data = Bytes.concat(Hex.decode("70a082310000000000000000000000"),
-        Commons.decodeFromBase58Check(ownerAddress));
+            Commons.decodeFromBase58Check(ownerAddress));
     ProgramResult result = triggerFromVM(contractAddress, data, baseBlockCap);
     if (Objects.isNull(result.getException()) &&
         !result.isRevert() && StringUtils.isEmpty(result.getRuntimeError())
@@ -96,75 +118,97 @@ public class TRC20Utils {
 
   }
 
-  public static List<AssetStatusPojo> parseTrc20AssetStatusPojo(BlockCapsule block,
-      List<LogInfo> logInfos) {
-    List<AssetStatusPojo> ret = new ArrayList<>();
+  public static final String TRC20 = "trc20";
+  public static final String TRC721 = "trc721";
 
-    Set<String> tokenSet = new HashSet<>();
-
-    Map<String, BigInteger> incrementMap = new LinkedHashMap<>();
+  public static Map<String, Object> parseTrc20AssetStatusPojo(BlockCapsule block, List<LogInfo> logInfos) {
+    Set<String> trc20Tokens = new HashSet<>();
+    Map<String, BigInteger> trc20IncrementMap = new LinkedHashMap<>();
     Map<String, BigInteger> balanceMap = new LinkedHashMap<>();
     Map<String, BigInteger> decimalMap = new LinkedHashMap<>();
-    for (LogInfo logInfo : logInfos) {
-      List<String> topics = logInfo.getHexTopics();
-      if (CollectionUtils.isEmpty(topics)) {
-        continue;
-      }
+    Map<String, Map<String, List<BalanceTrackerTrigger.Trc721Info>>> trc721InfoMap = new HashMap<>();
+    handlerLogs(trc20IncrementMap, logInfos, trc20Tokens, trc721InfoMap);
 
-      BigInteger increment = hexStrToBigInteger(logInfo.getHexData());
-      if (increment == null) {
-        continue;
-      }
-      String tokenAddress = StringUtil
-          .encode58Check(TransactionTrace.convertToTronAddress(logInfo.getAddress()));
-      switch (ConcernTopics.getBySH(topics.get(0))) {
-        case TRANSFER:
-          if (topics.size() < 3) {
-            continue;
-          }
-          //TransferCase : decrease sender, increase receiver
-          String senderAddr = StringUtil
-              .encode58Check(
-                      TransactionTrace.convertToTronAddress(logInfo.getTopics().get(1).getLast20Bytes()));
-          adjustIncrement(incrementMap, senderAddr, tokenAddress, increment.negate());
-          String recAddr = StringUtil
-              .encode58Check(
-                      TransactionTrace.convertToTronAddress(logInfo.getTopics().get(2).getLast20Bytes()));
-          adjustIncrement(incrementMap, recAddr, tokenAddress, increment);
-          tokenSet.add(tokenAddress);
-          break;
-        case Deposit:
-          if (!tokenAddress.equals(WTRXAddress) || topics.size() < 2) {
-            continue;
-          }
-          //DepositCase : increase receiver
-          recAddr = StringUtil
-              .encode58Check(
-                      TransactionTrace.convertToTronAddress(logInfo.getTopics().get(1).getLast20Bytes()));
-          adjustIncrement(incrementMap, recAddr, tokenAddress, increment);
-          tokenSet.add(tokenAddress);
-          break;
-        case Withdrawal:
-          if (!tokenAddress.equals(WTRXAddress) || topics.size() < 2) {
-            continue;
-          }
-          //WithdrawalCase : decrease sender
-          senderAddr = StringUtil
-              .encode58Check(
-                      TransactionTrace.convertToTronAddress(logInfo.getTopics().get(1).getLast20Bytes()));
-          adjustIncrement(incrementMap, senderAddr, tokenAddress, increment.negate());
-          tokenSet.add(tokenAddress);
-          break;
-        default:
-          continue;
-      }
+    final List<AssetStatusPojo> trc20AssetList = handlerTrc20Asset(block, trc20IncrementMap, balanceMap, decimalMap, trc20Tokens);
+    final List<BalanceTrackerTrigger.Trc721Info> trc721Infos = handlerTrc721(trc721InfoMap, block);
+    Map<String, Object> result = new HashMap<>();
+    result.put(TRC20, trc20AssetList);
+    result.put(TRC721, trc721Infos);
+    return result;
+  }
 
+  private static List<BalanceTrackerTrigger.Trc721Info> handlerTrc721(Map<String, Map<String, List<BalanceTrackerTrigger.Trc721Info>>> trc721InfoMap,
+                                                                      BlockCapsule block) {
+    if (CollectionUtils.isEmpty(trc721InfoMap)) {
+      return Lists.newArrayList();
     }
 
+    List<BalanceTrackerTrigger.Trc721Info> result = new LinkedList<>();
+    trc721InfoMap.forEach((tokenAddress, map) -> {
+      map.forEach((assetId, list) -> {
+        if (CollectionUtils.isEmpty(list)) {
+          return;
+        }
 
-    CommonParameter.getInstance().setDebug(true);
-    for (
-        String keys : incrementMap.keySet()) {
+        BalanceTrackerTrigger.Trc721Info info = null;
+        if (list.size() == 1) {
+          info = list.get(0);
+        } else {
+          info = mergeTrc721(list);
+          if (info == null) {
+            return;
+          }
+        }
+
+        triggerTrc721(info, block);
+        result.add(info);
+      });
+    });
+
+    return result;
+  }
+
+  private static void triggerTrc721(BalanceTrackerTrigger.Trc721Info info, BlockCapsule block) {
+    info.setAssetUrl(getTRC721Url(info.getTokenAddress(), info.getAssetId(), block));
+    info.setAssetUrlTime(System.currentTimeMillis());
+  }
+
+  private static BalanceTrackerTrigger.Trc721Info mergeTrc721(List<BalanceTrackerTrigger.Trc721Info> list) {
+    Set<String> fromSet = new HashSet<>();
+    Set<String> toSet = new HashSet<>();
+
+    list.forEach(item -> {
+      fromSet.add(item.getFromAccountAddress());
+      toSet.add(item.getToAccountAddress());
+    });
+
+    final BalanceTrackerTrigger.Trc721Info info = list.get(0);
+    final HashSet<String> copyFrom = new HashSet<>(fromSet);
+    fromSet.removeAll(toSet);
+
+    if (fromSet.size() == 1) {
+      info.setFromAccountAddress(fromSet.iterator().next());
+    } else {
+      logger.error(" >>>> trc721 merge data error!!! {}", list);
+      return null;
+    }
+
+    toSet.removeAll(copyFrom);
+
+    if (toSet.size() == 1) {
+      info.setToAccountAddress(toSet.iterator().next());
+    } else {
+      logger.error(" >>>> trc721 merge data error!!! {}", list);
+      return null;
+    }
+
+    return info;
+  }
+
+  private static List<AssetStatusPojo> handlerTrc20Asset(BlockCapsule block, Map<String, BigInteger> trc20IncrementMap,
+                                                         Map<String, BigInteger> balanceMap, Map<String, BigInteger> decimalMap,
+                                                         Set<String> trc20Tokens) {
+    for (String keys : trc20IncrementMap.keySet()) {
       // foreach address try to get it's balance.
       String[] key = keys.split(",");
       BigInteger balance = TRC20Utils.getTRC20Balance(key[0], key[1], block);
@@ -172,8 +216,8 @@ public class TRC20Utils {
         balanceMap.put(keys, balance);
       }
     }
-    for (
-        String token : tokenSet) {
+
+    for (String token : trc20Tokens) {
       BigInteger decimals = TRC20Utils.getTRC20Decimal(token, block);
       if (decimals != null) {
         decimalMap.put(token, decimals);
@@ -181,26 +225,126 @@ public class TRC20Utils {
     }
 
     CommonParameter.getInstance().setDebug(false);
-    logger.debug("incrementMap: {}", incrementMap);
+    logger.debug("trc20IncrementMap: {}", trc20IncrementMap);
     logger.debug("balanceMap: {}", balanceMap);
     logger.debug("decimalsMap: {}", decimalMap);
 
-    //
-    for (
-        String keys : incrementMap.keySet()) {
+    List<AssetStatusPojo> result = new LinkedList<>();
+    for (String keys : trc20IncrementMap.keySet()) {
       String[] key = keys.split(",");
       AssetStatusPojo assetStatusPojo = new AssetStatusPojo();
       assetStatusPojo.setAccountAddress(key[0]);
       assetStatusPojo.setTokenAddress(key[1]);
-      assetStatusPojo.setIncrementBalance(bigIntegertoString(incrementMap.get(keys)));
+      assetStatusPojo.setIncrementBalance(bigIntegertoString(trc20IncrementMap.get(keys)));
       assetStatusPojo.setBalance(bigIntegertoString(balanceMap.get(keys)));
       assetStatusPojo.setDecimals(bigIntegertoString(decimalMap.get(key[1])));
-      ret.add(assetStatusPojo);
+      result.add(assetStatusPojo);
     }
 
-    return ret;
+    return result;
   }
 
+  private static void handlerLogs(Map<String, BigInteger> incrementMap, List<LogInfo> logInfos,
+                                  Set<String> trc20Tokens,
+                                  Map<String, Map<String, List<BalanceTrackerTrigger.Trc721Info>>> trc721InfoMap) {
+    for (LogInfo logInfo : logInfos) {
+      List<String> topics = logInfo.getHexTopics();
+      if (CollectionUtils.isEmpty(topics)) {
+        continue;
+      }
+
+      String tokenAddress = convertAddress(logInfo.getAddress());
+      switch (ConcernTopics.getBySH(topics.get(0))) {
+        case TRANSFER:
+          if (topics.size() < 3) {
+            continue;
+          }
+
+          //TransferCase : decrease sender, increase receiver
+          String senderAddr = convertAddress(logInfo.getTopics().get(1).getLast20Bytes());
+          String recAddr = convertAddress(logInfo.getTopics().get(2).getLast20Bytes());
+
+          if (topics.size() == 3) {
+            // 是trc20
+            BigInteger increment = hexStrToBigInteger(logInfo.getHexData());
+            if (increment == null) {
+              continue;
+            }
+
+            adjustIncrement(incrementMap, senderAddr, tokenAddress, increment.negate());
+            adjustIncrement(incrementMap, recAddr, tokenAddress, increment);
+            trc20Tokens.add(tokenAddress);
+          } else if(topics.size() == 4) {
+            // 是trc721 todo check assetId
+            final String assetId = logInfo.getTopics().get(3).bigIntValue();
+            handlerTrc721(assetId, tokenAddress, senderAddr, recAddr, trc721InfoMap);
+          }
+
+          break;
+        case Deposit:
+          if (!tokenAddress.equals(WTRXAddress) || topics.size() < 2) {
+            continue;
+          }
+          // 是trc20
+          BigInteger increment = hexStrToBigInteger(logInfo.getHexData());
+          if (increment == null) {
+            continue;
+          }
+          //DepositCase : increase receiver
+          recAddr = convertAddress(logInfo.getTopics().get(1).getLast20Bytes());
+          adjustIncrement(incrementMap, recAddr, tokenAddress, increment);
+          trc20Tokens.add(tokenAddress);
+          break;
+        case Withdrawal:
+          if (!tokenAddress.equals(WTRXAddress) || topics.size() < 2) {
+            continue;
+          }
+          // 是trc20
+          increment = hexStrToBigInteger(logInfo.getHexData());
+          if (increment == null) {
+            continue;
+          }
+          //WithdrawalCase : decrease sender
+          senderAddr = convertAddress(logInfo.getTopics().get(1).getLast20Bytes());
+          adjustIncrement(incrementMap, senderAddr, tokenAddress, increment.negate());
+          trc20Tokens.add(tokenAddress);
+          break;
+        default:
+          continue;
+      }
+    }
+  }
+
+  private static String convertAddress(byte[] data) {
+    return StringUtil.encode58Check(TransactionTrace.convertToTronAddress(data));
+  }
+
+  private static void handlerTrc721(String assetId, String tokenAddress, String senderAddr, String recAddr,
+                                    Map<String, Map<String, List<BalanceTrackerTrigger.Trc721Info>>> trc721InfoMap) {
+    if (StringUtils.isEmpty(assetId)) {
+      return;
+    }
+
+    Map<String, List<BalanceTrackerTrigger.Trc721Info>> tokenMap = trc721InfoMap.get(tokenAddress);
+    if (tokenMap == null) {
+      tokenMap = new HashMap<>();
+      trc721InfoMap.put(tokenAddress, tokenMap);
+    }
+
+    List<BalanceTrackerTrigger.Trc721Info> trc721Infos = tokenMap.get(assetId);
+
+    if (trc721Infos == null) {
+      trc721Infos = new LinkedList<>();
+      tokenMap.put(assetId, trc721Infos);
+    }
+
+    BalanceTrackerTrigger.Trc721Info trc721Info = new BalanceTrackerTrigger.Trc721Info();
+    trc721Info.setTokenAddress(tokenAddress);
+    trc721Info.setFromAccountAddress(senderAddr);
+    trc721Info.setToAccountAddress(recAddr);
+    trc721Info.setAssetId(assetId);
+    trc721Infos.add(trc721Info);
+  }
 
   private static String bigIntegertoString(BigInteger bigInteger) {
     if (bigInteger != null) {
