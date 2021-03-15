@@ -15,7 +15,7 @@ static def isWindows() {
     return org.gradle.internal.os.OperatingSystem.current().isWindows()
 }
 
-if (isWindows()) {
+if (!isWindows()) {
     ext {
         leveldbGroup = "org.ethereum"
         leveldbName = "leveldbjni-all"
