@@ -54,22 +54,45 @@ public class TRC20Utils {
   }
 
   public static String getTRC721Url(String contractAddress, String assetId, BlockCapsule baseBlockCap) {
-    final DataWord dataWord = new DataWord(new BigInteger(assetId).toByteArray());
-    byte[] data = Bytes.concat(Hex.decode("c87b56dda"), dataWord.getData());
-    ProgramResult result = triggerFromVM(contractAddress, data, baseBlockCap);
-    if (Objects.isNull(result.getException()) && !result.isRevert() && StringUtils
-        .isEmpty(result.getRuntimeError())
-        && result.getHReturn() != null) {
-      try {
-        return ByteArray.toStr(result.getHReturn());
-      } catch (Exception e) {
+    try {
+      final DataWord dataWord = new DataWord(new BigInteger(assetId).toByteArray());
+      byte[] data = Bytes.concat(Hex.decode("c87b56dd"), dataWord.getData());
+      ProgramResult result = triggerFromVM(contractAddress, data, baseBlockCap);
+      if (Objects.isNull(result.getException()) && !result.isRevert() && StringUtils
+          .isEmpty(result.getRuntimeError())
+          && result.getHReturn() != null) {
+        try {
+          return unpackString(result.getHReturn());
+        } catch (Exception e) {
+          logger.error("", e);
+        }
       }
+
+      logger.error(" result.getRuntimeError:{}", result.getRuntimeError());
+    } catch (Exception ex) {
+      logger.error("", ex);
     }
 
     logger.error(" >>>>> getTRC721Url get error, {}", contractAddress);
     return "";
   }
 
+
+  private static final int WORD_LENGTH = DataWord.WORD_SIZE;
+
+  public static String unpackString(byte[] data) {
+    if (data.length < 2 * WORD_LENGTH || data.length % WORD_LENGTH != 0) {
+      return "";
+    }
+    int index = DataWord.getDataWord(data, 0).intValue();
+    int valueLength = DataWord.getDataWord(data, index / WORD_LENGTH).intValue();
+    if (valueLength > 0) {
+      byte[] range = Arrays
+              .copyOfRange(data, index + WORD_LENGTH, index + WORD_LENGTH + valueLength);
+      return ByteArray.toStr(range);
+    }
+    return "";
+  }
 
   public static BigInteger hexStrToBigInteger(String hexStr) {
     if (!StringUtils.isEmpty(hexStr)) {
@@ -275,7 +298,6 @@ public class TRC20Utils {
             adjustIncrement(incrementMap, recAddr, tokenAddress, increment);
             trc20Tokens.add(tokenAddress);
           } else if(topics.size() == 4) {
-            // 是trc721 todo check assetId
             final String assetId = logInfo.getTopics().get(3).bigIntValue();
             handlerTrc721(assetId, tokenAddress, senderAddr, recAddr, trc721InfoMap);
           }
