@@ -135,17 +135,18 @@ public class FullNode {
 
     Repository repository = RepositoryImpl.createRoot(StoreFactory.getInstance());
     long endBlockNum = repository.getDynamicPropertiesStore().getLatestBlockHeaderNumber();
-    int months= CommonParameter.getInstance().month;
+    int days = CommonParameter.getInstance().day;
     int threads = CommonParameter.getInstance().thread;
-    int blocks = 30 * 24 * 60 * 20;
+    boolean findUSDT = CommonParameter.getInstance().usdt == 1;
+    int blocks = 24 * 60 * 20;
     int[] slot = new int[threads];
-    for (int i = 0, j = 0; i < months; i++, j = (j + 1) % threads) {
+    for (int i = 0, j = 0; i < days; i++, j = (j + 1) % threads) {
       slot[j] += 1;
     }
     List<Thread> threadList = new ArrayList<>();
     for (int i = threads - 1; i >= 0; i--) {
       long firstBlockNum = findFirstBlockNumOfADay(endBlockNum - (long) slot[i] * blocks, repository);
-      threadList.add(new Thread(new TraversalTask(firstBlockNum, endBlockNum), "Traversal-" + i));
+      threadList.add(new Thread(new TraversalTask(firstBlockNum, endBlockNum, findUSDT), "Traversal-" + i));
       endBlockNum = firstBlockNum - 1;
     }
     threadList.forEach(Thread::start);
@@ -179,13 +180,16 @@ public class FullNode {
 
   private static class TraversalTask implements Runnable {
 
-    private long startBlockNum = 0;
+    private final long startBlockNum;
 
-    private long endBlockNum = 0;
+    private final long endBlockNum;
 
-    public TraversalTask(long startBlockNum, long endBlockNum) {
+    private final boolean findUSDT;
+
+    public TraversalTask(long startBlockNum, long endBlockNum, boolean findUSDT) {
       this.startBlockNum = startBlockNum;
       this.endBlockNum = endBlockNum;
+      this.findUSDT = findUSDT;
       System.out.println(startBlockNum + ":" + endBlockNum);
     }
 
@@ -230,42 +234,28 @@ public class FullNode {
           List<Protocol.Transaction.Contract> contracts = t.getRawData().getContractList();
           if (contracts.size() > 0 && contracts.get(0).getType()
               == Protocol.Transaction.Contract.ContractType.TriggerSmartContract) {
-//            SmartContractOuterClass.TriggerSmartContract contract;
-//            try {
-//              contract = contracts.get(0).getParameter().unpack(SmartContractOuterClass.TriggerSmartContract.class);
-//            } catch (InvalidProtocolBufferException e) {
-//              e.printStackTrace();
-//              continue;
-//            }
-//            if ("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t".equals(StringUtil.encode58Check(contract.getContractAddress().toByteArray()))
-//                && check(selector, contract.getData().toByteArray())) {
-//              curTxCnt += 1;
-//              if (!map.containsKey(sr)) map.put(sr, new Data());
-//              map.get(sr).txCnt += 1;
-//              if (cap.getContractResult() == Protocol.Transaction.Result.contractResult.OUT_OF_TIME) {
-//                curOutOfTime += 1;
-//                map.get(sr).outOfTime += 1;
-//                //System.out.println(cap.getTransactionId().toString() + " " + StringUtil.encode58Check(contract.getOwnerAddress().toByteArray()));
-//              }
-//            }
-            curTxCnt += 1;
-            if (!map.containsKey(sr)) map.put(sr, new Data());
-            map.get(sr).txCnt += 1;
-            if (cap.getContractResult() == Protocol.Transaction.Result.contractResult.OUT_OF_TIME) {
-              curOutOfTime += 1;
-              map.get(sr).outOfTime += 1;
-              SmartContractOuterClass.TriggerSmartContract contract;
-              try {
-                contract = contracts.get(0).getParameter().unpack(SmartContractOuterClass.TriggerSmartContract.class);
-                BufferedWriter bw = new BufferedWriter(new FileWriter("contract", true));
-                bw.write(String.format("%s %s%n",
-                    StringUtil.encode58Check(contract.getContractAddress().toByteArray()),
-                    cap.getTransactionId().toString()));
-                bw.flush();
-                bw.close();
-              } catch (IOException e) {
-                e.printStackTrace();
+            SmartContractOuterClass.TriggerSmartContract contract;
+            try {
+              contract = contracts.get(0).getParameter().unpack(SmartContractOuterClass.TriggerSmartContract.class);
+              if (!findUSDT || ("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t".equals(
+                  StringUtil.encode58Check(contract.getContractAddress().toByteArray()))
+                  && check(selector, contract.getData().toByteArray()))) {
+                curTxCnt += 1;
+                if (!map.containsKey(sr)) map.put(sr, new Data());
+                map.get(sr).txCnt += 1;
+                if (cap.getContractResult() == Protocol.Transaction.Result.contractResult.OUT_OF_TIME) {
+                  curOutOfTime += 1;
+                  map.get(sr).outOfTime += 1;
+                  BufferedWriter bw = new BufferedWriter(new FileWriter("contract", true));
+                  bw.write(String.format("%s %s%n",
+                      StringUtil.encode58Check(contract.getContractAddress().toByteArray()),
+                      cap.getTransactionId().toString()));
+                  bw.flush();
+                  bw.close();
+                }
               }
+            } catch (IOException e) {
+              e.printStackTrace();
             }
           }
         }
