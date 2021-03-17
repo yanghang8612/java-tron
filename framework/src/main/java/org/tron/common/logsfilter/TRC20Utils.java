@@ -151,12 +151,18 @@ public class TRC20Utils {
     Map<String, BigInteger> decimalMap = new LinkedHashMap<>();
     Map<String, Map<String, List<BalanceTrackerTrigger.Trc721Info>>> trc721InfoMap = new HashMap<>();
     handlerLogs(trc20IncrementMap, logInfos, trc20Tokens, trc721InfoMap);
+    if (!CollectionUtils.isEmpty(trc721InfoMap)) {
+      logger.info(" >>>> trc721InfoMap:{}", trc721InfoMap);
+    }
 
     final List<AssetStatusPojo> trc20AssetList = handlerTrc20Asset(block, trc20IncrementMap, balanceMap, decimalMap, trc20Tokens);
     final List<BalanceTrackerTrigger.Trc721Info> trc721Infos = handlerTrc721(trc721InfoMap, block);
     Map<String, Object> result = new HashMap<>();
     result.put(TRC20, trc20AssetList);
     result.put(TRC721, trc721Infos);
+    if (!CollectionUtils.isEmpty(trc721Infos)) {
+      logger.info(" >>>> trc721Infos:{}", trc721Infos);
+    }
     return result;
   }
 
