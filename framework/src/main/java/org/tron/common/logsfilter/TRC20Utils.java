@@ -304,6 +304,7 @@ public class TRC20Utils {
             adjustIncrement(incrementMap, recAddr, tokenAddress, increment);
             trc20Tokens.add(tokenAddress);
           } else if(topics.size() == 4) {
+            // 是trc721
             final String assetId = logInfo.getTopics().get(3).bigIntValue();
             handlerTrc721(assetId, tokenAddress, senderAddr, recAddr, trc721InfoMap);
           }
