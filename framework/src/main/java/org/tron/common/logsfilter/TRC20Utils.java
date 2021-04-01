@@ -307,6 +307,7 @@ public class TRC20Utils {
             // 是trc721
             final BigInteger bigInteger = logInfo.getTopics().get(3).sValue();
             String assetId = new BigInteger(1, bigInteger.toByteArray()).toString();
+            logger.info(" transfer: {} , {}, {}, {}", tokenAddress, senderAddr, recAddr, assetId);
             handlerTrc721(assetId, tokenAddress, senderAddr, recAddr, trc721InfoMap);
           }
 
