@@ -55,7 +55,13 @@ public class TRC20Utils {
 
   public static String getTRC721Url(String contractAddress, String assetId, BlockCapsule baseBlockCap) {
     try {
-      final DataWord dataWord = new DataWord(new BigInteger(assetId).toByteArray());
+      byte[] bytes = new BigInteger(assetId).toByteArray();
+
+      if (bytes.length > 32) {
+        bytes = Arrays.copyOfRange(bytes, 1, 33);
+      }
+
+      final DataWord dataWord = new DataWord(bytes);
       byte[] data = Bytes.concat(Hex.decode("c87b56dd"), dataWord.getData());
       ProgramResult result = triggerFromVM(contractAddress, data, baseBlockCap);
       if (Objects.isNull(result.getException()) && !result.isRevert() && StringUtils
