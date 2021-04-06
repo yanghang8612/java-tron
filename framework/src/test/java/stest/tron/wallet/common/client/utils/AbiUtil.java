@@ -42,7 +42,7 @@ public class AbiUtil {
       case "trcToken":
         return new CoderNumber();
       default:
-        System.out.println(type);
+        //System.out.println(type);
     }
 
     if (paramTypeBytes.matcher(type).find()) {

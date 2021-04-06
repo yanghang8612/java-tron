@@ -519,7 +519,7 @@ public class ProposalUtil {
     MAX_FEE_LIMIT(47), // [0, 10_000_000_000]
     ALLOW_TRANSACTION_FEE_POOL(48), // 0, 1
     ALLOW_BLACKHOLE_OPTIMIZATION(49), // 0,1
-    ALLOW_TVM_FREEZE(50); // 0, 1
+    ALLOW_TVM_FREEZE(52); // 0, 1
 
     private long code;
 

@@ -178,6 +178,7 @@ public class TransactionTrace {
   public void exec()
       throws ContractExeException, ContractValidateException, VMIllegalException {
     /*  VM execute  */
+    // TODO: 2021/4/3 优化提案获取
     if (dynamicPropertiesStore.getAllowTvmFreeze() == 1) {
       byte[] originAccount;
       byte[] callerAccount;
@@ -236,6 +237,7 @@ public class TransactionTrace {
       for (DataWord address : transactionContext.getProgramResult().getDeleteDelegation()) {
         deleteDelegationByAddress(convertToTronAddress((address.getLast20Bytes())));
       }
+      // TODO: 2021/4/3 suicide后的能量转移可以考虑放到这里
     }
   }
 
