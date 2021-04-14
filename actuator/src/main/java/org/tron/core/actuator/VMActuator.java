@@ -60,6 +60,9 @@ import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
 @Slf4j(topic = "VM")
 public class VMActuator implements Actuator2 {
 
+  public static long time = 0;
+  public static boolean record = false;
+
   private Transaction trx;
   private BlockCapsule blockCap;
   private Repository repository;
@@ -170,7 +173,11 @@ public class VMActuator implements Actuator2 {
           throw e;
         }
 
+        long startTime = System.nanoTime();
         vm.play(program);
+        if (record) {
+          time += System.nanoTime() - startTime;
+        }
         result = program.getResult();
 
         if (isConstantCall) {
@@ -479,7 +486,7 @@ public class VMActuator implements Actuator2 {
           .getMaxCpuTimeOfOneTx() * VMConstant.ONE_THOUSAND;
       long thisTxCPULimitInUs =
           (long) (maxCpuTimeOfOneTx * getCpuLimitInUsRatio());
-      long vmStartInUs = System.nanoTime() / VMConstant.ONE_THOUSAND;
+      long vmStartInUs = System.nanoTime() / VMConstant.ONE_THOUSAND * 10;
       long vmShouldEndInUs = vmStartInUs + thisTxCPULimitInUs;
       ProgramInvoke programInvoke = programInvokeFactory
           .createProgramInvoke(TrxType.TRX_CONTRACT_CALL_TYPE, executorType, trx,

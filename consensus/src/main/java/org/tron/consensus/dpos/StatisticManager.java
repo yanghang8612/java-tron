@@ -32,15 +32,15 @@ public class StatisticManager {
     if (blockNum != 1) {
       slot = dposSlot.getSlot(blockTime);
     }
-    for (int i = 1; i < slot; ++i) {
-      byte[] witness = dposSlot.getScheduledWitness(i).toByteArray();
-      wc = consensusDelegate.getWitness(witness);
-      wc.setTotalMissed(wc.getTotalMissed() + 1);
-      consensusDelegate.saveWitness(wc);
-      logger.info("Current block: {}, witness: {} totalMissed: {}",
-          blockNum, wc.createReadableString(), wc.getTotalMissed());
-      consensusDelegate.applyBlock(false);
-    }
-    consensusDelegate.applyBlock(true);
+//    for (int i = 1; i < slot; ++i) {
+//      byte[] witness = dposSlot.getScheduledWitness(i).toByteArray();
+//      wc = consensusDelegate.getWitness(witness);
+//      wc.setTotalMissed(wc.getTotalMissed() + 1);
+//      consensusDelegate.saveWitness(wc);
+//      logger.info("Current block: {}, witness: {} totalMissed: {}",
+//          blockNum, wc.createReadableString(), wc.getTotalMissed());
+//      consensusDelegate.applyBlock(false);
+//    }
+//    consensusDelegate.applyBlock(true);
   }
 }

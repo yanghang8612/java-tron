@@ -131,6 +131,7 @@ run {
 }
 
 test {
+    useTestNG {}
     testLogging {
         exceptionFormat = 'full'
     }
