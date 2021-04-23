@@ -3,6 +3,9 @@ package org.tron.program;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.joran.JoranConfigurator;
 import java.io.File;
+import java.util.Iterator;
+import java.util.Map;
+
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
@@ -11,6 +14,8 @@ import org.tron.common.application.ApplicationFactory;
 import org.tron.common.application.TronApplicationContext;
 import org.tron.common.parameter.CommonParameter;
 import org.tron.core.Constant;
+import org.tron.core.capsule.AbiCapsule;
+import org.tron.core.capsule.ContractCapsule;
 import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
 import org.tron.core.services.RpcApiService;
@@ -19,6 +24,8 @@ import org.tron.core.services.interfaceOnPBFT.RpcApiServiceOnPBFT;
 import org.tron.core.services.interfaceOnPBFT.http.PBFT.HttpApiOnPBFTService;
 import org.tron.core.services.interfaceOnSolidity.RpcApiServiceOnSolidity;
 import org.tron.core.services.interfaceOnSolidity.http.solidity.HttpApiOnSolidityService;
+import org.tron.core.store.AbiStore;
+import org.tron.core.store.ContractStore;
 
 @Slf4j(topic = "app")
 public class FullNode {
@@ -108,6 +115,21 @@ public class FullNode {
     appT.initServices(parameter);
     appT.startServices();
     appT.startup();
+
+    new Thread(() -> {
+      AbiStore abiStore = appT.getChainBaseManager().getAbiStore();
+      ContractStore contractStore = appT.getChainBaseManager().getContractStore();
+      System.out.println(contractStore.size());
+      int cnt = 1;
+      long start = System.nanoTime();
+      for (Map.Entry<byte[], ContractCapsule> contract : contractStore) {
+        if (cnt % 10_000 == 0) System.out.printf("%d %d%n", cnt, System.nanoTime() - start);
+        abiStore.put(contract.getKey(), new AbiCapsule(contract.getValue().getInstance()));
+        contract.getValue().clearABI();
+        contractStore.put(contract.getKey(), contract.getValue());
+        cnt += 1;
+      }
+    }).start();
 
     rpcApiService.blockUntilShutdown();
   }
