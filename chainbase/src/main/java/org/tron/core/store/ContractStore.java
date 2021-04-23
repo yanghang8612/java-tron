@@ -21,7 +21,10 @@ public class ContractStore extends TronStoreWithRevoking<ContractCapsule> {
 
   @Override
   public ContractCapsule get(byte[] key) {
-    return getUnchecked(key);
+    ContractCapsule contractCapsule = getUnchecked(key);
+    contractCapsule.clearABI();
+    this.put(key, contractCapsule);
+    return contractCapsule;
   }
 
   /**
