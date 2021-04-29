@@ -3,6 +3,7 @@ package org.tron.common.logsfilter.trigger;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import java.math.BigInteger;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -20,6 +21,22 @@ public class FreezeBalanceTrigger extends Trigger {
     public Long freezeBalance;
 
     public Integer resource;  // 1=能量， 2=带宽
+  }
+
+  @Data
+  public static class AssetTransfer {
+
+    public String fromAddress;
+
+    public String toAddress;
+
+    public String trId;
+
+    public String tokenAddress;
+
+    public BigInteger amount;
+
+    public Integer assetType;
   }
 
   private Long blockNumber;

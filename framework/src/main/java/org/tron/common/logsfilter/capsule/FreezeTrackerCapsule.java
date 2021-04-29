@@ -7,7 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.CollectionUtils;
 import org.tron.common.logsfilter.EventPluginLoader;
 import org.tron.common.logsfilter.trigger.FreezeBalanceTrigger;
-import org.tron.common.runtime.vm.LogInfo;
 import org.tron.common.utils.Commons;
 import org.tron.common.utils.Sha256Hash;
 import org.tron.common.utils.StringUtil;
@@ -24,7 +23,6 @@ import java.util.*;
 @Slf4j
 public class FreezeTrackerCapsule extends TriggerCapsule {
 
-
   @Getter
   @Setter
   private FreezeBalanceTrigger freezeBalanceTrigger;
@@ -36,15 +34,10 @@ public class FreezeTrackerCapsule extends TriggerCapsule {
     freezeBalanceTrigger.setBlockNumber(block.getNum());
     freezeBalanceTrigger.setTimeStamp(block.getTimeStamp());
 
-
     List<TransactionCapsule> transactionCapsules = block.getTransactions();
-    List<LogInfo> logInfos = new ArrayList<>();
-    for (TransactionCapsule transactionCapsule : transactionCapsules) {
-      List<LogInfo> innerList = transactionCapsule.getTrxTrace().getTransactionContext()
-          .getProgramResult().getLogInfoList();
-      if (innerList != null && innerList.size() > 0) {
-        logInfos.addAll(innerList);
-      }
+
+    if (CollectionUtils.isEmpty(transactionCapsules)) {
+      return;
     }
 
     Map<String, Map<String, Set<Common.ResourceCode>>> result = new HashMap<>();
@@ -61,31 +54,10 @@ public class FreezeTrackerCapsule extends TriggerCapsule {
       final Protocol.Transaction.Contract.ContractType type = item.getInstance().getRawData().getContract(0).getType();
 
       if (Protocol.Transaction.Contract.ContractType.FreezeBalanceContract.equals(type)) {
-        try {
-          final BalanceContract.FreezeBalanceContract freezeBalanceContract = item.getInstance().getRawData().getContract(0).getParameter().unpack(BalanceContract.FreezeBalanceContract.class);
-          String fromAddress = StringUtil.encode58Check(freezeBalanceContract.getOwnerAddress().toByteArray());
-
-          if (freezeBalanceContract.getReceiverAddress() != null && !freezeBalanceContract.getReceiverAddress().isEmpty()) {
-            String toAddress = StringUtil.encode58Check(freezeBalanceContract.getReceiverAddress().toByteArray());
-            handlerAddress(fromAddress, toAddress, freezeBalanceContract.getResource(), result);
-          }
-        } catch (InvalidProtocolBufferException e) {
-          logger.error("", e);
-          return;
-        }
+        handlerFreeze(item, result);
       }
       else if (Protocol.Transaction.Contract.ContractType.UnfreezeBalanceContract.equals(type)) {
-        try {
-          final BalanceContract.UnfreezeBalanceContract unfreezeBalanceContract = item.getInstance().getRawData().getContract(0).getParameter().unpack(BalanceContract.UnfreezeBalanceContract.class);
-          String fromAddress = StringUtil.encode58Check(unfreezeBalanceContract.getOwnerAddress().toByteArray());
-
-          if (unfreezeBalanceContract.getReceiverAddress() != null && !unfreezeBalanceContract.getReceiverAddress().isEmpty()) {
-            String toAddress = StringUtil.encode58Check(unfreezeBalanceContract.getReceiverAddress().toByteArray());
-            handlerAddress(fromAddress, toAddress, unfreezeBalanceContract.getResource(), result);
-          }
-        } catch (InvalidProtocolBufferException e) {
-          logger.error("", e);
-        }
+        handlerUnfreeze(item, result);
       }
 
       final List<FreezeBalanceTrigger.FreezeBalance> freezeBalanceList = handlerFreezeAddress(result, delegatedResourceStore);
@@ -103,22 +75,39 @@ public class FreezeTrackerCapsule extends TriggerCapsule {
         transferContract.getToAddress();
         transferContract.getAmount();
 
-        final BalanceContract.FreezeBalanceContract freezeBalanceContract = item.getInstance().getRawData().getContract(0).getParameter().unpack(BalanceContract.FreezeBalanceContract.class);
-        freezeBalanceContract.getFrozenBalance();
-        freezeBalanceContract.getOwnerAddress();
-        freezeBalanceContract.getReceiverAddress();
-        freezeBalanceContract.getFrozenDuration(); //过期时间
-        freezeBalanceContract.getResource();
-//        freezeBalanceContract.getResourceValue(); // 数量
-
-        final BalanceContract.UnfreezeBalanceContract unfreezeBalanceContract = item.getInstance().getRawData().getContract(0).getParameter().unpack(BalanceContract.UnfreezeBalanceContract.class);
-        unfreezeBalanceContract.getOwnerAddress();
-        unfreezeBalanceContract.getReceiverAddress();
-        unfreezeBalanceContract.getResource();
       } catch (Exception e) {
         logger.error("", e);
       }
     });
+  }
+
+  private void handlerFreeze(TransactionCapsule item, Map<String, Map<String, Set<Common.ResourceCode>>> result) {
+    try {
+      final BalanceContract.FreezeBalanceContract freezeBalanceContract = item.getInstance().getRawData().getContract(0).getParameter().unpack(BalanceContract.FreezeBalanceContract.class);
+      String fromAddress = StringUtil.encode58Check(freezeBalanceContract.getOwnerAddress().toByteArray());
+
+      if (freezeBalanceContract.getReceiverAddress() != null && !freezeBalanceContract.getReceiverAddress().isEmpty()) {
+        String toAddress = StringUtil.encode58Check(freezeBalanceContract.getReceiverAddress().toByteArray());
+        handlerAddress(fromAddress, toAddress, freezeBalanceContract.getResource(), result);
+      }
+    } catch (InvalidProtocolBufferException e) {
+      logger.error("", e);
+      return;
+    }
+  }
+
+  private void handlerUnfreeze(TransactionCapsule item, Map<String, Map<String, Set<Common.ResourceCode>>> result) {
+    try {
+      final BalanceContract.UnfreezeBalanceContract unfreezeBalanceContract = item.getInstance().getRawData().getContract(0).getParameter().unpack(BalanceContract.UnfreezeBalanceContract.class);
+      String fromAddress = StringUtil.encode58Check(unfreezeBalanceContract.getOwnerAddress().toByteArray());
+
+      if (unfreezeBalanceContract.getReceiverAddress() != null && !unfreezeBalanceContract.getReceiverAddress().isEmpty()) {
+        String toAddress = StringUtil.encode58Check(unfreezeBalanceContract.getReceiverAddress().toByteArray());
+        handlerAddress(fromAddress, toAddress, unfreezeBalanceContract.getResource(), result);
+      }
+    } catch (InvalidProtocolBufferException e) {
+      logger.error("", e);
+    }
   }
 
   private List<FreezeBalanceTrigger.FreezeBalance> handlerFreezeAddress(Map<String, Map<String, Set<Common.ResourceCode>>> result, DelegatedResourceStore delegatedResourceStore) {
