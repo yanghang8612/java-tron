@@ -42,15 +42,7 @@ import org.springframework.stereotype.Component;
 import org.tron.common.args.GenesisBlock;
 import org.tron.common.logsfilter.EventPluginLoader;
 import org.tron.common.logsfilter.FilterQuery;
-import org.tron.common.logsfilter.capsule.BlockErasedTriggerCapsule;
-import org.tron.common.logsfilter.capsule.BlockLogTriggerCapsule;
-import org.tron.common.logsfilter.capsule.ContractTriggerCapsule;
-import org.tron.common.logsfilter.capsule.ShieldedTRC20SolidityTrackerCapsule;
-import org.tron.common.logsfilter.capsule.ShieldedTRC20TrackerCapsule;
-import org.tron.common.logsfilter.capsule.SolidityTriggerCapsule;
-import org.tron.common.logsfilter.capsule.BalanceTrackerCapsule;
-import org.tron.common.logsfilter.capsule.TransactionLogTriggerCapsule;
-import org.tron.common.logsfilter.capsule.TriggerCapsule;
+import org.tron.common.logsfilter.capsule.*;
 import org.tron.common.logsfilter.trigger.ContractEventTrigger;
 import org.tron.common.logsfilter.trigger.ContractLogTrigger;
 import org.tron.common.logsfilter.trigger.ContractTrigger;
@@ -1746,8 +1738,11 @@ public class Manager {
   }
 
   private void postBalanceTrigger(BlockCapsule blockCapsule) {
-    if (eventPluginLoaded &&
-        EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable()) {
+    if (!eventPluginLoaded) {
+      return;
+    }
+
+    if (EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable()) {
       BalanceTrackerCapsule balanceTrackerCapsule = new BalanceTrackerCapsule(blockCapsule,
               accountChangeRecord.getTempAccountMap());
       if (balanceTrackerCapsule.getTrc20TrackerTrigger() != null) {
@@ -1755,8 +1750,15 @@ public class Manager {
         accountChangeRecord.clear();
       }
     }
-    if (eventPluginLoaded &&
-        EventPluginLoader.getInstance().isShieldedTRC20TrackerTriggerEnable()) {
+
+    if (EventPluginLoader.getInstance().isFreezeBalanceTriggerEnable()) {
+      FreezeTrackerCapsule balanceTrackerCapsule = new FreezeTrackerCapsule(blockCapsule, getDelegatedResourceStore());
+      if (balanceTrackerCapsule.getFreezeBalanceTrigger() != null) {
+        balanceTrackerCapsule.processTrigger();
+      }
+    }
+
+    if (EventPluginLoader.getInstance().isShieldedTRC20TrackerTriggerEnable()) {
       ShieldedTRC20TrackerCapsule shieldedTRC20TrackerCapsule = new ShieldedTRC20TrackerCapsule(
           blockCapsule, getTransactionPojos(blockCapsule));
       shieldedTRC20TrackerCapsule.processTrigger();
