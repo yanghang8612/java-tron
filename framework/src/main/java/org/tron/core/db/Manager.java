@@ -83,6 +83,7 @@ import org.tron.core.consensus.ProposalController;
 import org.tron.core.db.KhaosDatabase.KhaosBlock;
 import org.tron.core.db.accountchange.AccountChangeRecord;
 import org.tron.common.application.ApplicationHandler;
+import org.tron.core.db.accountchange.FreezeChangeRecord;
 import org.tron.core.db.accountstate.TrieService;
 import org.tron.core.db.accountstate.callback.AccountStateCallBack;
 import org.tron.core.db.api.AssetUpdateHelper;
@@ -198,6 +199,8 @@ public class Manager {
   private AccountStateCallBack accountStateCallBack;
   @Autowired
   private AccountChangeRecord accountChangeRecord;
+  @Autowired
+  private FreezeChangeRecord freezeChangeRecord;
   @Autowired
   private TrieService trieService;
   private Set<String> ownerAddressSet = new HashSet<>();
@@ -808,6 +811,7 @@ public class Manager {
 
     boolean record = eventPluginLoaded && EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable();
     accountChangeRecord.startRecord(record);
+    freezeChangeRecord.startRecord(record);
 
     processBlock(block);
     chainBaseManager.getBlockStore().put(block.getBlockId().getBytes(), block);
@@ -1738,9 +1742,10 @@ public class Manager {
     }
 
     if (EventPluginLoader.getInstance().isFreezeBalanceTriggerEnable()) {
-      FreezeTrackerCapsule balanceTrackerCapsule = new FreezeTrackerCapsule(blockCapsule, getDelegatedResourceStore());
+      FreezeTrackerCapsule balanceTrackerCapsule = new FreezeTrackerCapsule(blockCapsule, freezeChangeRecord.getTempFreezeMap());
       if (balanceTrackerCapsule.getFreezeBalanceTrigger() != null) {
         balanceTrackerCapsule.processTrigger();
+        freezeChangeRecord.clear();
       }
     }
 

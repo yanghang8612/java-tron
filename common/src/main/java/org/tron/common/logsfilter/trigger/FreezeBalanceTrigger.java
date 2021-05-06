@@ -18,7 +18,13 @@ public class FreezeBalanceTrigger extends Trigger {
 
     public String toAddress;
 
-    public Long freezeBalance;
+    public String freezeBalance;
+
+    public String expireTime;
+
+    public String incrementFreezeBalance;
+
+    public String incrementExpireTime;
 
     public Integer resource;  // 1=能量， 2=带宽
   }
@@ -36,7 +42,7 @@ public class FreezeBalanceTrigger extends Trigger {
 
     public BigInteger amount;
 
-    public Integer assetType;
+    public Integer assetType; // 0=trx, 1=trc10, 2=trc20, 3=trc721
   }
 
   private Long blockNumber;
