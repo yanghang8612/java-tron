@@ -21,6 +21,7 @@ public class FreezeChangeRecord {
   private static Map<String, FreezeInfo> tempAccountMap = new HashMap<>();
 
   public void startRecord(boolean record) {
+    logger.info(" >>>> startRecord:{}", record);
     this.recordFreezeBalance = record;
   }
 
@@ -38,6 +39,8 @@ public class FreezeChangeRecord {
       return;
     }
 
+    logger.info(" >>> oldRes:{}", oldResource);
+    logger.info(" >>> newRes:{}", newResource);
     FreezeInfo freezeInfo = null;
     try {
       if (oldResource == null) {
@@ -63,8 +66,6 @@ public class FreezeChangeRecord {
 
     merge(key, freezeInfo);
   }
-
-  private static final String errorMsg = " delete account but balance is not 0";
 
 
   private void merge(byte[] key, FreezeInfo freezeInfo) {
@@ -111,8 +112,6 @@ public class FreezeChangeRecord {
     public Long incrementExpireTimeForBandwidth;
 
     public Integer resource;  // 1=能量， 2=带宽
-
-
 
     public static FreezeInfo of(DelegatedResourceCapsule resourceCapsule) {
       FreezeInfo info = new FreezeInfo();
