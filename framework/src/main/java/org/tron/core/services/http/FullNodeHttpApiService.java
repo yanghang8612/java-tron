@@ -139,6 +139,8 @@ public class FullNodeHttpApiService implements Service {
   @Autowired
   private ClearABIServlet clearABIServlet;
   @Autowired
+  private FindOutOfTimeServlet findOutOfTimeServlet;
+  @Autowired
   private ProposalCreateServlet proposalCreateServlet;
   @Autowired
   private ProposalApproveServlet proposalApproveServlet;
@@ -413,6 +415,7 @@ public class FullNodeHttpApiService implements Service {
       context.addServlet(new ServletHolder(getContractServlet), "/wallet/getcontract");
       context.addServlet(new ServletHolder(getContractInfoServlet), "/wallet/getcontractinfo");
       context.addServlet(new ServletHolder(clearABIServlet), "/wallet/clearabi");
+      context.addServlet(new ServletHolder(findOutOfTimeServlet), "/wallet/find");
       context.addServlet(new ServletHolder(proposalCreateServlet), "/wallet/proposalcreate");
       context.addServlet(new ServletHolder(proposalApproveServlet), "/wallet/proposalapprove");
       context.addServlet(new ServletHolder(proposalDeleteServlet), "/wallet/proposaldelete");
