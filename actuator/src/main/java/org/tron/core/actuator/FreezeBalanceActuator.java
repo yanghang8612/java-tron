@@ -289,6 +289,7 @@ public class FreezeBalanceActuator extends AbstractActuator {
       }
 
     }
+    logger.info(" >>> delegatedResourceCapsule:{}", delegatedResourceCapsule);
     delegatedResourceStore.put(key, delegatedResourceCapsule);
 
     //modify DelegatedResourceAccountIndexStore

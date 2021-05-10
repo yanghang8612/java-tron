@@ -35,12 +35,12 @@ public class FreezeChangeRecord {
   }
 
   public void recordChangedFreeze(byte[] key, DelegatedResourceCapsule oldResource, DelegatedResourceCapsule newResource) {
+    logger.info(" >>> oldRes:{}", oldResource);
+    logger.info(" >>> newRes:{}", newResource);
     if (!recordFreezeBalance || newResource == null) {
       return;
     }
 
-    logger.info(" >>> oldRes:{}", oldResource);
-    logger.info(" >>> newRes:{}", newResource);
     FreezeInfo freezeInfo = null;
     try {
       if (oldResource == null) {
