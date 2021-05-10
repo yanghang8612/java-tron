@@ -809,9 +809,10 @@ public class Manager {
       TaposException, ValidateScheduleException, ReceiptCheckErrException,
       VMIllegalException, TooBigTransactionResultException, ZksnarkException, BadBlockException {
 
-    boolean record = eventPluginLoaded && EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable();
-    accountChangeRecord.startRecord(record);
-    freezeChangeRecord.startRecord(record);
+    boolean recordBalance = eventPluginLoaded && EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable();
+    accountChangeRecord.startRecord(recordBalance);
+    boolean recordFreeze = eventPluginLoaded && EventPluginLoader.getInstance().isFreezeBalanceTriggerEnable();
+    freezeChangeRecord.startRecord(recordFreeze);
 
     processBlock(block);
     chainBaseManager.getBlockStore().put(block.getBlockId().getBytes(), block);
