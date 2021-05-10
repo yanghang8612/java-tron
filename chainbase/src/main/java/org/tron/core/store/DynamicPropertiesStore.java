@@ -1705,7 +1705,7 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
   }
 
   public boolean supportDR() {
-    return getAllowDelegateResource() == 1L;
+    return true;
   }
 
   public void saveAllowUpdateAccountName(long rate) {

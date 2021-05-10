@@ -62,6 +62,8 @@ public class FreezeBalanceActuator extends AbstractActuator {
       accountCapsule.initializeOldTronPower();
     }
 
+    logger.info(" >>>> freezeBalanceContract:{}", freezeBalanceContract.getResource());
+    logger.info(" >>>> freezeBalanceContract:{}", freezeBalanceContract);
     long now = dynamicStore.getLatestBlockHeaderTimestamp();
     long duration = freezeBalanceContract.getFrozenDuration() * FROZEN_PERIOD;
 
