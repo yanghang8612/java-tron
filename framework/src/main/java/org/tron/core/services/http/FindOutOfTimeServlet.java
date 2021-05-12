@@ -31,13 +31,15 @@ import java.util.Map;
 @Slf4j(topic = "API")
 public class FindOutOfTimeServlet extends RateLimiterServlet {
 
+  private static boolean isHour;
+
   protected void doGet(HttpServletRequest request, HttpServletResponse response) {
     Repository repository = RepositoryImpl.createRoot(StoreFactory.getInstance());
     long endBlockNum = repository.getDynamicPropertiesStore().getLatestBlockHeaderNumber();
     int slots = Integer.parseInt(request.getParameter("slots"));
     int threads = Integer.parseInt(request.getParameter("threads"));
     boolean findUSDT = Integer.parseInt(request.getParameter("usdt")) == 1;
-    boolean isHour = Integer.parseInt(request.getParameter("ishour")) == 1;
+    isHour = Integer.parseInt(request.getParameter("ishour")) == 1;
     int blocks = isHour ? 60 * 20 : 24 * 60 * 20;
     int[] slot = new int[threads];
     for (int i = 0, j = 0; i < slots; i++, j = (j + 1) % threads) {
@@ -110,37 +112,11 @@ public class FindOutOfTimeServlet extends RateLimiterServlet {
     @Override
     public void run() {
       Map<String, Data> map = new HashMap<>();
-      Repository repository = RepositoryImpl.createRoot(StoreFactory.getInstance());
+      Repository repo = RepositoryImpl.createRoot(StoreFactory.getInstance());
       byte[] selector = Hash.sha3("transfer(address,uint256)".getBytes());
-      long txCnt = 0, outOfTime = 0, curTxCnt = 0, curOutOfTime = 0,
-          startTime = System.currentTimeMillis(), curBlockNum = startBlockNum;
-      for (int days = 0; curBlockNum <= endBlockNum; curBlockNum++) {
-        BlockCapsule blockCapsule = repository.getBlockByNum(curBlockNum);
-        LocalDateTime date = Instant.ofEpochMilli(blockCapsule.getTimeStamp())
-            .atZone(ZoneOffset.ofHours(8)).toLocalDateTime();
-        if (days == 0) days = date.getDayOfYear();
-        if (date.getDayOfYear() != days) {
-          txCnt += curTxCnt;
-          outOfTime += curOutOfTime;
-          System.out.println(Thread.currentThread().getName() + ": " + date.plusSeconds(6)
-              + " " + curTxCnt + " " + curOutOfTime + " " + txCnt + " " + outOfTime
-              + " " + (System.currentTimeMillis() - startTime) + "ms");
-          try {
-            for (String key : map.keySet()) {
-              BufferedWriter bw = new BufferedWriter(new FileWriter(key, true));
-              DateTimeFormatter df = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-              bw.write(String.format("%s %d %d%n", df.format(date.plusDays(1)), map.get(key).outOfTime, map.get(key).txCnt));
-              bw.flush();
-              bw.close();
-            }
-          } catch (IOException e) {
-            e.printStackTrace();
-          }
-          curTxCnt = curOutOfTime = 0;
-          startTime = System.currentTimeMillis();
-          days = date.getDayOfYear();
-          map = new HashMap<>();
-        }
+      long txCnt = 0, outOfTime = 0, startTime = System.currentTimeMillis();
+      for (long curBlockNum = startBlockNum; curBlockNum <= endBlockNum; curBlockNum++) {
+        BlockCapsule blockCapsule = repo.getBlockByNum(curBlockNum);
         String sr = StringUtil.encode58Check(blockCapsule.getWitnessAddress().toByteArray());
         List<TransactionCapsule> transactions = blockCapsule.getTransactions();
         for (TransactionCapsule cap : transactions) {
@@ -154,11 +130,11 @@ public class FindOutOfTimeServlet extends RateLimiterServlet {
               if (!findUSDT || ("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t".equals(
                   StringUtil.encode58Check(contract.getContractAddress().toByteArray()))
                   && check(selector, contract.getData().toByteArray()))) {
-                curTxCnt += 1;
+                txCnt += 1;
                 if (!map.containsKey(sr)) map.put(sr, new Data());
                 map.get(sr).txCnt += 1;
                 if (cap.getContractResult() == Protocol.Transaction.Result.contractResult.OUT_OF_TIME) {
-                  curOutOfTime += 1;
+                  outOfTime += 1;
                   map.get(sr).outOfTime += 1;
                   BufferedWriter bw = new BufferedWriter(new FileWriter("contract", true));
                   bw.write(String.format("%s %s%n",
@@ -173,8 +149,44 @@ public class FindOutOfTimeServlet extends RateLimiterServlet {
             }
           }
         }
+
+        if (isLastBlockOfSlot(curBlockNum, repo)) { // record one slot scan result
+          LocalDateTime date = Instant.ofEpochMilli(blockCapsule.getTimeStamp())
+              .atZone(ZoneOffset.ofHours(8)).toLocalDateTime();
+          DateTimeFormatter df = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+          if (isHour) {
+            date = date.withMinute(0).withSecond(0);
+            df = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+          }
+          System.out.println(Thread.currentThread().getName() + ": " + date
+              + " " + txCnt + " " + outOfTime
+              + " " + (System.currentTimeMillis() - startTime) + "ms");
+          try {
+            BufferedWriter bw = new BufferedWriter(new FileWriter("scan", true));
+            for (String key : map.keySet()) {
+              bw = new BufferedWriter(new FileWriter(key, true));
+              bw.write(String.format("%s %d %d%n", date.format(df), map.get(key).outOfTime, map.get(key).txCnt));
+              bw.flush();
+              bw.close();
+            }
+          } catch (IOException e) {
+            e.printStackTrace();
+          }
+          txCnt = outOfTime = 0;
+          startTime = System.currentTimeMillis();
+          map = new HashMap<>();
+        }
       }
     }
+  }
+
+  private static boolean isLastBlockOfSlot(long blockNum, Repository repo) {
+    LocalDateTime curDate = Instant.ofEpochMilli(repo.getBlockByNum(blockNum).getTimeStamp())
+        .atZone(ZoneOffset.ofHours(8)).toLocalDateTime();
+    LocalDateTime nextDate = Instant.ofEpochMilli(repo.getBlockByNum(blockNum + 1).getTimeStamp())
+        .atZone(ZoneOffset.ofHours(8)).toLocalDateTime();
+    return isHour ? curDate.getHour() == nextDate.getHour()
+        : curDate.getDayOfYear() == nextDate.getDayOfYear();
   }
 
   private static boolean check(byte[] a, byte[] b) {
