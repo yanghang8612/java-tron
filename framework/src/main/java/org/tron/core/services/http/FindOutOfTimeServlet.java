@@ -136,12 +136,9 @@ public class FindOutOfTimeServlet extends RateLimiterServlet {
                 if (cap.getContractResult() == Protocol.Transaction.Result.contractResult.OUT_OF_TIME) {
                   outOfTime += 1;
                   map.get(sr).outOfTime += 1;
-                  BufferedWriter bw = new BufferedWriter(new FileWriter("contract", true));
-                  bw.write(String.format("%s %s%n",
+                  writeToFile("contract", String.format("%s %s%n",
                       StringUtil.encode58Check(contract.getContractAddress().toByteArray()),
                       cap.getTransactionId().toString()));
-                  bw.flush();
-                  bw.close();
                 }
               }
             } catch (IOException e) {
@@ -161,21 +158,27 @@ public class FindOutOfTimeServlet extends RateLimiterServlet {
           System.out.println(Thread.currentThread().getName() + ": " + date
               + " " + txCnt + " " + outOfTime
               + " " + (System.currentTimeMillis() - startTime) + "ms");
-          try {
-            BufferedWriter bw = new BufferedWriter(new FileWriter("scan", true));
-            for (String key : map.keySet()) {
-              bw = new BufferedWriter(new FileWriter(key, true));
-              bw.write(String.format("%s %d %d%n", date.format(df), map.get(key).outOfTime, map.get(key).txCnt));
-              bw.flush();
-              bw.close();
-            }
-          } catch (IOException e) {
-            e.printStackTrace();
+          writeToFile("scan", String.format("%s %d %d%n",
+              date.format(df), outOfTime, txCnt));
+          for (String key : map.keySet()) {
+            writeToFile(key, String.format("%s %d %d%n",
+                date.format(df), map.get(key).outOfTime, map.get(key).txCnt));
           }
           txCnt = outOfTime = 0;
           startTime = System.currentTimeMillis();
           map = new HashMap<>();
         }
+      }
+    }
+
+    private void writeToFile(String name, String line) {
+      try {
+        BufferedWriter bw = new BufferedWriter(new FileWriter(name, true));
+        bw.write(line);
+        bw.flush();
+        bw.close();
+      } catch (IOException e) {
+        e.printStackTrace();
       }
     }
   }
