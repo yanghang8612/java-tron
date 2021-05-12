@@ -153,9 +153,9 @@ public class FindOutOfTimeServlet extends RateLimiterServlet {
           DateTimeFormatter df = DateTimeFormatter.ofPattern("yyyy-MM-dd");
           if (isHour) {
             date = date.withMinute(0).withSecond(0);
-            df = DateTimeFormatter.ofPattern("yyyy-MM-dd hh:mm:ss");
+            df = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
           }
-          System.out.println(Thread.currentThread().getName() + ": " + date
+          System.out.println(Thread.currentThread().getName() + ": " + date.format(df)
               + " " + outOfTime + " " + txCnt
               + " " + (System.currentTimeMillis() - startTime) + "ms");
           writeToFile("scan", String.format("%s %d %d%n",
