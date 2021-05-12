@@ -153,10 +153,10 @@ public class FindOutOfTimeServlet extends RateLimiterServlet {
           DateTimeFormatter df = DateTimeFormatter.ofPattern("yyyy-MM-dd");
           if (isHour) {
             date = date.withMinute(0).withSecond(0);
-            df = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+            df = DateTimeFormatter.ofPattern("yyyy-MM-dd hh:mm:ss");
           }
           System.out.println(Thread.currentThread().getName() + ": " + date
-              + " " + txCnt + " " + outOfTime
+              + " " + outOfTime + " " + txCnt
               + " " + (System.currentTimeMillis() - startTime) + "ms");
           writeToFile("scan", String.format("%s %d %d%n",
               date.format(df), outOfTime, txCnt));
@@ -188,8 +188,8 @@ public class FindOutOfTimeServlet extends RateLimiterServlet {
         .atZone(ZoneOffset.ofHours(8)).toLocalDateTime();
     LocalDateTime nextDate = Instant.ofEpochMilli(repo.getBlockByNum(blockNum + 1).getTimeStamp())
         .atZone(ZoneOffset.ofHours(8)).toLocalDateTime();
-    return isHour ? curDate.getHour() == nextDate.getHour()
-        : curDate.getDayOfYear() == nextDate.getDayOfYear();
+    return isHour ? curDate.getHour() != nextDate.getHour()
+        : curDate.getDayOfYear() != nextDate.getDayOfYear();
   }
 
   private static boolean check(byte[] a, byte[] b) {
