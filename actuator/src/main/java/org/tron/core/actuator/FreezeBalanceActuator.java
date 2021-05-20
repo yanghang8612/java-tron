@@ -85,6 +85,8 @@ public class FreezeBalanceActuator extends AbstractActuator {
           long newFrozenBalanceForBandwidth =
               frozenBalance + accountCapsule.getFrozenBalance();
           accountCapsule.setFrozenForBandwidth(newFrozenBalanceForBandwidth, expireTime);
+
+          // todo 自己给自己冻结的能量和带宽
         }
         dynamicStore
             .addTotalNetWeight(frozenBalance / TRX_PRECISION);
