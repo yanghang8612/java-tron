@@ -813,6 +813,7 @@ public class Manager {
     accountChangeRecord.startRecord(recordBalance);
     boolean recordFreeze = eventPluginLoaded && EventPluginLoader.getInstance().isFreezeBalanceTriggerEnable();
     freezeChangeRecord.startRecord(recordFreeze);
+    accountChangeRecord.startRecordFreeze(recordFreeze);
 
     processBlock(block);
     chainBaseManager.getBlockStore().put(block.getBlockId().getBytes(), block);
@@ -1743,10 +1744,11 @@ public class Manager {
     }
 
     if (EventPluginLoader.getInstance().isFreezeBalanceTriggerEnable()) {
-      FreezeTrackerCapsule balanceTrackerCapsule = new FreezeTrackerCapsule(blockCapsule, freezeChangeRecord.getTempFreezeMap());
+      FreezeTrackerCapsule balanceTrackerCapsule = new FreezeTrackerCapsule(blockCapsule, freezeChangeRecord.getTempFreezeMap(), accountChangeRecord.getTempFreezeMap());
       if (balanceTrackerCapsule.getFreezeBalanceTrigger() != null) {
         balanceTrackerCapsule.processTrigger();
         freezeChangeRecord.clear();
+        accountChangeRecord.clear();
       }
     }
 

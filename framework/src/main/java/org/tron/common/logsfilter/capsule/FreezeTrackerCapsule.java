@@ -3,6 +3,7 @@ package org.tron.common.logsfilter.capsule;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.CollectionUtils;
 import org.tron.common.logsfilter.EventPluginLoader;
 import org.tron.common.logsfilter.trigger.FreezeBalanceTrigger;
 import org.tron.common.utils.StringUtil;
@@ -23,7 +24,8 @@ public class FreezeTrackerCapsule extends TriggerCapsule {
   @Setter
   private FreezeBalanceTrigger freezeBalanceTrigger;
 
-  public FreezeTrackerCapsule(BlockCapsule block, Map<String, FreezeChangeRecord.FreezeInfo> freezeInfoMap) {
+  public FreezeTrackerCapsule(BlockCapsule block, Map<String, FreezeChangeRecord.FreezeInfo> freezeInfoMap,
+                              Map<String, FreezeBalanceTrigger.FreezeBalance> freezeBalanceMap) {
     freezeBalanceTrigger = new FreezeBalanceTrigger();
     freezeBalanceTrigger.setBlockHash(block.getBlockId().toString());
     freezeBalanceTrigger.setParentHash(block.getParentHash().toString());
@@ -57,6 +59,10 @@ public class FreezeTrackerCapsule extends TriggerCapsule {
         freezeList.add(freezeBalance);
       }
     });
+
+    if (!CollectionUtils.isEmpty(freezeBalanceMap)) {
+      freezeList.addAll(freezeBalanceMap.values());
+    }
 
     freezeBalanceTrigger.setFreezeList(freezeList);
   }

@@ -880,6 +880,10 @@ public class AccountCapsule implements ProtoCapsule<Account>, Comparable<Account
     return this.account.getAccountResource().getFrozenBalanceForEnergy().getFrozenBalance();
   }
 
+  public long getEnergyFrozenBalanceExpireTime() {
+    return this.account.getAccountResource().getFrozenBalanceForEnergy().getExpireTime();
+  }
+
   public boolean oldTronPowerIsNotInitialized() {
     return this.account.getOldTronPower() == 0;
   }

@@ -7,6 +7,7 @@ import org.spongycastle.util.encoders.Hex;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
+import org.tron.common.logsfilter.trigger.FreezeBalanceTrigger;
 import org.tron.common.utils.StringUtil;
 import org.tron.core.capsule.AccountCapsule;
 
@@ -20,6 +21,7 @@ import java.util.Map;
 public class AccountChangeRecord {
 
   private static volatile boolean recordBalance = false;
+  private static volatile boolean recordFreeze = false;
 
   private static final int DELETE = 2;
   private static final int CREATE = 1;
@@ -27,10 +29,16 @@ public class AccountChangeRecord {
 
   // not byte[]! because the same byte[] but not hashCode.
   private static Map<String, AccountInfo> tempAccountMap = new HashMap<>();
+  private static Map<String, FreezeBalanceTrigger.FreezeBalance> tempFreezeMap = new HashMap<>();
 
   public void startRecord(boolean record) {
     this.recordBalance = record;
   }
+
+  public void startRecordFreeze(boolean record) {
+    this.recordFreeze = record;
+  }
+
 
   public void clear() {
     this.recordBalance = false;
@@ -41,7 +49,86 @@ public class AccountChangeRecord {
     return Maps.newHashMap(tempAccountMap);
   }
 
+  public Map<String, FreezeBalanceTrigger.FreezeBalance> getTempFreezeMap() {
+    return Maps.newHashMap(tempFreezeMap);
+  }
+
   public void recordChangedAccount(byte[] key, AccountCapsule oldAccount, AccountCapsule newAccount) {
+    if (recordFreeze && newAccount != null) {
+      handlerFreeze(oldAccount, newAccount);
+    }
+
+    handlerBalance(key, oldAccount, newAccount);
+  }
+
+  private void handlerFreeze(AccountCapsule oldAccount, AccountCapsule newAccount) {
+    long incrementFrozenBandwidth = 0;
+    long incrementFrozenBandwidthExpireTime = 0;
+    long incrementFrozenEnergy = 0;
+    long incrementFrozenEnergyExpireTime = 0;
+    long frozenBandwidth = 0;
+    long frozenBandwidthExpireTime = 0;
+    long frozenEnergy = 0;
+    long frozenEnergyExpireTime = 0;
+
+    frozenBandwidth = newAccount.getFrozenBalance();
+    frozenEnergy = newAccount.getEnergyFrozenBalance();
+    frozenBandwidthExpireTime = newAccount.getFrozenList().get(0).getExpireTime();
+    frozenEnergyExpireTime = newAccount.getEnergyFrozenBalanceExpireTime();
+
+    if (oldAccount == null) {
+      incrementFrozenBandwidth = frozenBandwidth;
+      incrementFrozenEnergy = frozenEnergy;
+      incrementFrozenBandwidthExpireTime = frozenBandwidthExpireTime;
+      incrementFrozenEnergyExpireTime = frozenEnergyExpireTime;
+    } else {
+      incrementFrozenBandwidth = frozenBandwidth - oldAccount.getFrozenBalance();
+      incrementFrozenEnergy = frozenEnergy - oldAccount.getEnergyFrozenBalance();
+      incrementFrozenBandwidth = frozenBandwidthExpireTime - oldAccount.getFrozenList().get(0).getExpireTime();
+      incrementFrozenEnergyExpireTime = frozenEnergyExpireTime - oldAccount.getEnergyFrozenBalanceExpireTime();
+    }
+
+    if (incrementFrozenBandwidth == 0 && incrementFrozenEnergy == 0) {
+      return;
+    }
+
+    final String accountAddress = StringUtil.encode58Check(newAccount.getAddress().toByteArray());
+    if (incrementFrozenBandwidth != 0) {
+      handlerResource(accountAddress, 2, frozenBandwidth, incrementFrozenBandwidth, frozenBandwidthExpireTime, incrementFrozenBandwidthExpireTime);
+    }
+
+    if (incrementFrozenEnergy != 0) {
+      handlerResource(accountAddress, 1, frozenEnergy, incrementFrozenEnergy, frozenEnergyExpireTime, incrementFrozenEnergyExpireTime);
+    }
+  }
+
+  private void handlerResource(String accountAddress, int type, long frozenBandwidth, long incrementFrozenBandwidth,
+                               long frozenBandwidthExpireTime, long incrementFrozenBandwidthExpireTime) {
+    String key = accountAddress + "-" + type;
+    FreezeBalanceTrigger.FreezeBalance freezeBalance = tempFreezeMap.get(key);
+
+    if (freezeBalance == null) {
+      freezeBalance = new FreezeBalanceTrigger.FreezeBalance();
+      freezeBalance.setResource(type);
+      freezeBalance.setFromAddress(accountAddress);
+      freezeBalance.setToAddress(accountAddress);
+      freezeBalance.setFreezeBalance(String.valueOf(frozenBandwidth));
+      freezeBalance.setIncrementFreezeBalance(String.valueOf(incrementFrozenBandwidth));
+      freezeBalance.setExpireTime(String.valueOf(frozenBandwidthExpireTime));
+      freezeBalance.setIncrementExpireTime(String.valueOf(incrementFrozenBandwidthExpireTime));
+      tempFreezeMap.put(key, freezeBalance);
+    }
+    else {
+      freezeBalance.setFreezeBalance(String.valueOf(frozenBandwidth));
+      freezeBalance.setExpireTime(String.valueOf(frozenBandwidthExpireTime));
+      Long value = Long.valueOf(freezeBalance.getIncrementFreezeBalance() + incrementFrozenBandwidth);
+      freezeBalance.setIncrementFreezeBalance(String.valueOf(value));
+      value = Long.valueOf(freezeBalance.getIncrementExpireTime() + incrementFrozenBandwidthExpireTime);
+      freezeBalance.setIncrementExpireTime(String.valueOf(value));
+    }
+  }
+
+  private void handlerBalance(byte[] key, AccountCapsule oldAccount, AccountCapsule newAccount) {
     if (!recordBalance || newAccount == null) {
       return;
     }
@@ -144,8 +231,6 @@ public class AccountChangeRecord {
       final Trc10Info addTrc10Info = addMap.get(tokenId);
       if (addTrc10Info == null) {
         // is null 表示10币没有变动， 所以不需要merge
-//        info.setIncrementBalance(-info.getBalance());
-//        info.setBalance(0);
         return;
       }
 
@@ -210,7 +295,6 @@ public class AccountChangeRecord {
     // 检查余额是否有变动，没有变动 return null.
     public static AccountInfo of(AccountCapsule oldAccount, AccountCapsule newAccount) {
       AccountInfo info = new AccountInfo();
-//      final String address = WalletUtil.encode58Check(newAccount.getAddress().toByteArray());
       final String address = StringUtil.encode58Check(newAccount.getAddress().toByteArray());
       info.setAccountAddress(address);
 
