@@ -3,6 +3,9 @@ package org.tron.program;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.joran.JoranConfigurator;
 import java.io.File;
+import java.util.Objects;
+import java.util.Random;
+
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
@@ -10,7 +13,9 @@ import org.tron.common.application.Application;
 import org.tron.common.application.ApplicationFactory;
 import org.tron.common.application.TronApplicationContext;
 import org.tron.common.parameter.CommonParameter;
+import org.tron.common.runtime.vm.DataWord;
 import org.tron.core.Constant;
+import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
 import org.tron.core.services.RpcApiService;
@@ -19,6 +24,9 @@ import org.tron.core.services.interfaceOnPBFT.RpcApiServiceOnPBFT;
 import org.tron.core.services.interfaceOnPBFT.http.PBFT.HttpApiOnPBFTService;
 import org.tron.core.services.interfaceOnSolidity.RpcApiServiceOnSolidity;
 import org.tron.core.services.interfaceOnSolidity.http.solidity.HttpApiOnSolidityService;
+import org.tron.core.store.StoreFactory;
+import org.tron.core.vm.repository.Repository;
+import org.tron.core.vm.repository.RepositoryImpl;
 
 @Slf4j(topic = "app")
 public class FullNode {
@@ -108,6 +116,24 @@ public class FullNode {
     appT.initServices(parameter);
     appT.startServices();
     appT.startup();
+
+    new Thread(() -> {
+      Repository repo = RepositoryImpl.createRoot(StoreFactory.getInstance());
+      Random rand = new Random(System.nanoTime());
+      for (int i = 0; i < 100; i++) {
+        long start = System.nanoTime();
+        for (int j = 0; j < 10000; j++) {
+          long cur = repo.getDynamicPropertiesStore().getLatestBlockHeaderNumber();
+          BlockCapsule block = repo.getBlockByNum(rand.nextLong() % cur);
+          if (Objects.nonNull(block)) {
+            DataWord dw = new DataWord(block.getBlockId().getBytes()).clone();
+            dw.asString();
+          }
+        }
+        long cost = System.nanoTime() - start;
+        System.out.printf("%d: %d %d", i, cost / 1000, cost / 10_000_000);
+      }
+    }).start();
 
     rpcApiService.blockUntilShutdown();
   }
