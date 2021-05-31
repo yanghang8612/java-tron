@@ -19,9 +19,11 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -33,9 +35,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import javax.annotation.PostConstruct;
@@ -46,24 +50,25 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.spongycastle.util.encoders.Hex;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.tron.common.application.ApplicationHandler;
 import org.tron.common.args.GenesisBlock;
 import org.tron.common.logsfilter.EventPluginLoader;
 import org.tron.common.logsfilter.FilterQuery;
+import org.tron.common.logsfilter.capsule.BalanceTrackerCapsule;
 import org.tron.common.logsfilter.capsule.BlockErasedTriggerCapsule;
 import org.tron.common.logsfilter.capsule.BlockLogTriggerCapsule;
 import org.tron.common.logsfilter.capsule.ContractTriggerCapsule;
 import org.tron.common.logsfilter.capsule.ShieldedTRC20SolidityTrackerCapsule;
 import org.tron.common.logsfilter.capsule.ShieldedTRC20TrackerCapsule;
 import org.tron.common.logsfilter.capsule.SolidityTriggerCapsule;
-import org.tron.common.logsfilter.capsule.BalanceTrackerCapsule;
 import org.tron.common.logsfilter.capsule.TransactionLogTriggerCapsule;
 import org.tron.common.logsfilter.capsule.TriggerCapsule;
 import org.tron.common.logsfilter.trigger.ContractEventTrigger;
 import org.tron.common.logsfilter.trigger.ContractLogTrigger;
 import org.tron.common.logsfilter.trigger.ContractTrigger;
-import org.tron.common.logsfilter.trigger.Trigger;
 import org.tron.common.logsfilter.trigger.ShieldedTRC20TrackerTrigger.LogPojo;
 import org.tron.common.logsfilter.trigger.ShieldedTRC20TrackerTrigger.TransactionPojo;
+import org.tron.common.logsfilter.trigger.Trigger;
 import org.tron.common.overlay.message.Message;
 import org.tron.common.parameter.CommonParameter;
 import org.tron.common.runtime.RuntimeImpl;
@@ -97,7 +102,6 @@ import org.tron.core.config.args.Args;
 import org.tron.core.consensus.ProposalController;
 import org.tron.core.db.KhaosDatabase.KhaosBlock;
 import org.tron.core.db.accountchange.AccountChangeRecord;
-import org.tron.common.application.ApplicationHandler;
 import org.tron.core.db.accountstate.TrieService;
 import org.tron.core.db.accountstate.callback.AccountStateCallBack;
 import org.tron.core.db.api.AssetUpdateHelper;
@@ -159,8 +163,8 @@ import org.tron.protos.Protocol.Transaction.Contract;
 import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.Protocol.TransactionInfo.Log;
-import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
 import org.tron.protos.contract.BalanceContract;
+import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
 
 
 @Slf4j(topic = "DB")
@@ -431,8 +435,7 @@ public class Manager {
       startEventSubscribing();
       Thread triggerCapsuleProcessThread = new Thread(triggerCapsuleProcessLoop);
       triggerCapsuleProcessThread.start();
-    }
-    else {
+    } else {
       // if has no --es, close self.
 //      logger.info(" >>>>>>>>>>> has no --es , to close!!!!!!!!!!!!");
 //      ApplicationHandler.closeSelf();
@@ -821,7 +824,8 @@ public class Manager {
       TaposException, ValidateScheduleException, ReceiptCheckErrException,
       VMIllegalException, TooBigTransactionResultException, ZksnarkException, BadBlockException {
 
-    boolean record = eventPluginLoaded && EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable();
+    boolean record =
+        eventPluginLoaded && EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable();
     accountChangeRecord.startRecord(record);
 
     processBlock(block);
@@ -1742,7 +1746,7 @@ public class Manager {
     if (eventPluginLoaded &&
         EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable()) {
       BalanceTrackerCapsule balanceTrackerCapsule = new BalanceTrackerCapsule(blockCapsule,
-              accountChangeRecord.getTempAccountMap());
+          accountChangeRecord.getTempAccountMap());
       if (balanceTrackerCapsule.getTrc20TrackerTrigger() != null) {
         balanceTrackerCapsule.processTrigger();
         accountChangeRecord.clear();
@@ -1757,8 +1761,10 @@ public class Manager {
   }
 
   private void postBalanceSolidityTrigger(long latestSolidifiedBlockNumber) {
-    final boolean balanceTrigger = eventPluginLoaded && EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable();
-    final boolean shieldedTRC20Trigger = eventPluginLoaded && EventPluginLoader.getInstance().isShieldedTRC20TrackerSolidityTriggerEnable();
+    final boolean balanceTrigger =
+        eventPluginLoaded && EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable();
+    final boolean shieldedTRC20Trigger = eventPluginLoaded && EventPluginLoader.getInstance()
+        .isShieldedTRC20TrackerSolidityTriggerEnable();
 
     if (!balanceTrigger && !shieldedTRC20Trigger) {
       return;
@@ -1992,7 +1998,8 @@ public class Manager {
       transactionPojo.setTxId(Hex.toHexString(transactionInfo.getId().toByteArray()));
       transactionPojo.setContractAddress(
           StringUtil.encode58Check(
-                  TransactionTrace.convertToTronAddress(transactionInfo.getContractAddress().toByteArray())));
+              TransactionTrace
+                  .convertToTronAddress(transactionInfo.getContractAddress().toByteArray())));
       transactionPojo.setLogList(logPojos);
       transactionPojo.setEnergyFee(transactionInfo.getReceipt().getEnergyFee());
       transactionPojo.setEnergyUsage(transactionInfo.getReceipt().getEnergyUsage());
