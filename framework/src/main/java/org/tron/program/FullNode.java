@@ -18,6 +18,7 @@ import org.tron.core.Constant;
 import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
+import org.tron.core.db.BlockIndexStore;
 import org.tron.core.services.RpcApiService;
 import org.tron.core.services.http.FullNodeHttpApiService;
 import org.tron.core.services.interfaceOnPBFT.RpcApiServiceOnPBFT;
@@ -118,20 +119,27 @@ public class FullNode {
     appT.startup();
 
     new Thread(() -> {
-      Repository repo = RepositoryImpl.createRoot(StoreFactory.getInstance());
+      System.out.println("start to test.");
+      BlockIndexStore store = StoreFactory.getInstance().getChainBaseManager().getBlockIndexStore();
+      long cur = StoreFactory.getInstance().getChainBaseManager().getDynamicPropertiesStore().getLatestBlockHeaderNumber();
       Random rand = new Random(System.nanoTime());
       for (int i = 0; i < 100; i++) {
-        long start = System.nanoTime();
-        for (int j = 0; j < 10000; j++) {
-          long cur = repo.getDynamicPropertiesStore().getLatestBlockHeaderNumber();
-          BlockCapsule block = repo.getBlockByNum(rand.nextLong() % cur);
-          if (Objects.nonNull(block)) {
-            DataWord dw = new DataWord(block.getBlockId().getBytes()).clone();
-            dw.asString();
+        long cost = 0;
+        for (int j = 0; j < 1000; j++) {
+          try {
+            Thread.sleep(1);
+            long start = System.nanoTime();
+            BlockCapsule.BlockId id = store.get(Math.abs(rand.nextLong()) % cur);
+            if (Objects.nonNull(id)) {
+              DataWord dw = new DataWord(id.getBytes()).clone();
+              dw.asString();
+            }
+            cost += System.nanoTime() - start;
+          } catch (Exception e) {
+            e.printStackTrace();
           }
         }
-        long cost = System.nanoTime() - start;
-        System.out.printf("%d: %d %d", i, cost / 1000, cost / 10_000_000);
+        System.out.printf("%d: %d %d%n", i, cost / 1000, cost / 1_000_000);
       }
     }).start();
 
