@@ -10,6 +10,7 @@ import org.springframework.util.CollectionUtils;
 import org.tron.common.logsfilter.trigger.FreezeBalanceTrigger;
 import org.tron.common.utils.StringUtil;
 import org.tron.core.capsule.AccountCapsule;
+import org.tron.protos.Protocol;
 
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -73,7 +74,14 @@ public class AccountChangeRecord {
 
     frozenBandwidth = newAccount.getFrozenBalance();
     frozenEnergy = newAccount.getEnergyFrozenBalance();
-    frozenBandwidthExpireTime = newAccount.getFrozenList().get(0).getExpireTime();
+
+    final List<Protocol.Account.Frozen> frozenList = newAccount.getFrozenList();
+    if (CollectionUtils.isEmpty(frozenList)) {
+      frozenBandwidthExpireTime = 0L;
+    } else {
+      frozenBandwidthExpireTime = frozenList.get(0).getExpireTime();
+    }
+
     frozenEnergyExpireTime = newAccount.getEnergyFrozenBalanceExpireTime();
 
     if (oldAccount == null) {
@@ -84,7 +92,14 @@ public class AccountChangeRecord {
     } else {
       incrementFrozenBandwidth = frozenBandwidth - oldAccount.getFrozenBalance();
       incrementFrozenEnergy = frozenEnergy - oldAccount.getEnergyFrozenBalance();
-      incrementFrozenBandwidth = frozenBandwidthExpireTime - oldAccount.getFrozenList().get(0).getExpireTime();
+
+      final List<Protocol.Account.Frozen> frozenList1 = oldAccount.getFrozenList();
+      if (CollectionUtils.isEmpty(frozenList1)) {
+        incrementFrozenBandwidthExpireTime = frozenBandwidthExpireTime;
+      } else {
+        incrementFrozenBandwidthExpireTime = frozenBandwidthExpireTime - frozenList1.get(0).getExpireTime();
+      }
+
       incrementFrozenEnergyExpireTime = frozenEnergyExpireTime - oldAccount.getEnergyFrozenBalanceExpireTime();
     }
 
