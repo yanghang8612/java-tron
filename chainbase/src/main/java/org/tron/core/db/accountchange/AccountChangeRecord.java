@@ -136,9 +136,9 @@ public class AccountChangeRecord {
     else {
       freezeBalance.setFreezeBalance(String.valueOf(frozenBandwidth));
       freezeBalance.setExpireTime(String.valueOf(frozenBandwidthExpireTime));
-      Long value = Long.valueOf(freezeBalance.getIncrementFreezeBalance() + incrementFrozenBandwidth);
+      Long value = Long.valueOf(freezeBalance.getIncrementFreezeBalance()) + incrementFrozenBandwidth;
       freezeBalance.setIncrementFreezeBalance(String.valueOf(value));
-      value = Long.valueOf(freezeBalance.getIncrementExpireTime() + incrementFrozenBandwidthExpireTime);
+      value = Long.valueOf(freezeBalance.getIncrementExpireTime()) + incrementFrozenBandwidthExpireTime;
       freezeBalance.setIncrementExpireTime(String.valueOf(value));
     }
   }
