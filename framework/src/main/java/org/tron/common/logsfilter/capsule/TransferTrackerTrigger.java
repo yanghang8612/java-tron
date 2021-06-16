@@ -2,7 +2,7 @@ package org.tron.common.logsfilter.capsule;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import org.tron.common.entity.AssetTransfer;
+import org.tron.common.entity.AssetTransferInfo;
 import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger;
 
 import java.util.ArrayList;
@@ -12,13 +12,13 @@ import java.util.List;
 @EqualsAndHashCode(callSuper = false)
 public class TransferTrackerTrigger extends BalanceTrackerTrigger {
 
-  List<AssetTransfer> trxAssetTransferList = new ArrayList<>();
+  List<AssetTransferInfo> trxAssetTransferInfoList = new ArrayList<>();
 
-  List<AssetTransfer> trc10AssetTransferList = new ArrayList<>();
+  List<AssetTransferInfo> trc10AssetTransferInfoList = new ArrayList<>();
 
-  List<AssetTransfer> trc20AssetTransferList = new ArrayList<>();
+  List<AssetTransferInfo> trc20AssetTransferInfoList = new ArrayList<>();
 
-  List<AssetTransfer> trc721AssetTransferList = new ArrayList<>();
+  List<AssetTransferInfo> trc721AssetTransferInfoList = new ArrayList<>();
 
 
 }

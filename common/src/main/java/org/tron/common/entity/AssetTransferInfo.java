@@ -10,7 +10,7 @@ import java.math.BigInteger;
  * @date ：2021/6/15
  */
 @Data
-public class AssetTransfer {
+public class AssetTransferInfo {
 
   public String fromAddress;
 

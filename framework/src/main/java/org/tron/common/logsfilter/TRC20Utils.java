@@ -10,7 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.spongycastle.util.encoders.Hex;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
-import org.tron.common.entity.AssetTransfer;
+import org.tron.common.entity.AssetTransferInfo;
 import org.tron.common.entity.AssetTransferLogInfo;
 import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger;
 import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger.AssetStatusPojo;
@@ -179,20 +179,20 @@ public class TRC20Utils {
 
   //todo 交易记录只接收固化块
   public static Map<String, Object> parseTrc20Transfer(List<AssetTransferLogInfo> assetTransferLogInfos) {
-    List<AssetTransfer> trc20AssetTransferList = new ArrayList<>();
-    List<AssetTransfer> trc721AssetTransferList = new ArrayList<>();
-    handlerTransferLogs(assetTransferLogInfos, trc20AssetTransferList, trc721AssetTransferList);
+    List<AssetTransferInfo> trc20AssetTransferInfoList = new ArrayList<>();
+    List<AssetTransferInfo> trc721AssetTransferInfoList = new ArrayList<>();
+    handlerTransferLogs(assetTransferLogInfos, trc20AssetTransferInfoList, trc721AssetTransferInfoList);
 
     Map<String, Object> result = new HashMap<>();
-    result.put(TRC20_TRANSFER, trc20AssetTransferList);
-    result.put(TRC721_TRANSFER, trc721AssetTransferList);
+    result.put(TRC20_TRANSFER, trc20AssetTransferInfoList);
+    result.put(TRC721_TRANSFER, trc721AssetTransferInfoList);
 
-    if (!CollectionUtils.isEmpty(trc20AssetTransferList)) {
-      logger.info(" >>>> trc20AssetTransferList:{}", trc20AssetTransferList);
+    if (!CollectionUtils.isEmpty(trc20AssetTransferInfoList)) {
+      logger.info(" >>>> trc20AssetTransferList:{}", trc20AssetTransferInfoList);
     }
 
-    if (!CollectionUtils.isEmpty(trc721AssetTransferList)) {
-      logger.info(" >>>> trc721AssetTransferList:{}", trc721AssetTransferList);
+    if (!CollectionUtils.isEmpty(trc721AssetTransferInfoList)) {
+      logger.info(" >>>> trc721AssetTransferList:{}", trc721AssetTransferInfoList);
     }
 
     return result;
@@ -380,8 +380,8 @@ public class TRC20Utils {
   }
 
   private static void handlerTransferLogs(List<AssetTransferLogInfo> assetTransferLogInfos,
-                                  List<AssetTransfer> trc20AssetTransferList,
-                                  List<AssetTransfer> trc721AssetTransferList) {
+                                  List<AssetTransferInfo> trc20AssetTransferInfoList,
+                                  List<AssetTransferInfo> trc721AssetTransferInfoList) {
     for (AssetTransferLogInfo item : assetTransferLogInfos) {
       List<LogInfo> logInfoList = item.getLogInfoList();
       if (CollectionUtils.isEmpty(logInfoList)) {
@@ -396,9 +396,9 @@ public class TRC20Utils {
 
         String tokenAddress = convertAddress(logInfo.getAddress());
 
-        AssetTransfer assetTransfer = new AssetTransfer();
-        assetTransfer.setTokenAddress(tokenAddress);
-        assetTransfer.setTxId(item.getTxId());
+        AssetTransferInfo assetTransferInfo = new AssetTransferInfo();
+        assetTransferInfo.setTokenAddress(tokenAddress);
+        assetTransferInfo.setTxId(item.getTxId());
 
         switch (ConcernTopics.getBySH(topics.get(0))) {
           case TRANSFER:
@@ -410,8 +410,8 @@ public class TRC20Utils {
             String senderAddr = convertAddress(logInfo.getTopics().get(1).getLast20Bytes());
             String recAddr = convertAddress(logInfo.getTopics().get(2).getLast20Bytes());
 
-            assetTransfer.setFromAddress(senderAddr);
-            assetTransfer.setToAddress(recAddr);
+            assetTransferInfo.setFromAddress(senderAddr);
+            assetTransferInfo.setToAddress(recAddr);
 
             if (topics.size() == 3) {
               // 是trc20
@@ -420,9 +420,9 @@ public class TRC20Utils {
                 continue;
               }
 
-              assetTransfer.setAssetType(2);
-              assetTransfer.setAmount(increment);
-              trc20AssetTransferList.add(assetTransfer);
+              assetTransferInfo.setAssetType(2);
+              assetTransferInfo.setAmount(increment);
+              trc20AssetTransferInfoList.add(assetTransferInfo);
 
             } else if(topics.size() == 4) {
               // 是trc721
@@ -431,10 +431,10 @@ public class TRC20Utils {
               String assetId = new BigInteger(1, data).toString();
               logger.info(" handlerTransferLogs trc721 {} , {}, {}, {}", tokenAddress, senderAddr, recAddr, assetId);
 
-              assetTransfer.setAssetType(3);
-              assetTransfer.setAmount(BigInteger.valueOf(1l));
-              assetTransfer.setAssetId(assetId);
-              trc721AssetTransferList.add(assetTransfer);
+              assetTransferInfo.setAssetType(3);
+              assetTransferInfo.setAmount(BigInteger.valueOf(1l));
+              assetTransferInfo.setAssetId(assetId);
+              trc721AssetTransferInfoList.add(assetTransferInfo);
             }
 
             break;
@@ -450,12 +450,12 @@ public class TRC20Utils {
             //DepositCase : increase receiver
             recAddr = convertAddress(logInfo.getTopics().get(1).getLast20Bytes());
 
-            assetTransfer.setFromAddress("");
-            assetTransfer.setToAddress(recAddr);
-            assetTransfer.setTokenAddress(tokenAddress);
-            assetTransfer.setAmount(increment);
-            assetTransfer.setAssetType(2);
-            trc20AssetTransferList.add(assetTransfer);
+            assetTransferInfo.setFromAddress("");
+            assetTransferInfo.setToAddress(recAddr);
+            assetTransferInfo.setTokenAddress(tokenAddress);
+            assetTransferInfo.setAmount(increment);
+            assetTransferInfo.setAssetType(2);
+            trc20AssetTransferInfoList.add(assetTransferInfo);
             break;
           case Withdrawal:
             if (!tokenAddress.equals(WTRXAddress) || topics.size() < 2) {
@@ -469,12 +469,12 @@ public class TRC20Utils {
             //WithdrawalCase : decrease sender
             senderAddr = convertAddress(logInfo.getTopics().get(1).getLast20Bytes());
 
-            assetTransfer.setFromAddress(senderAddr);
-            assetTransfer.setToAddress("");
-            assetTransfer.setTokenAddress(tokenAddress);
-            assetTransfer.setAmount(increment);
-            assetTransfer.setAssetType(2);
-            trc20AssetTransferList.add(assetTransfer);
+            assetTransferInfo.setFromAddress(senderAddr);
+            assetTransferInfo.setToAddress("");
+            assetTransferInfo.setTokenAddress(tokenAddress);
+            assetTransferInfo.setAmount(increment);
+            assetTransferInfo.setAssetType(2);
+            trc20AssetTransferInfoList.add(assetTransferInfo);
             break;
           default:
             continue;
