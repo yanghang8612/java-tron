@@ -445,4 +445,12 @@ public class ByteUtil {
     return ByteUtil.merge(zeroBytes, longBytes);
   }
 
+  public static void main(String[] args) {
+    byte[] tokenId = String.valueOf(1002000L).getBytes();
+    String s = new String(stripLeadingZeroes(tokenId));
+    System.out.println(s);
+    tokenId = String.valueOf(0L).getBytes();
+    s = new String(stripLeadingZeroes(tokenId));
+    System.out.println(s);
+  }
 }

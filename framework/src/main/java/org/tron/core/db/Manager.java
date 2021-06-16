@@ -54,15 +54,7 @@ import org.tron.common.application.ApplicationHandler;
 import org.tron.common.args.GenesisBlock;
 import org.tron.common.logsfilter.EventPluginLoader;
 import org.tron.common.logsfilter.FilterQuery;
-import org.tron.common.logsfilter.capsule.BalanceTrackerCapsule;
-import org.tron.common.logsfilter.capsule.BlockErasedTriggerCapsule;
-import org.tron.common.logsfilter.capsule.BlockLogTriggerCapsule;
-import org.tron.common.logsfilter.capsule.ContractTriggerCapsule;
-import org.tron.common.logsfilter.capsule.ShieldedTRC20SolidityTrackerCapsule;
-import org.tron.common.logsfilter.capsule.ShieldedTRC20TrackerCapsule;
-import org.tron.common.logsfilter.capsule.SolidityTriggerCapsule;
-import org.tron.common.logsfilter.capsule.TransactionLogTriggerCapsule;
-import org.tron.common.logsfilter.capsule.TriggerCapsule;
+import org.tron.common.logsfilter.capsule.*;
 import org.tron.common.logsfilter.trigger.ContractEventTrigger;
 import org.tron.common.logsfilter.trigger.ContractLogTrigger;
 import org.tron.common.logsfilter.trigger.ContractTrigger;
@@ -1758,6 +1750,17 @@ public class Manager {
           blockCapsule, getTransactionPojos(blockCapsule));
       shieldedTRC20TrackerCapsule.processTrigger();
     }
+
+    //transfer record
+    if (eventPluginLoaded &&
+        EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable()) {
+      TransferTrackerCapsule transferTrackerCapsule = new TransferTrackerCapsule(blockCapsule);
+      if (transferTrackerCapsule.getTransferTrackerTrigger() != null) {
+        transferTrackerCapsule.processTrigger();
+      }
+    }
+
+
   }
 
   private void postBalanceSolidityTrigger(long latestSolidifiedBlockNumber) {

@@ -16,6 +16,7 @@ import org.pf4j.ManifestPluginDescriptorFinder;
 import org.pf4j.PluginManager;
 import org.spongycastle.util.encoders.Hex;
 import org.springframework.util.StringUtils;
+import org.tron.common.logsfilter.capsule.TransferTrackerTrigger;
 import org.tron.common.logsfilter.nativequeue.NativeMessageQueue;
 import org.tron.common.logsfilter.trigger.*;
 import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger;
@@ -52,6 +53,8 @@ public class EventPluginLoader {
   private boolean solidityTriggerEnable = false;
 
   private boolean balanceTrackerTriggerEnable = false;
+
+  private boolean transferTrackerTriggerEnable = false;
 
   private boolean trc20TrackerSolidityTriggerEnable = false;
 
@@ -416,6 +419,10 @@ public class EventPluginLoader {
     return balanceTrackerTriggerEnable;
   }
 
+  public synchronized boolean isTransferTrackerTriggerEnable() {
+    return transferTrackerTriggerEnable;
+  }
+
   public synchronized boolean isTrc20TrackerSolidityTriggerEnable() {
     return trc20TrackerSolidityTriggerEnable;
   }
@@ -576,6 +583,16 @@ public class EventPluginLoader {
     } else {
       eventListeners.forEach(listener ->
           listener.handleShieldedTRC20Event(toJsonString(trigger)));
+    }
+  }
+
+  public void postTransferTrigger(TransferTrackerTrigger trigger) {
+    if (useNativeQueue) {
+      NativeMessageQueue.getInstance()
+          .publishTrigger(toJsonString(trigger), trigger.getTriggerName());
+    } else {
+      eventListeners.forEach(listener ->
+          listener.handleTransferEvent(toJsonString(trigger)));
     }
   }
 

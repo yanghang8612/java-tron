@@ -10,6 +10,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.spongycastle.util.encoders.Hex;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
+import org.tron.common.entity.AssetTransfer;
+import org.tron.common.entity.AssetTransferLogInfo;
 import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger;
 import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger.AssetStatusPojo;
 import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger.ConcernTopics;
@@ -149,6 +151,8 @@ public class TRC20Utils {
 
   public static final String TRC20 = "trc20";
   public static final String TRC721 = "trc721";
+  public static final String TRC20_TRANSFER = "trc20Transfer";
+  public static final String TRC721_TRANSFER = "trc721Transfer";
 
   public static Map<String, Object> parseTrc20AssetStatusPojo(BlockCapsule block, List<LogInfo> logInfos) {
     Set<String> trc20Tokens = new HashSet<>();
@@ -169,6 +173,28 @@ public class TRC20Utils {
     if (!CollectionUtils.isEmpty(trc721Infos)) {
       logger.info(" >>>> trc721Infos:{}", trc721Infos);
     }
+    return result;
+  }
+
+
+  //todo 交易记录只接收固化块
+  public static Map<String, Object> parseTrc20Transfer(List<AssetTransferLogInfo> assetTransferLogInfos) {
+    List<AssetTransfer> trc20AssetTransferList = new ArrayList<>();
+    List<AssetTransfer> trc721AssetTransferList = new ArrayList<>();
+    handlerTransferLogs(assetTransferLogInfos, trc20AssetTransferList, trc721AssetTransferList);
+
+    Map<String, Object> result = new HashMap<>();
+    result.put(TRC20_TRANSFER, trc20AssetTransferList);
+    result.put(TRC721_TRANSFER, trc721AssetTransferList);
+
+    if (!CollectionUtils.isEmpty(trc20AssetTransferList)) {
+      logger.info(" >>>> trc20AssetTransferList:{}", trc20AssetTransferList);
+    }
+
+    if (!CollectionUtils.isEmpty(trc721AssetTransferList)) {
+      logger.info(" >>>> trc721AssetTransferList:{}", trc721AssetTransferList);
+    }
+
     return result;
   }
 
@@ -349,6 +375,110 @@ public class TRC20Utils {
           break;
         default:
           continue;
+      }
+    }
+  }
+
+  private static void handlerTransferLogs(List<AssetTransferLogInfo> assetTransferLogInfos,
+                                  List<AssetTransfer> trc20AssetTransferList,
+                                  List<AssetTransfer> trc721AssetTransferList) {
+    for (AssetTransferLogInfo item : assetTransferLogInfos) {
+      List<LogInfo> logInfoList = item.getLogInfoList();
+      if (CollectionUtils.isEmpty(logInfoList)) {
+        continue;
+      }
+
+      for (LogInfo logInfo : logInfoList) {
+        List<String> topics = logInfo.getHexTopics();
+        if (CollectionUtils.isEmpty(topics)) {
+          continue;
+        }
+
+        String tokenAddress = convertAddress(logInfo.getAddress());
+
+        AssetTransfer assetTransfer = new AssetTransfer();
+        assetTransfer.setTokenAddress(tokenAddress);
+        assetTransfer.setTxId(item.getTxId());
+
+        switch (ConcernTopics.getBySH(topics.get(0))) {
+          case TRANSFER:
+            if (topics.size() < 3) {
+              continue;
+            }
+
+            //TransferCase : decrease sender, increase receiver
+            String senderAddr = convertAddress(logInfo.getTopics().get(1).getLast20Bytes());
+            String recAddr = convertAddress(logInfo.getTopics().get(2).getLast20Bytes());
+
+            assetTransfer.setFromAddress(senderAddr);
+            assetTransfer.setToAddress(recAddr);
+
+            if (topics.size() == 3) {
+              // 是trc20
+              BigInteger increment = hexStrToBigInteger(logInfo.getHexData());
+              if (increment == null) {
+                continue;
+              }
+
+              assetTransfer.setAssetType(2);
+              assetTransfer.setAmount(increment);
+              trc20AssetTransferList.add(assetTransfer);
+
+            } else if(topics.size() == 4) {
+              // 是trc721
+              final byte[] data = logInfo.getTopics().get(3).getData();
+              logger.info(" handlerTransferLogs trc721 data: {} ", Arrays.toString(data));
+              String assetId = new BigInteger(1, data).toString();
+              logger.info(" handlerTransferLogs trc721 {} , {}, {}, {}", tokenAddress, senderAddr, recAddr, assetId);
+
+              assetTransfer.setAssetType(3);
+              assetTransfer.setAmount(BigInteger.valueOf(1l));
+              assetTransfer.setAssetId(assetId);
+              trc721AssetTransferList.add(assetTransfer);
+            }
+
+            break;
+          case Deposit:
+            if (!tokenAddress.equals(WTRXAddress) || topics.size() < 2) {
+              continue;
+            }
+            // 是trc20
+            BigInteger increment = hexStrToBigInteger(logInfo.getHexData());
+            if (increment == null) {
+              continue;
+            }
+            //DepositCase : increase receiver
+            recAddr = convertAddress(logInfo.getTopics().get(1).getLast20Bytes());
+
+            assetTransfer.setFromAddress("");
+            assetTransfer.setToAddress(recAddr);
+            assetTransfer.setTokenAddress(tokenAddress);
+            assetTransfer.setAmount(increment);
+            assetTransfer.setAssetType(2);
+            trc20AssetTransferList.add(assetTransfer);
+            break;
+          case Withdrawal:
+            if (!tokenAddress.equals(WTRXAddress) || topics.size() < 2) {
+              continue;
+            }
+            // 是trc20
+            increment = hexStrToBigInteger(logInfo.getHexData());
+            if (increment == null) {
+              continue;
+            }
+            //WithdrawalCase : decrease sender
+            senderAddr = convertAddress(logInfo.getTopics().get(1).getLast20Bytes());
+
+            assetTransfer.setFromAddress(senderAddr);
+            assetTransfer.setToAddress("");
+            assetTransfer.setTokenAddress(tokenAddress);
+            assetTransfer.setAmount(increment);
+            assetTransfer.setAssetType(2);
+            trc20AssetTransferList.add(assetTransfer);
+            break;
+          default:
+            continue;
+        }
       }
     }
   }
