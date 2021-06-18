@@ -1751,10 +1751,10 @@ public class Manager {
       shieldedTRC20TrackerCapsule.processTrigger();
     }
 
-    logger.info("BalanceTrackerTriggerEnable={}", EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable());
+    logger.info("transferTrackerTriggerEnable={}", EventPluginLoader.getInstance().isTransferTrackerTriggerEnable());
     //transfer record
     if (eventPluginLoaded &&
-        EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable()) {
+        EventPluginLoader.getInstance().isTransferTrackerTriggerEnable()) {
       TransferTrackerCapsule transferTrackerCapsule = new TransferTrackerCapsule(blockCapsule);
       if (transferTrackerCapsule.getTransferTrackerTrigger() != null) {
         transferTrackerCapsule.processTrigger();
