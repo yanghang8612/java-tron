@@ -106,7 +106,7 @@ public class TransferTrackerCapsule extends TriggerCapsule {
             assetTransferInfo.setFromAddress(StringUtil.encode58Check(internalTransaction.getSender()));
             assetTransferInfo.setToAddress(StringUtil.encode58Check(internalTransaction.getReceiveAddress()));
 
-            assetTransferInfo.setAmount(BigInteger.valueOf(value));
+            assetTransferInfo.setAmount(String.valueOf(value));
             assetTransferInfo.setTxId(Hex.toHexString(internalTransaction.getHash()));
             assetTransferInfo.setTokenAddress(key);
             if (StringUtils.isEmpty(key) || "0".equals(key)) {
@@ -129,7 +129,7 @@ public class TransferTrackerCapsule extends TriggerCapsule {
       } else if (isTrc10) {
         AssetIssueContractOuterClass.TransferAssetContract transferAssetContract = transactionCapsule.getInstance().getRawData().getContract(0).getParameter().unpack(AssetIssueContractOuterClass.TransferAssetContract.class);
         AssetTransferInfo assetTransferInfo = new AssetTransferInfo();
-        assetTransferInfo.setAmount(BigInteger.valueOf(transferAssetContract.getAmount()));
+        assetTransferInfo.setAmount(String.valueOf(transferAssetContract.getAmount()));
         assetTransferInfo.setFromAddress(StringUtil.encode58Check(transferAssetContract.getOwnerAddress().toByteArray()));
         assetTransferInfo.setToAddress(StringUtil.encode58Check(transferAssetContract.getToAddress().toByteArray()));
         assetTransferInfo.setAssetType(1);
@@ -159,7 +159,7 @@ public class TransferTrackerCapsule extends TriggerCapsule {
       assetTransferInfo.setFromAddress(StringUtil.encode58Check(transferContract.getOwnerAddress().toByteArray()));
       assetTransferInfo.setToAddress(StringUtil.encode58Check(transferContract.getToAddress().toByteArray()));
       assetTransferInfo.setAssetType(0);
-      assetTransferInfo.setAmount(BigInteger.valueOf(transferContract.getAmount()));
+      assetTransferInfo.setAmount(String.valueOf(transferContract.getAmount()));
       assetTransferInfo.setTxId(transactionCapsule.getTransactionId().toString());
 
       //trx失败不上链

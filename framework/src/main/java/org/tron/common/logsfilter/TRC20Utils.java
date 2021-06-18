@@ -422,7 +422,7 @@ public class TRC20Utils {
               }
 
               assetTransferInfo.setAssetType(2);
-              assetTransferInfo.setAmount(increment);
+              assetTransferInfo.setAmount(String.valueOf(increment));
               trc20AssetTransferInfoList.add(assetTransferInfo);
 
             } else if(topics.size() == 4) {
@@ -433,7 +433,7 @@ public class TRC20Utils {
               logger.info(" handlerTransferLogs trc721 {} , {}, {}, {}", tokenAddress, senderAddr, recAddr, assetId);
 
               assetTransferInfo.setAssetType(3);
-              assetTransferInfo.setAmount(BigInteger.valueOf(1l));
+              assetTransferInfo.setAmount("1");
               assetTransferInfo.setAssetId(assetId);
               trc721AssetTransferInfoList.add(assetTransferInfo);
             }
@@ -454,7 +454,7 @@ public class TRC20Utils {
             assetTransferInfo.setFromAddress("");
             assetTransferInfo.setToAddress(recAddr);
             assetTransferInfo.setTokenAddress(tokenAddress);
-            assetTransferInfo.setAmount(increment);
+            assetTransferInfo.setAmount(String.valueOf(increment));
             assetTransferInfo.setAssetType(2);
             trc20AssetTransferInfoList.add(assetTransferInfo);
             break;
@@ -473,7 +473,7 @@ public class TRC20Utils {
             assetTransferInfo.setFromAddress(senderAddr);
             assetTransferInfo.setToAddress("");
             assetTransferInfo.setTokenAddress(tokenAddress);
-            assetTransferInfo.setAmount(increment);
+            assetTransferInfo.setAmount(String.valueOf(increment));
             assetTransferInfo.setAssetType(2);
             trc20AssetTransferInfoList.add(assetTransferInfo);
             break;
