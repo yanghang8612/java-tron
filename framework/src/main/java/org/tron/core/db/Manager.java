@@ -1751,6 +1751,7 @@ public class Manager {
       shieldedTRC20TrackerCapsule.processTrigger();
     }
 
+    logger.info("BalanceTrackerTriggerEnable={}", EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable());
     //transfer record
     if (eventPluginLoaded &&
         EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable()) {

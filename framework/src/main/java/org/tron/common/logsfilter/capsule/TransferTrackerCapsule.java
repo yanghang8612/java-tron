@@ -33,6 +33,7 @@ public class TransferTrackerCapsule extends TriggerCapsule {
   private TransferTrackerTrigger transferTrackerTrigger;
 
   public TransferTrackerCapsule(BlockCapsule block) {
+    logger.info("TransferTrackerCapsule start, blocKNum={}", block.getNum());
     transferTrackerTrigger = new TransferTrackerTrigger();
     transferTrackerTrigger.setBlockHash(block.getBlockId().toString());
     transferTrackerTrigger.setParentHash(block.getParentHash().toString());
