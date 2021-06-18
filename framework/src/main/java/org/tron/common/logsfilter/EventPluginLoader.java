@@ -354,6 +354,14 @@ public class EventPluginLoader {
       if (!useNativeQueue) {
         setPluginTopic(Trigger.TRC20TRACKER_TRIGGER, triggerConfig.getTopic());
       }
+    } else if (EventPluginConfig.TRANSFER_TRACKER
+        .equalsIgnoreCase(triggerConfig.getTriggerName())) {
+      if (triggerConfig.isEnabled()) {
+        transferTrackerTriggerEnable = true;
+      }
+      if (!useNativeQueue) {
+        setPluginTopic(Trigger.TRANSFER_TRACKER_TRIGGER, triggerConfig.getTopic());
+      }
     } else if (EventPluginConfig.SHIELDED_TRC20_SOLIDITY_TRACKER
         .equalsIgnoreCase(triggerConfig.getTriggerName())) {
       if (triggerConfig.isEnabled()) {
