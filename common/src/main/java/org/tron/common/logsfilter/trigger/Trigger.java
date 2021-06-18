@@ -35,7 +35,7 @@ public class Trigger {
   public static final String BLOCK_ERASE_TRIGGER_NAME = "blockErasedTrigger";
   public static final String SHIELDED_TRC20TRACKER_TRIGGER_NAME = "shieldedTRC20Tracker";
   public static final String SHIELDED_TRC20SOLIDITYTRACKER_TRIGGER_NAME = "shieldedTRC20SolidityTracker";
-  public static final String TRANSFER_TRIGGER_NAME = "transferTrigger";
+  public static final String TRANSFER_TRIGGER_NAME = "transferTracker";
 
 
   @Getter
