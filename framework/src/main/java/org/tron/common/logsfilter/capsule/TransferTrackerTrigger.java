@@ -4,6 +4,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.tron.common.entity.AssetTransferInfo;
 import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger;
+import org.tron.common.logsfilter.trigger.Trigger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,5 +21,8 @@ public class TransferTrackerTrigger extends BalanceTrackerTrigger {
 
   List<AssetTransferInfo> trc721AssetTransferInfoList = new ArrayList<>();
 
-
+  TransferTrackerTrigger() {
+    super();
+    setTriggerName(Trigger.TRANSFER_TRIGGER_NAME);
+  }
 }
