@@ -51,6 +51,13 @@ public class TransferTrackerCapsule extends TriggerCapsule {
       if (innerList != null && innerList.size() > 0) {
         assetTransferLogInfo.setLogInfoList(innerList);
         assetTransferLogInfo.setTxId(transactionCapsule.getTransactionId().toString());
+
+        if (Protocol.Transaction.Result.contractResult.SUCCESS == transactionCapsule.getInstance().getRet(0).getContractRet()) {
+          assetTransferLogInfo.setIsSuccess(true);
+        } else {
+          assetTransferLogInfo.setIsSuccess(false);
+        }
+
         assetTransferLogInfos.add(assetTransferLogInfo);
       }
 
@@ -107,6 +114,13 @@ public class TransferTrackerCapsule extends TriggerCapsule {
               assetTransferInfo.setAssetType(1);
             }
 
+            if (Protocol.Transaction.Result.contractResult.SUCCESS == transactionCapsule.getInstance().getRet(0).getContractRet()) {
+              assetTransferInfo.setIsSuccess(true);
+            } else {
+              assetTransferInfo.setIsSuccess(false);
+            }
+
+
             logger.info("handlerTrc10Transfer isTvm={}, isTrc10={}, assetTransfer={}", isTvm, isTrc10, JSON.toJSONString(assetTransferInfo));
             assetTransferInfoList.add(assetTransferInfo);
           });
@@ -120,6 +134,8 @@ public class TransferTrackerCapsule extends TriggerCapsule {
         assetTransferInfo.setAssetType(1);
         assetTransferInfo.setTxId(transactionCapsule.getTransactionId().toString());
         assetTransferInfo.setTokenAddress(transferAssetContract.getAssetName().toStringUtf8());
+        assetTransferInfo.setIsSuccess(true);
+
         logger.info("handlerTrc10Transfer isTvm={}, isTrc10={}, assetTransfer={}", isTvm, isTrc10, JSON.toJSONString(assetTransferInfo));
         assetTransferInfoList.add(assetTransferInfo);
 
@@ -144,6 +160,9 @@ public class TransferTrackerCapsule extends TriggerCapsule {
       assetTransferInfo.setAssetType(0);
       assetTransferInfo.setAmount(BigInteger.valueOf(transferContract.getAmount()));
       assetTransferInfo.setTxId(transactionCapsule.getTransactionId().toString());
+
+      //trx失败不上链
+      assetTransferInfo.setIsSuccess(true);
 
       logger.info("handlerTrxTransfer assetTransfer={}", JSON.toJSONString(assetTransferInfo));
       assetTransferInfoList.add(assetTransferInfo);

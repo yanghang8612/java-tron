@@ -25,4 +25,5 @@ public class AssetTransferInfo {
 
   public Integer assetType; // 0=trx, 1=trc10, 2=trc20, 3=trc721
 
+  public Boolean isSuccess;
 }

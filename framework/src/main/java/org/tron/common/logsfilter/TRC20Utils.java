@@ -399,6 +399,7 @@ public class TRC20Utils {
         AssetTransferInfo assetTransferInfo = new AssetTransferInfo();
         assetTransferInfo.setTokenAddress(tokenAddress);
         assetTransferInfo.setTxId(item.getTxId());
+        assetTransferInfo.setIsSuccess(item.getIsSuccess());
 
         switch (ConcernTopics.getBySH(topics.get(0))) {
           case TRANSFER:

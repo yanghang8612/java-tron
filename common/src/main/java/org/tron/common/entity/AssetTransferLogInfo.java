@@ -15,5 +15,7 @@ public class AssetTransferLogInfo {
 
   private String txId;
 
+  private Boolean isSuccess;
+
   private List<LogInfo> logInfoList;
 }
