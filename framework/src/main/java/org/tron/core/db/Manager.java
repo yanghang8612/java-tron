@@ -39,6 +39,7 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.spongycastle.util.encoders.Hex;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.tron.common.application.ApplicationHandler;
 import org.tron.common.args.GenesisBlock;
 import org.tron.common.logsfilter.EventPluginLoader;
 import org.tron.common.logsfilter.FilterQuery;
@@ -46,9 +47,9 @@ import org.tron.common.logsfilter.capsule.*;
 import org.tron.common.logsfilter.trigger.ContractEventTrigger;
 import org.tron.common.logsfilter.trigger.ContractLogTrigger;
 import org.tron.common.logsfilter.trigger.ContractTrigger;
-import org.tron.common.logsfilter.trigger.Trigger;
 import org.tron.common.logsfilter.trigger.ShieldedTRC20TrackerTrigger.LogPojo;
 import org.tron.common.logsfilter.trigger.ShieldedTRC20TrackerTrigger.TransactionPojo;
+import org.tron.common.logsfilter.trigger.Trigger;
 import org.tron.common.overlay.message.Message;
 import org.tron.common.parameter.CommonParameter;
 import org.tron.common.runtime.RuntimeImpl;
@@ -145,8 +146,8 @@ import org.tron.protos.Protocol.Transaction.Contract;
 import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.Protocol.TransactionInfo.Log;
-import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
 import org.tron.protos.contract.BalanceContract;
+import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
 
 
 @Slf4j(topic = "DB")
@@ -419,8 +420,7 @@ public class Manager {
       startEventSubscribing();
       Thread triggerCapsuleProcessThread = new Thread(triggerCapsuleProcessLoop);
       triggerCapsuleProcessThread.start();
-    }
-    else {
+    } else {
       // if has no --es, close self.
 //      logger.info(" >>>>>>>>>>> has no --es , to close!!!!!!!!!!!!");
 //      ApplicationHandler.closeSelf();
@@ -866,7 +866,6 @@ public class Manager {
         reOrgContractTrigger();
         postBlockErasedTrigger();
         eraseBlock();
-
       }
     }
 
@@ -1223,6 +1222,7 @@ public class Manager {
     }
     //set the sort order
     trxCap.setOrder(transactionInfo.getFee());
+//    trxCap.setTrxTrace(null);
     return transactionInfo.getInstance();
   }
 
@@ -1736,7 +1736,7 @@ public class Manager {
 
     if (EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable()) {
       BalanceTrackerCapsule balanceTrackerCapsule = new BalanceTrackerCapsule(blockCapsule,
-              accountChangeRecord.getTempAccountMap());
+          accountChangeRecord.getTempAccountMap());
       if (balanceTrackerCapsule.getTrc20TrackerTrigger() != null) {
         balanceTrackerCapsule.processTrigger();
         accountChangeRecord.clear();
@@ -1760,8 +1760,10 @@ public class Manager {
   }
 
   private void postBalanceSolidityTrigger(long latestSolidifiedBlockNumber) {
-    final boolean balanceTrigger = eventPluginLoaded && EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable();
-    final boolean shieldedTRC20Trigger = eventPluginLoaded && EventPluginLoader.getInstance().isShieldedTRC20TrackerSolidityTriggerEnable();
+    final boolean balanceTrigger =
+        eventPluginLoaded && EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable();
+    final boolean shieldedTRC20Trigger = eventPluginLoaded && EventPluginLoader.getInstance()
+        .isShieldedTRC20TrackerSolidityTriggerEnable();
 
     if (!balanceTrigger && !shieldedTRC20Trigger) {
       return;
@@ -1819,7 +1821,6 @@ public class Manager {
       }
     }
   }
-
 
   private void postBlockTrigger(final BlockCapsule newBlock) {
     if (eventPluginLoaded && EventPluginLoader.getInstance().isBlockLogTriggerEnable()) {
@@ -1982,44 +1983,6 @@ public class Manager {
     }
   }
 
-  public TransactionCapsule getTxFromPending(String txId) {
-    AtomicReference<TransactionCapsule> transactionCapsule = new AtomicReference<>();
-    Sha256Hash txHash = Sha256Hash.wrap(ByteArray.fromHexString(txId));
-    pendingTransactions.forEach(tx -> {
-      if (tx.getTransactionId().equals(txHash)) {
-        transactionCapsule.set(tx);
-        return;
-      }
-    });
-    if (transactionCapsule.get() != null) {
-      return transactionCapsule.get();
-    }
-    rePushTransactions.forEach(tx -> {
-      if (tx.getTransactionId().equals(txHash)) {
-        transactionCapsule.set(tx);
-        return;
-      }
-    });
-    return transactionCapsule.get();
-  }
-
-  public Collection<String> getTxListFromPending() {
-    Set<String> result = new HashSet<>();
-    pendingTransactions.forEach(tx -> {
-      result.add(tx.getTransactionId().toString());
-    });
-    rePushTransactions.forEach(tx -> {
-      result.add(tx.getTransactionId().toString());
-    });
-    return result;
-  }
-
-  public long getPendingSize() {
-    long value = getPendingTransactions().size() + getRePushTransactions().size()
-        + getPoppedTransactions().size();
-    return value;
-  }
-
 
   private static void insertTransactionPojo(List<TransactionPojo> list,
       TransactionInfo transactionInfo, Map<ByteString, byte[]> inputDataMap) {
@@ -2034,7 +1997,8 @@ public class Manager {
       transactionPojo.setTxId(Hex.toHexString(transactionInfo.getId().toByteArray()));
       transactionPojo.setContractAddress(
           StringUtil.encode58Check(
-                  TransactionTrace.convertToTronAddress(transactionInfo.getContractAddress().toByteArray())));
+              TransactionTrace
+                  .convertToTronAddress(transactionInfo.getContractAddress().toByteArray())));
       transactionPojo.setLogList(logPojos);
       transactionPojo.setEnergyFee(transactionInfo.getReceipt().getEnergyFee());
       transactionPojo.setEnergyUsage(transactionInfo.getReceipt().getEnergyUsage());
@@ -2110,4 +2074,42 @@ public class Manager {
     }
   }
 
+
+  public TransactionCapsule getTxFromPending(String txId) {
+    AtomicReference<TransactionCapsule> transactionCapsule = new AtomicReference<>();
+    Sha256Hash txHash = Sha256Hash.wrap(ByteArray.fromHexString(txId));
+    pendingTransactions.forEach(tx -> {
+      if (tx.getTransactionId().equals(txHash)) {
+        transactionCapsule.set(tx);
+        return;
+      }
+    });
+    if (transactionCapsule.get() != null) {
+      return transactionCapsule.get();
+    }
+    rePushTransactions.forEach(tx -> {
+      if (tx.getTransactionId().equals(txHash)) {
+        transactionCapsule.set(tx);
+        return;
+      }
+    });
+    return transactionCapsule.get();
+  }
+
+  public Collection<String> getTxListFromPending() {
+    Set<String> result = new HashSet<>();
+    pendingTransactions.forEach(tx -> {
+      result.add(tx.getTransactionId().toString());
+    });
+    rePushTransactions.forEach(tx -> {
+      result.add(tx.getTransactionId().toString());
+    });
+    return result;
+  }
+
+  public long getPendingSize() {
+    long value = getPendingTransactions().size() + getRePushTransactions().size()
+        + getPoppedTransactions().size();
+    return value;
+  }
 }
