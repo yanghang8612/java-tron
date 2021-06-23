@@ -88,6 +88,7 @@ import org.tron.core.db.accountchange.FreezeChangeRecord;
 import org.tron.core.db.accountstate.TrieService;
 import org.tron.core.db.accountstate.callback.AccountStateCallBack;
 import org.tron.core.db.api.AssetUpdateHelper;
+import org.tron.core.db.api.MoveAbiHelper;
 import org.tron.core.db2.ISession;
 import org.tron.core.db2.core.Chainbase;
 import org.tron.core.db2.core.ITronChainBase;
@@ -276,6 +277,10 @@ public class Manager {
     return getDynamicPropertiesStore().getTokenUpdateDone() == 0L;
   }
 
+  public boolean needToMoveAbi() {
+    return getDynamicPropertiesStore().getAbiMoveDone() == 0L;
+  }
+
   public DynamicPropertiesStore getDynamicPropertiesStore() {
     return chainBaseManager.getDynamicPropertiesStore();
   }
@@ -405,6 +410,11 @@ public class Manager {
     if (Args.getInstance().isNeedToUpdateAsset() && needToUpdateAsset()) {
       new AssetUpdateHelper(chainBaseManager).doWork();
     }
+
+    if (needToMoveAbi()) {
+      new MoveAbiHelper(chainBaseManager).doWork();
+    }
+
 
     //for test only
     chainBaseManager.getDynamicPropertiesStore().updateDynamicStoreByConfig();
