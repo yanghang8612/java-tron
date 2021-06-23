@@ -117,6 +117,8 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
   private static final byte[] TOKEN_ID_NUM = "TOKEN_ID_NUM".getBytes();
   //Used only for token updates, once，value is {0,1}
   private static final byte[] TOKEN_UPDATE_DONE = "TOKEN_UPDATE_DONE".getBytes();
+  //Used only for abi moves, once，value is {0,1}
+  private static final byte[] ABI_MOVE_DONE = "ABI_MOVE_DONE".getBytes();
   //This value is only allowed to be 0, 1, -1
   private static final byte[] ALLOW_TVM_TRANSFER_TRC10 = "ALLOW_TVM_TRANSFER_TRC10".getBytes();
   //If the parameter is larger than 0, allow ZKsnark Transaction
@@ -153,8 +155,9 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
   private static final byte[] MAX_FEE_LIMIT = "MAX_FEE_LIMIT".getBytes();
   private static final byte[] BURN_TRX_AMOUNT = "BURN_TRX_AMOUNT".getBytes();
   private static final byte[] ALLOW_BLACKHOLE_OPTIMIZATION = "ALLOW_BLACKHOLE_OPTIMIZATION".getBytes();
-private static final byte[] ALLOW_NEW_RESOURCE_MODEL = "ALLOW_NEW_RESOURCE_MODEL".getBytes();
+  private static final byte[] ALLOW_NEW_RESOURCE_MODEL = "ALLOW_NEW_RESOURCE_MODEL".getBytes();
   private static final byte[] ALLOW_TVM_FREEZE = "ALLOW_TVM_FREEZE".getBytes();
+
   @Autowired
   private DynamicPropertiesStore(@Value("properties") String dbName) {
     super(dbName);
@@ -230,6 +233,12 @@ private static final byte[] ALLOW_NEW_RESOURCE_MODEL = "ALLOW_NEW_RESOURCE_MODEL
       this.getTokenUpdateDone();
     } catch (IllegalArgumentException e) {
       this.saveTokenUpdateDone(0);
+    }
+
+    try {
+      this.getAbiMoveDone();
+    } catch (IllegalArgumentException e) {
+      this.saveAbiMoveDone(0);
     }
 
     try {
@@ -793,6 +802,19 @@ private static final byte[] ALLOW_NEW_RESOURCE_MODEL = "ALLOW_NEW_RESOURCE_MODEL
         .map(ByteArray::toLong)
         .orElseThrow(
             () -> new IllegalArgumentException("not found TOKEN_UPDATE_DONE"));
+  }
+
+  public void saveAbiMoveDone(long num) {
+    this.put(ABI_MOVE_DONE,
+        new BytesCapsule(ByteArray.fromLong(num)));
+  }
+
+  public long getAbiMoveDone() {
+    return Optional.ofNullable(getUnchecked(ABI_MOVE_DONE))
+        .map(BytesCapsule::getData)
+        .map(ByteArray::toLong)
+        .orElseThrow(
+            () -> new IllegalArgumentException("not found ABI_MOVE_DONE"));
   }
 
   public void saveBlockFilledSlotsIndex(int blockFilledSlotsIndex) {
