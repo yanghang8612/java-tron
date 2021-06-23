@@ -92,11 +92,11 @@ public class TransferTrackerCapsule extends TriggerCapsule {
           || transactionCapsule.getInstance().getRawData().getContract(0).getType() == Protocol.Transaction.Contract.ContractType.CreateSmartContract;
       boolean isTrc10 = transactionCapsule.getInstance().getRawData().getContract(0).getType() == Protocol.Transaction.Contract.ContractType.TransferAssetContract;
 
-      SmartContractOuterClass.TriggerSmartContract triggerSmartContract = transactionCapsule.getInstance().getRawData().getContract(0).getParameter().unpack(SmartContractOuterClass.TriggerSmartContract.class);
-      String contractAddress = StringUtil.encode58Check(TransactionTrace.convertToTronAddress(triggerSmartContract.getContractAddress().toByteArray()));
-      long callValue = triggerSmartContract.getCallValue();
-      long callTokenValue = triggerSmartContract.getCallTokenValue();
-      long tokenId = triggerSmartContract.getTokenId();
+//      SmartContractOuterClass.TriggerSmartContract triggerSmartContract = transactionCapsule.getInstance().getRawData().getContract(0).getParameter().unpack(SmartContractOuterClass.TriggerSmartContract.class);
+//      String contractAddress = StringUtil.encode58Check(TransactionTrace.convertToTronAddress(triggerSmartContract.getContractAddress().toByteArray()));
+//      long callValue = triggerSmartContract.getCallValue();
+//      long callTokenValue = triggerSmartContract.getCallTokenValue();
+//      long tokenId = triggerSmartContract.getTokenId();
 
       if (isTvm) {
         transactionCapsule.getTrxTrace().getRuntimeResult().getInternalTransactions().forEach(internalTransaction -> {
