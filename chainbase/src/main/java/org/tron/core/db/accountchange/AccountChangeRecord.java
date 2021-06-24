@@ -46,6 +46,11 @@ public class AccountChangeRecord {
     tempAccountMap.clear();
   }
 
+  public void clearFreeze() {
+    this.recordFreeze = false;
+    tempFreezeMap.clear();
+  }
+
   public Map<String, AccountInfo> getTempAccountMap() {
     return Maps.newHashMap(tempAccountMap);
   }

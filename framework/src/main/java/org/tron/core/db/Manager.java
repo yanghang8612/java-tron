@@ -1758,7 +1758,7 @@ public class Manager {
       if (balanceTrackerCapsule.getFreezeBalanceTrigger() != null) {
         balanceTrackerCapsule.processTrigger();
         freezeChangeRecord.clear();
-        accountChangeRecord.clear();
+        accountChangeRecord.clearFreeze();
       }
     }
 
