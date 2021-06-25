@@ -293,7 +293,6 @@ public class AccountChangeRecord {
 
     public static AccountInfo of(AccountCapsule account) {
       AccountInfo info = new AccountInfo();
-//      final String address = WalletUtil.encode58Check(account.getAddress().toByteArray());
       final String address = StringUtil.encode58Check(account.getAddress().toByteArray());
       info.setAccountAddress(address);
 

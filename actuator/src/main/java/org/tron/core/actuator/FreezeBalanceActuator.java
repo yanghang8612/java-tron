@@ -62,8 +62,6 @@ public class FreezeBalanceActuator extends AbstractActuator {
       accountCapsule.initializeOldTronPower();
     }
 
-    logger.info(" >>>> freezeBalanceContract:{}", freezeBalanceContract.getResource());
-    logger.info(" >>>> freezeBalanceContract:{}", freezeBalanceContract);
     long now = dynamicStore.getLatestBlockHeaderTimestamp();
     long duration = freezeBalanceContract.getFrozenDuration() * FROZEN_PERIOD;
 
@@ -85,8 +83,6 @@ public class FreezeBalanceActuator extends AbstractActuator {
           long newFrozenBalanceForBandwidth =
               frozenBalance + accountCapsule.getFrozenBalance();
           accountCapsule.setFrozenForBandwidth(newFrozenBalanceForBandwidth, expireTime);
-
-          // todo 自己给自己冻结的能量和带宽
         }
         dynamicStore
             .addTotalNetWeight(frozenBalance / TRX_PRECISION);
