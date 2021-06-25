@@ -14,19 +14,8 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.protobuf.ByteString;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -54,15 +43,7 @@ import org.tron.common.application.ApplicationHandler;
 import org.tron.common.args.GenesisBlock;
 import org.tron.common.logsfilter.EventPluginLoader;
 import org.tron.common.logsfilter.FilterQuery;
-import org.tron.common.logsfilter.capsule.BalanceTrackerCapsule;
-import org.tron.common.logsfilter.capsule.BlockErasedTriggerCapsule;
-import org.tron.common.logsfilter.capsule.BlockLogTriggerCapsule;
-import org.tron.common.logsfilter.capsule.ContractTriggerCapsule;
-import org.tron.common.logsfilter.capsule.ShieldedTRC20SolidityTrackerCapsule;
-import org.tron.common.logsfilter.capsule.ShieldedTRC20TrackerCapsule;
-import org.tron.common.logsfilter.capsule.SolidityTriggerCapsule;
-import org.tron.common.logsfilter.capsule.TransactionLogTriggerCapsule;
-import org.tron.common.logsfilter.capsule.TriggerCapsule;
+import org.tron.common.logsfilter.capsule.*;
 import org.tron.common.logsfilter.trigger.ContractEventTrigger;
 import org.tron.common.logsfilter.trigger.ContractLogTrigger;
 import org.tron.common.logsfilter.trigger.ContractTrigger;
@@ -102,6 +83,8 @@ import org.tron.core.config.args.Args;
 import org.tron.core.consensus.ProposalController;
 import org.tron.core.db.KhaosDatabase.KhaosBlock;
 import org.tron.core.db.accountchange.AccountChangeRecord;
+import org.tron.common.application.ApplicationHandler;
+import org.tron.core.db.accountchange.FreezeChangeRecord;
 import org.tron.core.db.accountstate.TrieService;
 import org.tron.core.db.accountstate.callback.AccountStateCallBack;
 import org.tron.core.db.api.AssetUpdateHelper;
@@ -218,6 +201,8 @@ public class Manager {
   private AccountStateCallBack accountStateCallBack;
   @Autowired
   private AccountChangeRecord accountChangeRecord;
+  @Autowired
+  private FreezeChangeRecord freezeChangeRecord;
   @Autowired
   private TrieService trieService;
   private Set<String> ownerAddressSet = new HashSet<>();
@@ -834,9 +819,11 @@ public class Manager {
       TaposException, ValidateScheduleException, ReceiptCheckErrException,
       VMIllegalException, TooBigTransactionResultException, ZksnarkException, BadBlockException {
 
-    boolean record =
-        eventPluginLoaded && EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable();
-    accountChangeRecord.startRecord(record);
+    boolean recordBalance = eventPluginLoaded && EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable();
+    accountChangeRecord.startRecord(recordBalance);
+    boolean recordFreeze = eventPluginLoaded && EventPluginLoader.getInstance().isFreezeBalanceTriggerEnable();
+    freezeChangeRecord.startRecord(recordFreeze);
+    accountChangeRecord.startRecordFreeze(recordFreeze);
 
     processBlock(block);
     chainBaseManager.getBlockStore().put(block.getBlockId().getBytes(), block);
@@ -1753,8 +1740,11 @@ public class Manager {
   }
 
   private void postBalanceTrigger(BlockCapsule blockCapsule) {
-    if (eventPluginLoaded &&
-        EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable()) {
+    if (!eventPluginLoaded) {
+      return;
+    }
+
+    if (EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable()) {
       BalanceTrackerCapsule balanceTrackerCapsule = new BalanceTrackerCapsule(blockCapsule,
           accountChangeRecord.getTempAccountMap());
       if (balanceTrackerCapsule.getTrc20TrackerTrigger() != null) {
@@ -1762,8 +1752,17 @@ public class Manager {
         accountChangeRecord.clear();
       }
     }
-    if (eventPluginLoaded &&
-        EventPluginLoader.getInstance().isShieldedTRC20TrackerTriggerEnable()) {
+
+    if (EventPluginLoader.getInstance().isFreezeBalanceTriggerEnable()) {
+      FreezeTrackerCapsule balanceTrackerCapsule = new FreezeTrackerCapsule(blockCapsule, freezeChangeRecord.getTempFreezeMap(), accountChangeRecord.getTempFreezeMap());
+      if (balanceTrackerCapsule.getFreezeBalanceTrigger() != null) {
+        balanceTrackerCapsule.processTrigger();
+        freezeChangeRecord.clear();
+        accountChangeRecord.clearFreeze();
+      }
+    }
+
+    if (EventPluginLoader.getInstance().isShieldedTRC20TrackerTriggerEnable()) {
       ShieldedTRC20TrackerCapsule shieldedTRC20TrackerCapsule = new ShieldedTRC20TrackerCapsule(
           blockCapsule, getTransactionPojos(blockCapsule));
       shieldedTRC20TrackerCapsule.processTrigger();
