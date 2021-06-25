@@ -21,7 +21,6 @@ public class FreezeChangeRecord {
   private static Map<String, FreezeInfo> tempAccountMap = new HashMap<>();
 
   public void startRecord(boolean record) {
-    logger.info(" >>>> startRecord:{}", record);
     this.recordFreezeBalance = record;
   }
 
