@@ -43,6 +43,13 @@ public class DelegatedResourceStore extends TronStoreWithRevoking<DelegatedResou
     freezeChangeRecord.recordChangedFreeze(key, oldResource, item);
   }
 
+  @Override
+  public void delete(byte[] key) {
+    final DelegatedResourceCapsule oldResource = get(key);
+    revokingDB.delete(key);
+    freezeChangeRecord.recordChangedFreeze(key, oldResource, null);
+  }
+
   @Deprecated
   public List<DelegatedResourceCapsule> getByFrom(byte[] key) {
     return revokingDB.getValuesNext(key, Long.MAX_VALUE).stream()
