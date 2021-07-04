@@ -107,7 +107,8 @@ public class TransferTrackerCapsule extends TriggerCapsule {
             assetTransferInfo.setToAddress(StringUtil.encode58Check(internalTransaction.getReceiveAddress()));
 
             assetTransferInfo.setAmount(String.valueOf(value));
-            assetTransferInfo.setTxId(Hex.toHexString(internalTransaction.getHash()));
+//            assetTransferInfo.setTxId(Hex.toHexString(internalTransaction.getHash()));
+            assetTransferInfo.setTxId(transactionCapsule.getTransactionId().toString());
             assetTransferInfo.setTokenAddress(key);
             if (StringUtils.isEmpty(key) || "0".equals(key)) {
               assetTransferInfo.setAssetType(0);
