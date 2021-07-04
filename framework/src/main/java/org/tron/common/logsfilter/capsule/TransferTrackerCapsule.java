@@ -62,6 +62,7 @@ public class TransferTrackerCapsule extends TriggerCapsule {
         assetTransferLogInfos.add(assetTransferLogInfo);
       }
 
+
       //transfer record trx/trc10
       handlerTrxTransfer(transactionCapsule, trxAssetTransferInfoList);
       handlerTrc10Transfer(transactionCapsule, trc10AssetTransferInfoList);
@@ -70,6 +71,7 @@ public class TransferTrackerCapsule extends TriggerCapsule {
       transferTrackerTrigger.setTrxAssetTransferInfoList(trxAssetTransferInfoList);
       transferTrackerTrigger.setTrc10AssetTransferInfoList(trc10AssetTransferInfoList);
     }
+    logger.info("TransferTrackerCapsule assetTransferLogInfos={}", JSON.toJSONString(assetTransferLogInfos));
 
     if (assetTransferLogInfos.size() > 0) {
       Map<String, Object> result = TRC20Utils.parseTrc20Transfer(assetTransferLogInfos);
