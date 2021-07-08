@@ -519,7 +519,8 @@ public class TRC20Utils {
     if (bigInteger != null) {
       return bigInteger.toString();
     }
-    return null;
+
+    return "0";
   }
 
   private static void adjustIncrement(Map<String, BigInteger> incrementMap, String address,
