@@ -56,6 +56,8 @@ public class EventPluginLoader {
 
   private boolean transferTrackerTriggerEnable = false;
 
+  private boolean freezeBalanceTriggerEnable = false;
+
   private boolean trc20TrackerSolidityTriggerEnable = false;
 
   private boolean blockErasedTriggerEnable = false;
@@ -362,6 +364,14 @@ public class EventPluginLoader {
       if (!useNativeQueue) {
         setPluginTopic(Trigger.TRANSFER_TRACKER_TRIGGER, triggerConfig.getTopic());
       }
+    } else if (EventPluginConfig.FREEZE_BALANCE_TRACKER
+        .equalsIgnoreCase(triggerConfig.getTriggerName())) {
+      if (triggerConfig.isEnabled()) {
+        freezeBalanceTriggerEnable = true;
+      }
+      if (!useNativeQueue) {
+        setPluginTopic(Trigger.FREEZE_TRACKER_TRIGGER, triggerConfig.getTopic());
+      }
     } else if (EventPluginConfig.SHIELDED_TRC20_SOLIDITY_TRACKER
         .equalsIgnoreCase(triggerConfig.getTriggerName())) {
       if (triggerConfig.isEnabled()) {
@@ -429,6 +439,10 @@ public class EventPluginLoader {
 
   public synchronized boolean isTransferTrackerTriggerEnable() {
     return transferTrackerTriggerEnable;
+  }
+
+  public synchronized boolean isFreezeBalanceTriggerEnable() {
+    return freezeBalanceTriggerEnable;
   }
 
   public synchronized boolean isTrc20TrackerSolidityTriggerEnable() {
@@ -581,6 +595,17 @@ public class EventPluginLoader {
     } else {
       eventListeners.forEach(listener ->
           listener.handleTRC20Event(toJsonString(trigger)));
+    }
+  }
+
+
+  public void postFreezeBalanceTrigger(FreezeBalanceTrigger trigger) {
+    if (useNativeQueue) {
+      NativeMessageQueue.getInstance()
+          .publishTrigger(toJsonString(trigger), trigger.getTriggerName());
+    } else {
+      eventListeners.forEach(listener ->
+          listener.handleFreezeBalanceEvent(toJsonString(trigger)));
     }
   }
 
