@@ -431,9 +431,9 @@ public class Manager {
       Thread triggerCapsuleProcessThread = new Thread(triggerCapsuleProcessLoop);
       triggerCapsuleProcessThread.start();
     } else {
-      // if has no --es, close self.
-//      logger.info(" >>>>>>>>>>> has no --es , to close!!!!!!!!!!!!");
-//      ApplicationHandler.closeSelf();
+//       if has no --es, close self.
+      logger.info(" >>>>>>>>>>> has no --es , to close!!!!!!!!!!!!");
+      ApplicationHandler.closeSelf();
     }
 
     //initStoreFactory
@@ -1771,8 +1771,7 @@ public class Manager {
 
     logger.info("transferTrackerTriggerEnable={}", EventPluginLoader.getInstance().isTransferTrackerTriggerEnable());
     //transfer record
-    if (eventPluginLoaded &&
-        EventPluginLoader.getInstance().isTransferTrackerTriggerEnable()) {
+    if (EventPluginLoader.getInstance().isTransferTrackerTriggerEnable()) {
       TransferTrackerCapsule transferTrackerCapsule = new TransferTrackerCapsule(blockCapsule);
       if (transferTrackerCapsule.getTransferTrackerTrigger() != null) {
         transferTrackerCapsule.processTrigger();
