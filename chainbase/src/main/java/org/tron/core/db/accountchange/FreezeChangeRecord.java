@@ -34,7 +34,11 @@ public class FreezeChangeRecord {
   }
 
   public void recordChangedFreeze(byte[] key, DelegatedResourceCapsule oldResource, DelegatedResourceCapsule newResource) {
-    if (!recordFreezeBalance || newResource == null) {
+    if (!recordFreezeBalance) {
+      return;
+    }
+
+    if (oldResource == null && newResource == null) {
       return;
     }
 
@@ -111,6 +115,10 @@ public class FreezeChangeRecord {
     public Integer resource;  // 1=能量， 2=带宽
 
     public static FreezeInfo of(DelegatedResourceCapsule resourceCapsule) {
+      if (resourceCapsule == null) {
+        return null;
+      }
+
       FreezeInfo info = new FreezeInfo();
       info.setFromAddress(StringUtil.encode58Check(resourceCapsule.getFrom().toByteArray()));
       info.setToAddress(StringUtil.encode58Check(resourceCapsule.getTo().toByteArray()));
@@ -127,15 +135,15 @@ public class FreezeChangeRecord {
     // 检查余额是否有变动，没有变动 return null.
     public static FreezeInfo of(DelegatedResourceCapsule oldResource, DelegatedResourceCapsule newResource) {
       FreezeInfo info = new FreezeInfo();
-      info.setFromAddress(StringUtil.encode58Check(newResource.getFrom().toByteArray()));
-      info.setToAddress(StringUtil.encode58Check(newResource.getTo().toByteArray()));
+      info.setFromAddress(StringUtil.encode58Check(oldResource.getFrom().toByteArray()));
+      info.setToAddress(StringUtil.encode58Check(oldResource.getTo().toByteArray()));
 
       setBalance(info, newResource);
 
-      info.setIncrementFreezeEnergyBalance(newResource.getFrozenBalanceForEnergy() - oldResource.getFrozenBalanceForEnergy());
-      info.setIncrementExpireTimeForEnergy(newResource.getExpireTimeForEnergy() - oldResource.getExpireTimeForEnergy());
-      info.setIncrementFreezeBandwidthBalance(newResource.getFrozenBalanceForBandwidth() - oldResource.getFrozenBalanceForBandwidth());
-      info.setIncrementExpireTimeForBandwidth(newResource.getExpireTimeForBandwidth() - oldResource.getExpireTimeForBandwidth());
+      info.setIncrementFreezeEnergyBalance(info.getFreezeEnergyBalance() - oldResource.getFrozenBalanceForEnergy());
+      info.setIncrementExpireTimeForEnergy(info.getExpireTimeForEnergy() - oldResource.getExpireTimeForEnergy());
+      info.setIncrementFreezeBandwidthBalance(info.getFreezeBandwidthBalance() - oldResource.getFrozenBalanceForBandwidth());
+      info.setIncrementExpireTimeForBandwidth(info.getExpireTimeForBandwidth() - oldResource.getExpireTimeForBandwidth());
 
       // 检查余额是否有变动，没有变动 return null.
       if (info.getIncrementFreezeEnergyBalance() == 0
@@ -149,10 +157,18 @@ public class FreezeChangeRecord {
     }
 
     public static void setBalance(FreezeInfo info, DelegatedResourceCapsule resourceCapsule) {
-      info.setFreezeEnergyBalance(resourceCapsule.getFrozenBalanceForEnergy());
-      info.setExpireTimeForEnergy(resourceCapsule.getExpireTimeForEnergy());
-      info.setFreezeBandwidthBalance(resourceCapsule.getFrozenBalanceForBandwidth());
-      info.setExpireTimeForBandwidth(resourceCapsule.getExpireTimeForBandwidth());
+      if (resourceCapsule == null) {
+        info.setFreezeEnergyBalance(0L);
+        info.setExpireTimeForEnergy(0L);
+        info.setFreezeBandwidthBalance(0L);
+        info.setExpireTimeForBandwidth(0L);
+      } else {
+        info.setFreezeEnergyBalance(resourceCapsule.getFrozenBalanceForEnergy());
+        info.setExpireTimeForEnergy(resourceCapsule.getExpireTimeForEnergy());
+        info.setFreezeBandwidthBalance(resourceCapsule.getFrozenBalanceForBandwidth());
+        info.setExpireTimeForBandwidth(resourceCapsule.getExpireTimeForBandwidth());
+      }
+
     }
 
     public static void setBalance(FreezeInfo info, FreezeInfo resourceCapsule) {
