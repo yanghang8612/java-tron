@@ -22,7 +22,7 @@ public class AssetTransferInfo {
 
   public String assetId;  //trc721
 
-  public String note;  //trc721 todo add
+  public String note;  //备注
 
   public String amount; //trx, trc10, trc20, trc721
 

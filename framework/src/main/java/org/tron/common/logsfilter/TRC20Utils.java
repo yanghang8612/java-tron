@@ -177,8 +177,6 @@ public class TRC20Utils {
     return result;
   }
 
-
-  //todo 交易记录只接收固化块
   public static Map<String, Object> parseTrc20Transfer(List<AssetTransferLogInfo> assetTransferLogInfos) {
     List<AssetTransferInfo> trc20AssetTransferInfoList = new ArrayList<>();
     List<AssetTransferInfo> trc721AssetTransferInfoList = new ArrayList<>();
