@@ -17,7 +17,6 @@ import org.tron.protos.Protocol;
 import org.tron.protos.contract.AssetIssueContractOuterClass;
 import org.tron.protos.contract.BalanceContract;
 
-import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +48,7 @@ public class TransferTrackerCapsule extends TriggerCapsule {
       if (innerList != null && innerList.size() > 0) {
         assetTransferLogInfo.setLogInfoList(innerList);
         assetTransferLogInfo.setTxId(transactionCapsule.getTransactionId().toString());
-        assetTransferLogInfo.setNote(convert(transactionCapsule.getData()));
+        assetTransferLogInfo.setNote(convert(transactionCapsule));
 
         // 这里只能会得到true
         if (Protocol.Transaction.Result.contractResult.SUCCESS == transactionCapsule.getInstance().getRet(0).getContractRet()) {
@@ -81,19 +80,19 @@ public class TransferTrackerCapsule extends TriggerCapsule {
     }
   }
 
-  public String convert(byte[] bytes) {
-    if (bytes == null || bytes.length == 0) {
+  public String convert(TransactionCapsule transactionCapsule) {
+    if (transactionCapsule == null || transactionCapsule.getInstance() == null) {
       return null;
     }
 
-    try {
-      final String s = new String(bytes, "utf-8");
-      return s;
-    } catch (UnsupportedEncodingException e) {
-      logger.error("", e);
+    final Protocol.Transaction.raw rawData = transactionCapsule.getInstance().getRawData();
+
+    if (rawData == null || rawData.getData() == null || rawData.getData().size() == 0) {
+      return null;
     }
 
-    return null;
+    final String stringUtf8 = rawData.getData().toStringUtf8();
+    return stringUtf8;
   }
 
   @Override
@@ -124,7 +123,7 @@ public class TransferTrackerCapsule extends TriggerCapsule {
 
             assetTransferInfo.setAmount(String.valueOf(value));
             assetTransferInfo.setTxId(transactionCapsule.getTransactionId().toString());
-            assetTransferInfo.setNote(convert(transactionCapsule.getData()));
+            assetTransferInfo.setNote(convert(transactionCapsule));
             assetTransferInfo.setTokenAddress(key);
             if (StringUtils.isEmpty(key) || "0".equals(key)) {
               assetTransferInfo.setAssetType(0);
@@ -150,7 +149,7 @@ public class TransferTrackerCapsule extends TriggerCapsule {
         assetTransferInfo.setToAddress(StringUtil.encode58Check(transferAssetContract.getToAddress().toByteArray()));
         assetTransferInfo.setAssetType(1);
         assetTransferInfo.setTxId(transactionCapsule.getTransactionId().toString());
-        assetTransferInfo.setNote(convert(transactionCapsule.getData()));
+        assetTransferInfo.setNote(convert(transactionCapsule));
         assetTransferInfo.setTokenAddress(transferAssetContract.getAssetName().toStringUtf8());
         assetTransferInfo.setIsSuccess(true);
 
@@ -177,7 +176,7 @@ public class TransferTrackerCapsule extends TriggerCapsule {
       assetTransferInfo.setAssetType(0);
       assetTransferInfo.setAmount(String.valueOf(transferContract.getAmount()));
       assetTransferInfo.setTxId(transactionCapsule.getTransactionId().toString());
-      assetTransferInfo.setNote(convert(transactionCapsule.getData()));
+      assetTransferInfo.setNote(convert(transactionCapsule));
 
       //trx失败不上链
       assetTransferInfo.setIsSuccess(true);
