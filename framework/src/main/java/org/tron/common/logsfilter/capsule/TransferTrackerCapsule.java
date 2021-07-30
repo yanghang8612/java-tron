@@ -4,7 +4,6 @@ import com.alibaba.fastjson.JSON;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.spongycastle.util.encoders.Hex;
 import org.springframework.util.StringUtils;
 import org.tron.common.entity.AssetTransferInfo;
 import org.tron.common.entity.AssetTransferLogInfo;
@@ -14,13 +13,11 @@ import org.tron.common.runtime.vm.LogInfo;
 import org.tron.common.utils.StringUtil;
 import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.capsule.TransactionCapsule;
-import org.tron.core.db.TransactionTrace;
 import org.tron.protos.Protocol;
 import org.tron.protos.contract.AssetIssueContractOuterClass;
 import org.tron.protos.contract.BalanceContract;
-import org.tron.protos.contract.SmartContractOuterClass;
 
-import java.math.BigInteger;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -52,7 +49,9 @@ public class TransferTrackerCapsule extends TriggerCapsule {
       if (innerList != null && innerList.size() > 0) {
         assetTransferLogInfo.setLogInfoList(innerList);
         assetTransferLogInfo.setTxId(transactionCapsule.getTransactionId().toString());
+        assetTransferLogInfo.setNote(convert(transactionCapsule.getData()));
 
+        // 这里只能会得到true
         if (Protocol.Transaction.Result.contractResult.SUCCESS == transactionCapsule.getInstance().getRet(0).getContractRet()) {
           assetTransferLogInfo.setIsSuccess(true);
         } else {
@@ -82,6 +81,21 @@ public class TransferTrackerCapsule extends TriggerCapsule {
     }
   }
 
+  public String convert(byte[] bytes) {
+    if (bytes == null || bytes.length == 0) {
+      return null;
+    }
+
+    try {
+      final String s = new String(bytes, "utf-8");
+      return s;
+    } catch (UnsupportedEncodingException e) {
+      logger.error("", e);
+    }
+
+    return null;
+  }
+
   @Override
   public void processTrigger() {
     EventPluginLoader.getInstance().postTransferTrigger(transferTrackerTrigger);
@@ -109,8 +123,8 @@ public class TransferTrackerCapsule extends TriggerCapsule {
             assetTransferInfo.setToAddress(StringUtil.encode58Check(internalTransaction.getReceiveAddress()));
 
             assetTransferInfo.setAmount(String.valueOf(value));
-//            assetTransferInfo.setTxId(Hex.toHexString(internalTransaction.getHash()));
             assetTransferInfo.setTxId(transactionCapsule.getTransactionId().toString());
+            assetTransferInfo.setNote(convert(transactionCapsule.getData()));
             assetTransferInfo.setTokenAddress(key);
             if (StringUtils.isEmpty(key) || "0".equals(key)) {
               assetTransferInfo.setAssetType(0);
@@ -120,13 +134,12 @@ public class TransferTrackerCapsule extends TriggerCapsule {
 
             if (Protocol.Transaction.Result.contractResult.SUCCESS == transactionCapsule.getInstance().getRet(0).getContractRet()) {
               assetTransferInfo.setIsSuccess(true);
+              assetTransferInfoList.add(assetTransferInfo);
             } else {
               assetTransferInfo.setIsSuccess(false);
             }
 
-
             logger.info("handlerTrc10Transfer isTvm={}, isTrc10={}, assetTransfer={}", isTvm, isTrc10, JSON.toJSONString(assetTransferInfo));
-            assetTransferInfoList.add(assetTransferInfo);
           });
         });
       } else if (isTrc10) {
@@ -137,12 +150,12 @@ public class TransferTrackerCapsule extends TriggerCapsule {
         assetTransferInfo.setToAddress(StringUtil.encode58Check(transferAssetContract.getToAddress().toByteArray()));
         assetTransferInfo.setAssetType(1);
         assetTransferInfo.setTxId(transactionCapsule.getTransactionId().toString());
+        assetTransferInfo.setNote(convert(transactionCapsule.getData()));
         assetTransferInfo.setTokenAddress(transferAssetContract.getAssetName().toStringUtf8());
         assetTransferInfo.setIsSuccess(true);
 
         logger.info("handlerTrc10Transfer isTvm={}, isTrc10={}, assetTransfer={}", isTvm, isTrc10, JSON.toJSONString(assetTransferInfo));
         assetTransferInfoList.add(assetTransferInfo);
-
       }
     }  catch (Exception ex) {
       logger.error("", ex);
@@ -164,6 +177,7 @@ public class TransferTrackerCapsule extends TriggerCapsule {
       assetTransferInfo.setAssetType(0);
       assetTransferInfo.setAmount(String.valueOf(transferContract.getAmount()));
       assetTransferInfo.setTxId(transactionCapsule.getTransactionId().toString());
+      assetTransferInfo.setNote(convert(transactionCapsule.getData()));
 
       //trx失败不上链
       assetTransferInfo.setIsSuccess(true);

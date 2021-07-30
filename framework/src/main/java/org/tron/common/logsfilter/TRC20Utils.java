@@ -38,6 +38,7 @@ public class TRC20Utils {
   static VMActuator vmActuator = new VMActuator(true);
   static final String WTRXAddress = "TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR";
 
+
   public static BigInteger getTRC20Decimal(String contractAddress, BlockCapsule baseBlockCap) {
     byte[] data = Hex.decode("313ce567");
     ProgramResult result = triggerFromVM(contractAddress, data, baseBlockCap);
@@ -399,6 +400,7 @@ public class TRC20Utils {
         AssetTransferInfo assetTransferInfo = new AssetTransferInfo();
         assetTransferInfo.setTokenAddress(tokenAddress);
         assetTransferInfo.setTxId(item.getTxId());
+        assetTransferInfo.setNote(item.getNote());
         assetTransferInfo.setIsSuccess(item.getIsSuccess());
 
         switch (ConcernTopics.getBySH(topics.get(0))) {
@@ -424,7 +426,6 @@ public class TRC20Utils {
               assetTransferInfo.setAssetType(2);
               assetTransferInfo.setAmount(String.valueOf(increment));
               trc20AssetTransferInfoList.add(assetTransferInfo);
-
             } else if(topics.size() == 4) {
               // 是trc721
               final byte[] data = logInfo.getTopics().get(3).getData();

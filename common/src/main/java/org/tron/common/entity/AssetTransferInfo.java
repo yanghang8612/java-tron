@@ -19,7 +19,10 @@ public class AssetTransferInfo {
   public String txId;
 
   public String tokenAddress;  //trc20, trc721, trc10
+
   public String assetId;  //trc721
+
+  public String note;  //trc721 todo add
 
   public String amount; //trx, trc10, trc20, trc721
 
