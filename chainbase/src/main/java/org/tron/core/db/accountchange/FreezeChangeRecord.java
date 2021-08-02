@@ -3,7 +3,7 @@ package org.tron.core.db.accountchange;
 import com.google.common.collect.Maps;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.spongycastle.util.encoders.Hex;
+import org.bouncycastle.util.encoders.Hex;
 import org.springframework.stereotype.Service;
 import org.tron.common.utils.StringUtil;
 import org.tron.core.capsule.DelegatedResourceCapsule;
