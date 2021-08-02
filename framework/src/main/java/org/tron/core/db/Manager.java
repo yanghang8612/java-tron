@@ -36,7 +36,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
-import org.spongycastle.util.encoders.Hex;
+import org.bouncycastle.util.encoders.Hex;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.tron.common.application.ApplicationHandler;
@@ -117,6 +117,7 @@ import org.tron.core.exception.ZksnarkException;
 import org.tron.core.metrics.MetricsKey;
 import org.tron.core.metrics.MetricsUtil;
 import org.tron.core.service.MortgageService;
+import org.tron.core.store.AccountAssetStore;
 import org.tron.core.store.AccountIdIndexStore;
 import org.tron.core.store.AccountIndexStore;
 import org.tron.core.store.AccountStore;
@@ -235,15 +236,15 @@ public class Manager {
           TransactionCapsule tx = null;
           try {
             tx = getRePushTransactions().peek();
-            if (tx != null && System.currentTimeMillis() - tx.getTime() >= Args.getInstance()
-                .getPendingTransactionTimeout()) {
-              logger.warn("[timeout] remove tx from rePush, txId:{}", tx.getTransactionId());
-            } else if (tx != null) {
+            if (tx != null) {
               this.rePush(tx);
             } else {
               TimeUnit.MILLISECONDS.sleep(SLEEP_TIME_OUT);
             }
           } catch (Throwable ex) {
+            if (ex instanceof InterruptedException) {
+              Thread.currentThread().interrupt();
+            }
             logger.error("unknown exception happened in rePush loop", ex);
           } finally {
             if (tx != null) {
@@ -384,7 +385,7 @@ public class Manager {
     this.triggerCapsuleQueue = new LinkedBlockingQueue<>();
     chainBaseManager.setMerkleContainer(getMerkleContainer());
     chainBaseManager.setMortgageService(mortgageService);
-
+    chainBaseManager.init();
     this.initGenesis();
     try {
       this.khaosDb.start(chainBaseManager.getBlockById(
@@ -419,7 +420,7 @@ public class Manager {
     //for test only
     chainBaseManager.getDynamicPropertiesStore().updateDynamicStoreByConfig();
 
-    initCacheTxs();
+    // initCacheTxs();
     revokingStore.enable();
     validateSignService = Executors
         .newFixedThreadPool(Args.getInstance().getValidateSignThreadNum());
@@ -625,6 +626,10 @@ public class Manager {
     return chainBaseManager.getAccountStore();
   }
 
+  public AccountAssetStore getAccountAssetStore() {
+    return chainBaseManager.getAccountAssetStore();
+  }
+
   public AccountIndexStore getAccountIndexStore() {
     return chainBaseManager.getAccountIndexStore();
   }
@@ -815,10 +820,20 @@ public class Manager {
   }
 
   private void applyBlock(BlockCapsule block) throws ContractValidateException,
-      ContractExeException, ValidateSignatureException, AccountResourceInsufficientException,
-      TransactionExpirationException, TooBigTransactionException, DupTransactionException,
-      TaposException, ValidateScheduleException, ReceiptCheckErrException,
-      VMIllegalException, TooBigTransactionResultException, ZksnarkException, BadBlockException {
+          ContractExeException, ValidateSignatureException, AccountResourceInsufficientException,
+          TransactionExpirationException, TooBigTransactionException, DupTransactionException,
+          TaposException, ValidateScheduleException, ReceiptCheckErrException,
+          VMIllegalException, TooBigTransactionResultException,
+          ZksnarkException, BadBlockException {
+    applyBlock(block, block.getTransactions());
+  }
+
+  private void applyBlock(BlockCapsule block, List<TransactionCapsule> txs)
+          throws ContractValidateException, ContractExeException, ValidateSignatureException,
+          AccountResourceInsufficientException, TransactionExpirationException,
+          TooBigTransactionException,DupTransactionException, TaposException,
+          ValidateScheduleException, ReceiptCheckErrException, VMIllegalException,
+          TooBigTransactionResultException, ZksnarkException, BadBlockException {
 
     boolean recordBalance = eventPluginLoaded && EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable();
     accountChangeRecord.startRecord(recordBalance);
@@ -952,6 +967,41 @@ public class Manager {
 
   }
 
+  public List<TransactionCapsule> getVerifyTxs(BlockCapsule block) {
+
+    if (pendingTransactions.size() == 0) {
+      return block.getTransactions();
+    }
+
+    List<TransactionCapsule> txs = new ArrayList<>();
+    Set<String> txIds = new HashSet<>();
+    Set<String> multiAddresses = new HashSet<>();
+
+    pendingTransactions.forEach(capsule -> {
+      String txId = Hex.toHexString(capsule.getTransactionId().getBytes());
+      if (isMultiSignTransaction(capsule.getInstance())) {
+        Contract contract = capsule.getInstance().getRawData().getContract(0);
+        String address = Hex.toHexString(TransactionCapsule.getOwner(contract));
+        multiAddresses.add(address);
+      } else {
+        txIds.add(txId);
+      }
+    });
+
+    block.getTransactions().forEach(capsule -> {
+      Contract contract = capsule.getInstance().getRawData().getContract(0);
+      String address = Hex.toHexString(TransactionCapsule.getOwner(contract));
+      String txId = Hex.toHexString(capsule.getTransactionId().getBytes());
+      if (multiAddresses.contains(address) || !txIds.contains(txId)) {
+        txs.add(capsule);
+      } else {
+        capsule.setVerified(true);
+      }
+    });
+
+    return txs;
+  }
+
   /**
    * save a block.
    */
@@ -963,6 +1013,11 @@ public class Manager {
       BadNumberBlockException, BadBlockException, NonCommonBlockException,
       ReceiptCheckErrException, VMIllegalException, ZksnarkException {
     long start = System.currentTimeMillis();
+    List<TransactionCapsule> txs = getVerifyTxs(block);
+    logger.info("Block num: {}, re-push-size: {}, pending-size: {}, "
+                    + "block-tx-size: {}, verify-tx-size: {}",
+            block.getNum(), rePushTransactions.size(), pendingTransactions.size(),
+            block.getTransactions().size(), txs.size());
     try (PendingManager pm = new PendingManager(this)) {
       if (!block.generatedByMyself) {
         if (!block.validateSignature(chainBaseManager.getDynamicPropertiesStore(),
@@ -1061,7 +1116,7 @@ public class Manager {
           return;
         }
         try (ISession tmpSession = revokingStore.buildSession()) {
-          applyBlock(newBlock);
+          applyBlock(newBlock, txs);
           tmpSession.commit();
           // if event subscribe is enabled, post solidity trigger to queue
           postSolidityTrigger(getDynamicPropertiesStore().getLatestSolidifiedBlockNum());
@@ -1234,6 +1289,9 @@ public class Manager {
     //set the sort order
     trxCap.setOrder(transactionInfo.getFee());
 //    trxCap.setTrxTrace(null);
+//    if (!eventPluginLoaded) {
+//      trxCap.setTrxTrace(null);
+//    }
     return transactionInfo.getInstance();
   }
 
@@ -1399,7 +1457,7 @@ public class Manager {
   /**
    * process block.
    */
-  public void processBlock(BlockCapsule block)
+  private void processBlock(BlockCapsule block, List<TransactionCapsule> txs)
       throws ValidateSignatureException, ContractValidateException, ContractExeException,
       AccountResourceInsufficientException, TaposException, TooBigTransactionException,
       DupTransactionException, TransactionExpirationException, ValidateScheduleException,
@@ -1419,7 +1477,7 @@ public class Manager {
     //parallel check sign
     if (!block.generatedByMyself) {
       try {
-        preValidateTransactionSign(block);
+        preValidateTransactionSign(txs);
       } catch (InterruptedException e) {
         logger.error("parallel check sign interrupted exception! block info: {}", block, e);
         Thread.currentThread().interrupt();
@@ -1628,18 +1686,16 @@ public class Manager {
         > maxTransactionPendingSize;
   }
 
-  public void preValidateTransactionSign(BlockCapsule block)
+  private void preValidateTransactionSign(List<TransactionCapsule> txs)
       throws InterruptedException, ValidateSignatureException {
-    logger.info("PreValidate Transaction Sign, size:" + block.getTransactions().size()
-        + ", block num:" + block.getNum());
-    int transSize = block.getTransactions().size();
+    int transSize = txs.size();
     if (transSize <= 0) {
       return;
     }
     CountDownLatch countDownLatch = new CountDownLatch(transSize);
     List<Future<Boolean>> futures = new ArrayList<>(transSize);
 
-    for (TransactionCapsule transaction : block.getTransactions()) {
+    for (TransactionCapsule transaction : txs) {
       Future<Boolean> future = validateSignService
           .submit(new ValidateSignTask(transaction, countDownLatch, chainBaseManager));
       futures.add(future);
