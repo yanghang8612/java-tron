@@ -841,7 +841,7 @@ public class Manager {
     freezeChangeRecord.startRecord(recordFreeze);
     accountChangeRecord.startRecordFreeze(recordFreeze);
 
-    processBlock(block);
+    processBlock(block, txs);
     chainBaseManager.getBlockStore().put(block.getBlockId().getBytes(), block);
     chainBaseManager.getBlockIndexStore().put(block.getBlockId());
     if (block.getTransactions().size() != 0) {
