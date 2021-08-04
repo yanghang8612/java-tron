@@ -4,11 +4,13 @@ import com.alibaba.fastjson.JSON;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.tron.common.entity.AssetTransferInfo;
 import org.tron.common.entity.AssetTransferLogInfo;
 import org.tron.common.logsfilter.EventPluginLoader;
 import org.tron.common.logsfilter.TRC20Utils;
+import org.tron.common.runtime.InternalTransaction;
 import org.tron.common.runtime.vm.LogInfo;
 import org.tron.common.utils.StringUtil;
 import org.tron.core.capsule.BlockCapsule;
@@ -18,6 +20,7 @@ import org.tron.protos.contract.AssetIssueContractOuterClass;
 import org.tron.protos.contract.BalanceContract;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -48,7 +51,7 @@ public class TransferTrackerCapsule extends TriggerCapsule {
       if (innerList != null && innerList.size() > 0) {
         assetTransferLogInfo.setLogInfoList(innerList);
         assetTransferLogInfo.setTxId(transactionCapsule.getTransactionId().toString());
-        assetTransferLogInfo.setNote(convert(transactionCapsule));
+        assetTransferLogInfo.setNote(convertNote(transactionCapsule));
 
         // 这里只能会得到true
         if (Protocol.Transaction.Result.contractResult.SUCCESS == transactionCapsule.getInstance().getRet(0).getContractRet()) {
@@ -63,7 +66,7 @@ public class TransferTrackerCapsule extends TriggerCapsule {
 
       //transfer record trx/trc10
       handlerTrxTransfer(transactionCapsule, trxAssetTransferInfoList);
-      handlerTrc10Transfer(transactionCapsule, trc10AssetTransferInfoList);
+      handlerTrc10Transfer(transactionCapsule, trxAssetTransferInfoList, trc10AssetTransferInfoList);
 
       //transfer record
       transferTrackerTrigger.setTrxAssetTransferInfoList(trxAssetTransferInfoList);
@@ -80,7 +83,7 @@ public class TransferTrackerCapsule extends TriggerCapsule {
     }
   }
 
-  public String convert(TransactionCapsule transactionCapsule) {
+  public String convertNote(TransactionCapsule transactionCapsule) {
     if (transactionCapsule == null || transactionCapsule.getInstance() == null) {
       return null;
     }
@@ -100,7 +103,9 @@ public class TransferTrackerCapsule extends TriggerCapsule {
     EventPluginLoader.getInstance().postTransferTrigger(transferTrackerTrigger);
   }
 
-  private void handlerTrc10Transfer(TransactionCapsule transactionCapsule, List<AssetTransferInfo> assetTransferInfoList) {
+  private void handlerTrc10Transfer(TransactionCapsule transactionCapsule,
+                                    List<AssetTransferInfo> trxAssetTransferInfoList,
+                                    List<AssetTransferInfo> assetTransferInfoList) {
     try {
 
       boolean isTvm = transactionCapsule.getInstance().getRawData().getContract(0).getType() == Protocol.Transaction.Contract.ContractType.TriggerSmartContract
@@ -115,31 +120,15 @@ public class TransferTrackerCapsule extends TriggerCapsule {
 
       if (isTvm) {
         transactionCapsule.getTrxTrace().getRuntimeResult().getInternalTransactions().forEach(internalTransaction -> {
+          if (internalTransaction.getValue() > 0) {
+            convertInfo("", internalTransaction.getValue(), internalTransaction, transactionCapsule, trxAssetTransferInfoList, assetTransferInfoList);
+          }
 
-          internalTransaction.getTokenInfo().forEach((key, value) -> {
-            AssetTransferInfo assetTransferInfo = new AssetTransferInfo();
-            assetTransferInfo.setFromAddress(StringUtil.encode58Check(internalTransaction.getSender()));
-            assetTransferInfo.setToAddress(StringUtil.encode58Check(internalTransaction.getReceiveAddress()));
-
-            assetTransferInfo.setAmount(String.valueOf(value));
-            assetTransferInfo.setTxId(transactionCapsule.getTransactionId().toString());
-            assetTransferInfo.setNote(convert(transactionCapsule));
-            assetTransferInfo.setTokenAddress(key);
-            if (StringUtils.isEmpty(key) || "0".equals(key)) {
-              assetTransferInfo.setAssetType(0);
-            } else {
-              assetTransferInfo.setAssetType(1);
-            }
-
-            if (Protocol.Transaction.Result.contractResult.SUCCESS == transactionCapsule.getInstance().getRet(0).getContractRet()) {
-              assetTransferInfo.setIsSuccess(true);
-              assetTransferInfoList.add(assetTransferInfo);
-            } else {
-              assetTransferInfo.setIsSuccess(false);
-            }
-
-            logger.info("handlerTrc10Transfer isTvm={}, isTrc10={}, assetTransfer={}", isTvm, isTrc10, JSON.toJSONString(assetTransferInfo));
-          });
+          if (!CollectionUtils.isEmpty(internalTransaction.getTokenInfo())) {
+            internalTransaction.getTokenInfo().forEach((key, value) -> {
+              convertInfo(key, value, internalTransaction, transactionCapsule, trxAssetTransferInfoList, assetTransferInfoList);
+            });
+          }
         });
       } else if (isTrc10) {
         AssetIssueContractOuterClass.TransferAssetContract transferAssetContract = transactionCapsule.getInstance().getRawData().getContract(0).getParameter().unpack(AssetIssueContractOuterClass.TransferAssetContract.class);
@@ -149,7 +138,7 @@ public class TransferTrackerCapsule extends TriggerCapsule {
         assetTransferInfo.setToAddress(StringUtil.encode58Check(transferAssetContract.getToAddress().toByteArray()));
         assetTransferInfo.setAssetType(1);
         assetTransferInfo.setTxId(transactionCapsule.getTransactionId().toString());
-        assetTransferInfo.setNote(convert(transactionCapsule));
+        assetTransferInfo.setNote(convertNote(transactionCapsule));
         assetTransferInfo.setTokenAddress(transferAssetContract.getAssetName().toStringUtf8());
         assetTransferInfo.setIsSuccess(true);
 
@@ -159,6 +148,37 @@ public class TransferTrackerCapsule extends TriggerCapsule {
     }  catch (Exception ex) {
       logger.error("", ex);
     }
+  }
+
+  private void convertInfo(String key, Long value, InternalTransaction internalTransaction,
+                           TransactionCapsule transactionCapsule,
+                           List<AssetTransferInfo> trxAssetTransferInfoList,
+                           List<AssetTransferInfo> assetTransferInfoList) {
+    AssetTransferInfo assetTransferInfo = new AssetTransferInfo();
+    assetTransferInfo.setFromAddress(StringUtil.encode58Check(internalTransaction.getSender()));
+    assetTransferInfo.setToAddress(StringUtil.encode58Check(internalTransaction.getReceiveAddress()));
+
+    assetTransferInfo.setAmount(String.valueOf(value));
+    assetTransferInfo.setTxId(transactionCapsule.getTransactionId().toString());
+    assetTransferInfo.setNote(convertNote(transactionCapsule));
+    assetTransferInfo.setTokenAddress(key);
+    if (StringUtils.isEmpty(key)) {
+      assetTransferInfo.setAssetType(0);
+    } else {
+      assetTransferInfo.setAssetType(1);
+    }
+
+    if (Protocol.Transaction.Result.contractResult.SUCCESS == transactionCapsule.getInstance().getRet(0).getContractRet()) {
+      assetTransferInfo.setIsSuccess(true);
+
+      if (assetTransferInfo.getAssetType() == 0) {
+        trxAssetTransferInfoList.add(assetTransferInfo);
+      } else {
+        assetTransferInfoList.add(assetTransferInfo);
+      }
+    }
+
+    logger.info("handlerTrc10Transfer isTvm={}, isTrc10={}, assetTransfer={}", true, false, JSON.toJSONString(assetTransferInfo));
   }
 
   private void handlerTrxTransfer(TransactionCapsule transactionCapsule, List<AssetTransferInfo> assetTransferInfoList) {
@@ -176,7 +196,7 @@ public class TransferTrackerCapsule extends TriggerCapsule {
       assetTransferInfo.setAssetType(0);
       assetTransferInfo.setAmount(String.valueOf(transferContract.getAmount()));
       assetTransferInfo.setTxId(transactionCapsule.getTransactionId().toString());
-      assetTransferInfo.setNote(convert(transactionCapsule));
+      assetTransferInfo.setNote(convertNote(transactionCapsule));
 
       //trx失败不上链
       assetTransferInfo.setIsSuccess(true);
