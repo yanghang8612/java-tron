@@ -206,18 +206,9 @@ public class TRC20Utils {
     List<BalanceTrackerTrigger.Trc721Info> result = new LinkedList<>();
     trc721InfoMap.forEach((tokenAddress, map) -> {
       map.forEach((assetId, list) -> {
-        if (CollectionUtils.isEmpty(list)) {
+        BalanceTrackerTrigger.Trc721Info info = mergeTrc721(list);
+        if (info == null) {
           return;
-        }
-
-        BalanceTrackerTrigger.Trc721Info info = null;
-        if (list.size() == 1) {
-          info = list.get(0);
-        } else {
-          info = mergeTrc721(list);
-          if (info == null) {
-            return;
-          }
         }
 
         triggerTrc721(info, block);
@@ -234,36 +225,67 @@ public class TRC20Utils {
   }
 
   private static BalanceTrackerTrigger.Trc721Info mergeTrc721(List<BalanceTrackerTrigger.Trc721Info> list) {
-    Set<String> fromSet = new HashSet<>();
-    Set<String> toSet = new HashSet<>();
+    if (CollectionUtils.isEmpty(list)) {
+      return null;
+    }
+
+    if (list.size() == 1) {
+      return list.get(0);
+    }
+
+    return findFromAndToAddress(list);
+  }
+
+  private static BalanceTrackerTrigger.Trc721Info findFromAndToAddress(List<BalanceTrackerTrigger.Trc721Info> list) {
+    final BalanceTrackerTrigger.Trc721Info info = list.get(0);
+
+    List<String> fromList = new LinkedList<>();
+    List<String> toList = new LinkedList<>();
 
     list.forEach(item -> {
-      fromSet.add(item.getFromAccountAddress());
-      toSet.add(item.getToAccountAddress());
+      final boolean remove = toList.remove(item.getFromAccountAddress());
+      toList.add(item.getToAccountAddress());
+
+      if (!remove) {
+        fromList.add(item.getFromAccountAddress());
+      } else {
+        fromList.remove(item.getToAccountAddress());
+      }
     });
 
-    final BalanceTrackerTrigger.Trc721Info info = list.get(0);
-    final HashSet<String> copyFrom = new HashSet<>(fromSet);
-    fromSet.removeAll(toSet);
+    if (toList.size() == 1 && fromList.size() == 1) {
+      info.setToAccountAddress(toList.get(0));
+      info.setFromAccountAddress(fromList.get(0));
+      return info;
+    }
 
-    if (fromSet.size() == 1) {
-      info.setFromAccountAddress(fromSet.iterator().next());
-    } else {
-      logger.error(" >>>> trc721 merge data error!!! {}", list);
+    final Iterator<String> iterator = fromList.iterator();
+    while (iterator.hasNext()) {
+      final String next = iterator.next();
+      final boolean remove = toList.remove(next);
+
+      if (remove) {
+        iterator.remove();
+      }
+    }
+
+    if (CollectionUtils.isEmpty(toList) || CollectionUtils.isEmpty(fromList)) {
       return null;
     }
 
-    toSet.removeAll(copyFrom);
-
-    if (toSet.size() == 1) {
-      info.setToAccountAddress(toSet.iterator().next());
-    } else {
-      logger.error(" >>>> trc721 merge data error!!! {}", list);
-      return null;
+    if (toList.size() != 1) {
+      logger.error(" >>> data error, list:{}", list);
     }
 
-    return info;
+    if (toList.size() == 1) {
+      info.setToAccountAddress(toList.get(0));
+      info.setFromAccountAddress(fromList.get(0));
+      return info;
+    }
+
+    return null;
   }
+
 
   private static List<AssetStatusPojo> handlerTrc20Asset(BlockCapsule block, Map<String, BigInteger> trc20IncrementMap,
                                                          Map<String, BigInteger> balanceMap, Map<String, BigInteger> decimalMap,
