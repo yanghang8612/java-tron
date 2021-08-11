@@ -14,19 +14,8 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.protobuf.ByteString;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -47,22 +36,14 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
-import org.spongycastle.util.encoders.Hex;
+import org.bouncycastle.util.encoders.Hex;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.tron.common.application.ApplicationHandler;
 import org.tron.common.args.GenesisBlock;
 import org.tron.common.logsfilter.EventPluginLoader;
 import org.tron.common.logsfilter.FilterQuery;
-import org.tron.common.logsfilter.capsule.BalanceTrackerCapsule;
-import org.tron.common.logsfilter.capsule.BlockErasedTriggerCapsule;
-import org.tron.common.logsfilter.capsule.BlockLogTriggerCapsule;
-import org.tron.common.logsfilter.capsule.ContractTriggerCapsule;
-import org.tron.common.logsfilter.capsule.ShieldedTRC20SolidityTrackerCapsule;
-import org.tron.common.logsfilter.capsule.ShieldedTRC20TrackerCapsule;
-import org.tron.common.logsfilter.capsule.SolidityTriggerCapsule;
-import org.tron.common.logsfilter.capsule.TransactionLogTriggerCapsule;
-import org.tron.common.logsfilter.capsule.TriggerCapsule;
+import org.tron.common.logsfilter.capsule.*;
 import org.tron.common.logsfilter.trigger.ContractEventTrigger;
 import org.tron.common.logsfilter.trigger.ContractLogTrigger;
 import org.tron.common.logsfilter.trigger.ContractTrigger;
@@ -102,9 +83,12 @@ import org.tron.core.config.args.Args;
 import org.tron.core.consensus.ProposalController;
 import org.tron.core.db.KhaosDatabase.KhaosBlock;
 import org.tron.core.db.accountchange.AccountChangeRecord;
+import org.tron.common.application.ApplicationHandler;
+import org.tron.core.db.accountchange.FreezeChangeRecord;
 import org.tron.core.db.accountstate.TrieService;
 import org.tron.core.db.accountstate.callback.AccountStateCallBack;
 import org.tron.core.db.api.AssetUpdateHelper;
+import org.tron.core.db.api.MoveAbiHelper;
 import org.tron.core.db2.ISession;
 import org.tron.core.db2.core.Chainbase;
 import org.tron.core.db2.core.ITronChainBase;
@@ -133,6 +117,7 @@ import org.tron.core.exception.ZksnarkException;
 import org.tron.core.metrics.MetricsKey;
 import org.tron.core.metrics.MetricsUtil;
 import org.tron.core.service.MortgageService;
+import org.tron.core.store.AccountAssetStore;
 import org.tron.core.store.AccountIdIndexStore;
 import org.tron.core.store.AccountIndexStore;
 import org.tron.core.store.AccountStore;
@@ -170,7 +155,6 @@ import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
 @Slf4j(topic = "DB")
 @Component
 public class Manager {
-
 
   private static final int SHIELDED_TRANS_IN_BLOCK_COUNTS = 1;
   private static final String SAVE_BLOCK = "save block: ";
@@ -218,6 +202,8 @@ public class Manager {
   @Autowired
   private AccountChangeRecord accountChangeRecord;
   @Autowired
+  private FreezeChangeRecord freezeChangeRecord;
+  @Autowired
   private TrieService trieService;
   private Set<String> ownerAddressSet = new HashSet<>();
   @Getter
@@ -249,15 +235,15 @@ public class Manager {
           TransactionCapsule tx = null;
           try {
             tx = getRePushTransactions().peek();
-            if (tx != null && System.currentTimeMillis() - tx.getTime() >= Args.getInstance()
-                .getPendingTransactionTimeout()) {
-              logger.warn("[timeout] remove tx from rePush, txId:{}", tx.getTransactionId());
-            } else if (tx != null) {
+            if (tx != null) {
               this.rePush(tx);
             } else {
               TimeUnit.MILLISECONDS.sleep(SLEEP_TIME_OUT);
             }
           } catch (Throwable ex) {
+            if (ex instanceof InterruptedException) {
+              Thread.currentThread().interrupt();
+            }
             logger.error("unknown exception happened in rePush loop", ex);
           } finally {
             if (tx != null) {
@@ -289,6 +275,10 @@ public class Manager {
 
   public boolean needToUpdateAsset() {
     return getDynamicPropertiesStore().getTokenUpdateDone() == 0L;
+  }
+
+  public boolean needToMoveAbi() {
+    return getDynamicPropertiesStore().getAbiMoveDone() == 0L;
   }
 
   public DynamicPropertiesStore getDynamicPropertiesStore() {
@@ -394,7 +384,7 @@ public class Manager {
     this.triggerCapsuleQueue = new LinkedBlockingQueue<>();
     chainBaseManager.setMerkleContainer(getMerkleContainer());
     chainBaseManager.setMortgageService(mortgageService);
-
+    chainBaseManager.init();
     this.initGenesis();
     try {
       this.khaosDb.start(chainBaseManager.getBlockById(
@@ -421,10 +411,15 @@ public class Manager {
       new AssetUpdateHelper(chainBaseManager).doWork();
     }
 
+    if (needToMoveAbi()) {
+      new MoveAbiHelper(chainBaseManager).doWork();
+    }
+
+
     //for test only
     chainBaseManager.getDynamicPropertiesStore().updateDynamicStoreByConfig();
 
-    initCacheTxs();
+    // initCacheTxs();
     revokingStore.enable();
     validateSignService = Executors
         .newFixedThreadPool(Args.getInstance().getValidateSignThreadNum());
@@ -630,6 +625,10 @@ public class Manager {
     return chainBaseManager.getAccountStore();
   }
 
+  public AccountAssetStore getAccountAssetStore() {
+    return chainBaseManager.getAccountAssetStore();
+  }
+
   public AccountIndexStore getAccountIndexStore() {
     return chainBaseManager.getAccountIndexStore();
   }
@@ -733,6 +732,7 @@ public class Manager {
 
         try (ISession tmpSession = revokingStore.buildSession()) {
           processTransaction(trx, null);
+//          trx.setTrxTrace(null);
           pendingTransactions.add(trx);
           tmpSession.merge();
         }
@@ -819,16 +819,29 @@ public class Manager {
   }
 
   private void applyBlock(BlockCapsule block) throws ContractValidateException,
-      ContractExeException, ValidateSignatureException, AccountResourceInsufficientException,
-      TransactionExpirationException, TooBigTransactionException, DupTransactionException,
-      TaposException, ValidateScheduleException, ReceiptCheckErrException,
-      VMIllegalException, TooBigTransactionResultException, ZksnarkException, BadBlockException {
+          ContractExeException, ValidateSignatureException, AccountResourceInsufficientException,
+          TransactionExpirationException, TooBigTransactionException, DupTransactionException,
+          TaposException, ValidateScheduleException, ReceiptCheckErrException,
+          VMIllegalException, TooBigTransactionResultException,
+          ZksnarkException, BadBlockException {
+    applyBlock(block, block.getTransactions());
+  }
 
-    boolean record =
-        eventPluginLoaded && EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable();
-    accountChangeRecord.startRecord(record);
+  private void applyBlock(BlockCapsule block, List<TransactionCapsule> txs)
+          throws ContractValidateException, ContractExeException, ValidateSignatureException,
+          AccountResourceInsufficientException, TransactionExpirationException,
+          TooBigTransactionException,DupTransactionException, TaposException,
+          ValidateScheduleException, ReceiptCheckErrException, VMIllegalException,
+          TooBigTransactionResultException, ZksnarkException, BadBlockException {
 
-    processBlock(block);
+    boolean recordBalance = eventPluginLoaded && EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable();
+    accountChangeRecord.startRecord(recordBalance);
+    boolean recordFreeze = eventPluginLoaded && EventPluginLoader.getInstance().isFreezeBalanceTriggerEnable();
+    freezeChangeRecord.startRecord(recordFreeze);
+    accountChangeRecord.startRecordFreeze(recordFreeze);
+
+    processBlock(block, txs);
+
     chainBaseManager.getBlockStore().put(block.getBlockId().getBytes(), block);
     chainBaseManager.getBlockIndexStore().put(block.getBlockId());
     if (block.getTransactions().size() != 0) {
@@ -954,6 +967,41 @@ public class Manager {
 
   }
 
+  public List<TransactionCapsule> getVerifyTxs(BlockCapsule block) {
+
+    if (pendingTransactions.size() == 0) {
+      return block.getTransactions();
+    }
+
+    List<TransactionCapsule> txs = new ArrayList<>();
+    Set<String> txIds = new HashSet<>();
+    Set<String> multiAddresses = new HashSet<>();
+
+    pendingTransactions.forEach(capsule -> {
+      String txId = Hex.toHexString(capsule.getTransactionId().getBytes());
+      if (isMultiSignTransaction(capsule.getInstance())) {
+        Contract contract = capsule.getInstance().getRawData().getContract(0);
+        String address = Hex.toHexString(TransactionCapsule.getOwner(contract));
+        multiAddresses.add(address);
+      } else {
+        txIds.add(txId);
+      }
+    });
+
+    block.getTransactions().forEach(capsule -> {
+      Contract contract = capsule.getInstance().getRawData().getContract(0);
+      String address = Hex.toHexString(TransactionCapsule.getOwner(contract));
+      String txId = Hex.toHexString(capsule.getTransactionId().getBytes());
+      if (multiAddresses.contains(address) || !txIds.contains(txId)) {
+        txs.add(capsule);
+      } else {
+        capsule.setVerified(true);
+      }
+    });
+
+    return txs;
+  }
+
   /**
    * save a block.
    */
@@ -965,6 +1013,11 @@ public class Manager {
       BadNumberBlockException, BadBlockException, NonCommonBlockException,
       ReceiptCheckErrException, VMIllegalException, ZksnarkException {
     long start = System.currentTimeMillis();
+    List<TransactionCapsule> txs = getVerifyTxs(block);
+    logger.info("Block num: {}, re-push-size: {}, pending-size: {}, "
+                    + "block-tx-size: {}, verify-tx-size: {}",
+            block.getNum(), rePushTransactions.size(), pendingTransactions.size(),
+            block.getTransactions().size(), txs.size());
     try (PendingManager pm = new PendingManager(this)) {
       if (!block.generatedByMyself) {
         if (!block.validateSignature(chainBaseManager.getDynamicPropertiesStore(),
@@ -1063,7 +1116,8 @@ public class Manager {
           return;
         }
         try (ISession tmpSession = revokingStore.buildSession()) {
-          applyBlock(newBlock);
+
+          applyBlock(newBlock, txs);
           tmpSession.commit();
           // if event subscribe is enabled, post solidity trigger to queue
           postSolidityTrigger(getDynamicPropertiesStore().getLatestSolidifiedBlockNum());
@@ -1236,6 +1290,9 @@ public class Manager {
     //set the sort order
     trxCap.setOrder(transactionInfo.getFee());
 //    trxCap.setTrxTrace(null);
+//    if (!eventPluginLoaded) {
+//      trxCap.setTrxTrace(null);
+//    }
     return transactionInfo.getInstance();
   }
 
@@ -1401,7 +1458,7 @@ public class Manager {
   /**
    * process block.
    */
-  public void processBlock(BlockCapsule block)
+  private void processBlock(BlockCapsule block, List<TransactionCapsule> txs)
       throws ValidateSignatureException, ContractValidateException, ContractExeException,
       AccountResourceInsufficientException, TaposException, TooBigTransactionException,
       DupTransactionException, TransactionExpirationException, ValidateScheduleException,
@@ -1421,7 +1478,7 @@ public class Manager {
     //parallel check sign
     if (!block.generatedByMyself) {
       try {
-        preValidateTransactionSign(block);
+        preValidateTransactionSign(txs);
       } catch (InterruptedException e) {
         logger.error("parallel check sign interrupted exception! block info: {}", block, e);
         Thread.currentThread().interrupt();
@@ -1630,18 +1687,16 @@ public class Manager {
         > maxTransactionPendingSize;
   }
 
-  public void preValidateTransactionSign(BlockCapsule block)
+  private void preValidateTransactionSign(List<TransactionCapsule> txs)
       throws InterruptedException, ValidateSignatureException {
-    logger.info("PreValidate Transaction Sign, size:" + block.getTransactions().size()
-        + ", block num:" + block.getNum());
-    int transSize = block.getTransactions().size();
+    int transSize = txs.size();
     if (transSize <= 0) {
       return;
     }
     CountDownLatch countDownLatch = new CountDownLatch(transSize);
     List<Future<Boolean>> futures = new ArrayList<>(transSize);
 
-    for (TransactionCapsule transaction : block.getTransactions()) {
+    for (TransactionCapsule transaction : txs) {
       Future<Boolean> future = validateSignService
           .submit(new ValidateSignTask(transaction, countDownLatch, chainBaseManager));
       futures.add(future);
@@ -1743,8 +1798,11 @@ public class Manager {
   }
 
   private void postBalanceTrigger(BlockCapsule blockCapsule) {
-    if (eventPluginLoaded &&
-        EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable()) {
+    if (!eventPluginLoaded) {
+      return;
+    }
+
+    if (EventPluginLoader.getInstance().isBalanceTrackerTriggerEnable()) {
       BalanceTrackerCapsule balanceTrackerCapsule = new BalanceTrackerCapsule(blockCapsule,
           accountChangeRecord.getTempAccountMap());
       if (balanceTrackerCapsule.getTrc20TrackerTrigger() != null) {
@@ -1752,8 +1810,17 @@ public class Manager {
         accountChangeRecord.clear();
       }
     }
-    if (eventPluginLoaded &&
-        EventPluginLoader.getInstance().isShieldedTRC20TrackerTriggerEnable()) {
+
+    if (EventPluginLoader.getInstance().isFreezeBalanceTriggerEnable()) {
+      FreezeTrackerCapsule balanceTrackerCapsule = new FreezeTrackerCapsule(blockCapsule, freezeChangeRecord.getTempFreezeMap(), accountChangeRecord.getTempFreezeMap());
+      if (balanceTrackerCapsule.getFreezeBalanceTrigger() != null) {
+        balanceTrackerCapsule.processTrigger();
+        freezeChangeRecord.clear();
+        accountChangeRecord.clearFreeze();
+      }
+    }
+
+    if (EventPluginLoader.getInstance().isShieldedTRC20TrackerTriggerEnable()) {
       ShieldedTRC20TrackerCapsule shieldedTRC20TrackerCapsule = new ShieldedTRC20TrackerCapsule(
           blockCapsule, getTransactionPojos(blockCapsule));
       shieldedTRC20TrackerCapsule.processTrigger();

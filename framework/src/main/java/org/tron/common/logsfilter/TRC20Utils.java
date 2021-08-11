@@ -7,7 +7,7 @@ import java.math.BigInteger;
 import java.util.*;
 
 import lombok.extern.slf4j.Slf4j;
-import org.spongycastle.util.encoders.Hex;
+import org.bouncycastle.util.encoders.Hex;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger;
