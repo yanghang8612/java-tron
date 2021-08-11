@@ -94,7 +94,6 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
       }
     }
 
-    AccountCapsule oldAccount = get(key);
     if (AssetUtil.isAllowAssetOptimization()) {
       Account account = item.getInstance();
       AccountAsset accountAsset = AssetUtil.getAsset(account);
@@ -106,6 +105,7 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
         item.setInstance(account);
       }
     }
+    AccountCapsule oldAccount = get(key);
     super.put(key, item);
     accountStateCallBackUtils.accountCallBack(key, item);
 
@@ -131,7 +131,6 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
         accountTraceStore.recordBalanceWithBlock(key, blockId.getNum(), 0);
       }
     }
-
 
     final AccountCapsule oldAccount = get(key);
 

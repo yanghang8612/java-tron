@@ -156,7 +156,6 @@ import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
 @Component
 public class Manager {
 
-
   private static final int SHIELDED_TRANS_IN_BLOCK_COUNTS = 1;
   private static final String SAVE_BLOCK = "save block: ";
   private static final int SLEEP_TIME_OUT = 50;
@@ -842,6 +841,7 @@ public class Manager {
     accountChangeRecord.startRecordFreeze(recordFreeze);
 
     processBlock(block, txs);
+
     chainBaseManager.getBlockStore().put(block.getBlockId().getBytes(), block);
     chainBaseManager.getBlockIndexStore().put(block.getBlockId());
     if (block.getTransactions().size() != 0) {
@@ -1116,6 +1116,7 @@ public class Manager {
           return;
         }
         try (ISession tmpSession = revokingStore.buildSession()) {
+
           applyBlock(newBlock, txs);
           tmpSession.commit();
           // if event subscribe is enabled, post solidity trigger to queue
