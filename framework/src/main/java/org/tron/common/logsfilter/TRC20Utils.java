@@ -10,6 +10,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.util.encoders.Hex;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
+import org.tron.common.entity.AssetTransferInfo;
+import org.tron.common.entity.AssetTransferLogInfo;
 import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger;
 import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger.AssetStatusPojo;
 import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger.ConcernTopics;
@@ -35,6 +37,7 @@ public class TRC20Utils {
 
   static VMActuator vmActuator = new VMActuator(true);
   static final String WTRXAddress = "TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR";
+
 
   public static BigInteger getTRC20Decimal(String contractAddress, BlockCapsule baseBlockCap) {
     byte[] data = Hex.decode("313ce567");
@@ -149,6 +152,8 @@ public class TRC20Utils {
 
   public static final String TRC20 = "trc20";
   public static final String TRC721 = "trc721";
+  public static final String TRC20_TRANSFER = "trc20Transfer";
+  public static final String TRC721_TRANSFER = "trc721Transfer";
 
   public static Map<String, Object> parseTrc20AssetStatusPojo(BlockCapsule block, List<LogInfo> logInfos) {
     Set<String> trc20Tokens = new HashSet<>();
@@ -172,6 +177,26 @@ public class TRC20Utils {
     return result;
   }
 
+  public static Map<String, Object> parseTrc20Transfer(List<AssetTransferLogInfo> assetTransferLogInfos) {
+    List<AssetTransferInfo> trc20AssetTransferInfoList = new ArrayList<>();
+    List<AssetTransferInfo> trc721AssetTransferInfoList = new ArrayList<>();
+    handlerTransferLogs(assetTransferLogInfos, trc20AssetTransferInfoList, trc721AssetTransferInfoList);
+
+    Map<String, Object> result = new HashMap<>();
+    result.put(TRC20_TRANSFER, trc20AssetTransferInfoList);
+    result.put(TRC721_TRANSFER, trc721AssetTransferInfoList);
+
+    if (!CollectionUtils.isEmpty(trc20AssetTransferInfoList)) {
+      logger.info(" >>>> trc20AssetTransferList:{}", trc20AssetTransferInfoList);
+    }
+
+    if (!CollectionUtils.isEmpty(trc721AssetTransferInfoList)) {
+      logger.info(" >>>> trc721AssetTransferList:{}", trc721AssetTransferInfoList);
+    }
+
+    return result;
+  }
+
   private static List<BalanceTrackerTrigger.Trc721Info> handlerTrc721(Map<String, Map<String, List<BalanceTrackerTrigger.Trc721Info>>> trc721InfoMap,
                                                                       BlockCapsule block) {
     if (CollectionUtils.isEmpty(trc721InfoMap)) {
@@ -181,18 +206,9 @@ public class TRC20Utils {
     List<BalanceTrackerTrigger.Trc721Info> result = new LinkedList<>();
     trc721InfoMap.forEach((tokenAddress, map) -> {
       map.forEach((assetId, list) -> {
-        if (CollectionUtils.isEmpty(list)) {
+        BalanceTrackerTrigger.Trc721Info info = mergeTrc721(list);
+        if (info == null) {
           return;
-        }
-
-        BalanceTrackerTrigger.Trc721Info info = null;
-        if (list.size() == 1) {
-          info = list.get(0);
-        } else {
-          info = mergeTrc721(list);
-          if (info == null) {
-            return;
-          }
         }
 
         triggerTrc721(info, block);
@@ -209,36 +225,67 @@ public class TRC20Utils {
   }
 
   private static BalanceTrackerTrigger.Trc721Info mergeTrc721(List<BalanceTrackerTrigger.Trc721Info> list) {
-    Set<String> fromSet = new HashSet<>();
-    Set<String> toSet = new HashSet<>();
+    if (CollectionUtils.isEmpty(list)) {
+      return null;
+    }
+
+    if (list.size() == 1) {
+      return list.get(0);
+    }
+
+    return findFromAndToAddress(list);
+  }
+
+  private static BalanceTrackerTrigger.Trc721Info findFromAndToAddress(List<BalanceTrackerTrigger.Trc721Info> list) {
+    final BalanceTrackerTrigger.Trc721Info info = list.get(0);
+
+    List<String> fromList = new LinkedList<>();
+    List<String> toList = new LinkedList<>();
 
     list.forEach(item -> {
-      fromSet.add(item.getFromAccountAddress());
-      toSet.add(item.getToAccountAddress());
+      final boolean remove = toList.remove(item.getFromAccountAddress());
+      toList.add(item.getToAccountAddress());
+
+      if (!remove) {
+        fromList.add(item.getFromAccountAddress());
+      } else {
+        fromList.remove(item.getToAccountAddress());
+      }
     });
 
-    final BalanceTrackerTrigger.Trc721Info info = list.get(0);
-    final HashSet<String> copyFrom = new HashSet<>(fromSet);
-    fromSet.removeAll(toSet);
+    if (toList.size() == 1 && fromList.size() == 1) {
+      info.setToAccountAddress(toList.get(0));
+      info.setFromAccountAddress(fromList.get(0));
+      return info;
+    }
 
-    if (fromSet.size() == 1) {
-      info.setFromAccountAddress(fromSet.iterator().next());
-    } else {
-      logger.error(" >>>> trc721 merge data error!!! {}", list);
+    final Iterator<String> iterator = fromList.iterator();
+    while (iterator.hasNext()) {
+      final String next = iterator.next();
+      final boolean remove = toList.remove(next);
+
+      if (remove) {
+        iterator.remove();
+      }
+    }
+
+    if (CollectionUtils.isEmpty(toList) || CollectionUtils.isEmpty(fromList)) {
       return null;
     }
 
-    toSet.removeAll(copyFrom);
-
-    if (toSet.size() == 1) {
-      info.setToAccountAddress(toSet.iterator().next());
-    } else {
-      logger.error(" >>>> trc721 merge data error!!! {}", list);
-      return null;
+    if (toList.size() != 1) {
+      logger.error(" >>> data error, list:{}", list);
     }
 
-    return info;
+    if (toList.size() == 1) {
+      info.setToAccountAddress(toList.get(0));
+      info.setFromAccountAddress(fromList.get(0));
+      return info;
+    }
+
+    return null;
   }
+
 
   private static List<AssetStatusPojo> handlerTrc20Asset(BlockCapsule block, Map<String, BigInteger> trc20IncrementMap,
                                                          Map<String, BigInteger> balanceMap, Map<String, BigInteger> decimalMap,
@@ -353,6 +400,111 @@ public class TRC20Utils {
     }
   }
 
+  private static void handlerTransferLogs(List<AssetTransferLogInfo> assetTransferLogInfos,
+                                  List<AssetTransferInfo> trc20AssetTransferInfoList,
+                                  List<AssetTransferInfo> trc721AssetTransferInfoList) {
+    for (AssetTransferLogInfo item : assetTransferLogInfos) {
+      List<LogInfo> logInfoList = item.getLogInfoList();
+      if (CollectionUtils.isEmpty(logInfoList)) {
+        continue;
+      }
+
+      for (LogInfo logInfo : logInfoList) {
+        List<String> topics = logInfo.getHexTopics();
+        if (CollectionUtils.isEmpty(topics)) {
+          continue;
+        }
+
+        String tokenAddress = convertAddress(logInfo.getAddress());
+
+        AssetTransferInfo assetTransferInfo = new AssetTransferInfo();
+        assetTransferInfo.setTokenAddress(tokenAddress);
+        assetTransferInfo.setTxId(item.getTxId());
+        assetTransferInfo.setNote(item.getNote());
+        assetTransferInfo.setIsSuccess(item.getIsSuccess());
+
+        switch (ConcernTopics.getBySH(topics.get(0))) {
+          case TRANSFER:
+            if (topics.size() < 3) {
+              continue;
+            }
+
+            //TransferCase : decrease sender, increase receiver
+            String senderAddr = convertAddress(logInfo.getTopics().get(1).getLast20Bytes());
+            String recAddr = convertAddress(logInfo.getTopics().get(2).getLast20Bytes());
+
+            assetTransferInfo.setFromAddress(senderAddr);
+            assetTransferInfo.setToAddress(recAddr);
+
+            if (topics.size() == 3) {
+              // 是trc20
+              BigInteger increment = hexStrToBigInteger(logInfo.getHexData());
+              if (increment == null) {
+                continue;
+              }
+
+              assetTransferInfo.setAssetType(2);
+              assetTransferInfo.setAmount(String.valueOf(increment));
+              trc20AssetTransferInfoList.add(assetTransferInfo);
+            } else if(topics.size() == 4) {
+              // 是trc721
+              final byte[] data = logInfo.getTopics().get(3).getData();
+              logger.info(" handlerTransferLogs trc721 data: {} ", Arrays.toString(data));
+              String assetId = new BigInteger(1, data).toString();
+              logger.info(" handlerTransferLogs trc721 {} , {}, {}, {}", tokenAddress, senderAddr, recAddr, assetId);
+
+              assetTransferInfo.setAssetType(3);
+              assetTransferInfo.setAmount("1");
+              assetTransferInfo.setAssetId(assetId);
+              trc721AssetTransferInfoList.add(assetTransferInfo);
+            }
+
+            break;
+          case Deposit:
+            if (!tokenAddress.equals(WTRXAddress) || topics.size() < 2) {
+              continue;
+            }
+            // 是trc20
+            BigInteger increment = hexStrToBigInteger(logInfo.getHexData());
+            if (increment == null) {
+              continue;
+            }
+            //DepositCase : increase receiver
+            recAddr = convertAddress(logInfo.getTopics().get(1).getLast20Bytes());
+
+            assetTransferInfo.setFromAddress("");
+            assetTransferInfo.setToAddress(recAddr);
+            assetTransferInfo.setTokenAddress(tokenAddress);
+            assetTransferInfo.setAmount(String.valueOf(increment));
+            assetTransferInfo.setAssetType(2);
+            trc20AssetTransferInfoList.add(assetTransferInfo);
+            break;
+          case Withdrawal:
+            if (!tokenAddress.equals(WTRXAddress) || topics.size() < 2) {
+              continue;
+            }
+            // 是trc20
+            increment = hexStrToBigInteger(logInfo.getHexData());
+            if (increment == null) {
+              continue;
+            }
+            //WithdrawalCase : decrease sender
+            senderAddr = convertAddress(logInfo.getTopics().get(1).getLast20Bytes());
+
+            assetTransferInfo.setFromAddress(senderAddr);
+            assetTransferInfo.setToAddress("");
+            assetTransferInfo.setTokenAddress(tokenAddress);
+            assetTransferInfo.setAmount(String.valueOf(increment));
+            assetTransferInfo.setAssetType(2);
+            trc20AssetTransferInfoList.add(assetTransferInfo);
+            break;
+          default:
+            continue;
+        }
+      }
+    }
+  }
+
   private static String convertAddress(byte[] data) {
     return StringUtil.encode58Check(TransactionTrace.convertToTronAddress(data));
   }
@@ -388,7 +540,8 @@ public class TRC20Utils {
     if (bigInteger != null) {
       return bigInteger.toString();
     }
-    return null;
+
+    return "0";
   }
 
   private static void adjustIncrement(Map<String, BigInteger> incrementMap, String address,

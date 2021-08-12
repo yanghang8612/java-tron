@@ -2,6 +2,12 @@ package org.tron.core.store;
 
 import com.google.protobuf.ByteString;
 import com.typesafe.config.ConfigObject;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.OptionalLong;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,11 +27,6 @@ import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.AccountAsset;
 import org.tron.protos.contract.BalanceContract.TransactionBalanceTrace;
 import org.tron.protos.contract.BalanceContract.TransactionBalanceTrace.Operation;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.OptionalLong;
 
 @Slf4j(topic = "DB")
 @Component

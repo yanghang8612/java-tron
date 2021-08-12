@@ -16,6 +16,7 @@ import org.pf4j.DefaultPluginManager;
 import org.pf4j.ManifestPluginDescriptorFinder;
 import org.pf4j.PluginManager;
 import org.springframework.util.StringUtils;
+import org.tron.common.logsfilter.capsule.TransferTrackerTrigger;
 import org.tron.common.logsfilter.nativequeue.NativeMessageQueue;
 import org.tron.common.logsfilter.trigger.*;
 import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger;
@@ -52,6 +53,8 @@ public class EventPluginLoader {
   private boolean solidityTriggerEnable = false;
 
   private boolean balanceTrackerTriggerEnable = false;
+
+  private boolean transferTrackerTriggerEnable = false;
 
   private boolean freezeBalanceTriggerEnable = false;
 
@@ -353,6 +356,14 @@ public class EventPluginLoader {
       if (!useNativeQueue) {
         setPluginTopic(Trigger.TRC20TRACKER_TRIGGER, triggerConfig.getTopic());
       }
+    } else if (EventPluginConfig.TRANSFER_TRACKER
+        .equalsIgnoreCase(triggerConfig.getTriggerName())) {
+      if (triggerConfig.isEnabled()) {
+        transferTrackerTriggerEnable = true;
+      }
+      if (!useNativeQueue) {
+        setPluginTopic(Trigger.TRANSFER_TRACKER_TRIGGER, triggerConfig.getTopic());
+      }
     } else if (EventPluginConfig.FREEZE_BALANCE_TRACKER
         .equalsIgnoreCase(triggerConfig.getTriggerName())) {
       if (triggerConfig.isEnabled()) {
@@ -424,6 +435,10 @@ public class EventPluginLoader {
 
   public synchronized boolean isBalanceTrackerTriggerEnable() {
     return balanceTrackerTriggerEnable;
+  }
+
+  public synchronized boolean isTransferTrackerTriggerEnable() {
+    return transferTrackerTriggerEnable;
   }
 
   public synchronized boolean isFreezeBalanceTriggerEnable() {
@@ -601,6 +616,16 @@ public class EventPluginLoader {
     } else {
       eventListeners.forEach(listener ->
           listener.handleShieldedTRC20Event(toJsonString(trigger)));
+    }
+  }
+
+  public void postTransferTrigger(TransferTrackerTrigger trigger) {
+    if (useNativeQueue) {
+      NativeMessageQueue.getInstance()
+          .publishTrigger(toJsonString(trigger), trigger.getTriggerName());
+    } else {
+      eventListeners.forEach(listener ->
+          listener.handleTransferEvent(toJsonString(trigger)));
     }
   }
 

@@ -21,6 +21,7 @@ public class EventPluginConfig {
   public static final String BLOCK_ERASE_TRIGGER_NAME = "blockErased";
   public static final String SHIELDED_TRC20_SOLIDITY_TRACKER = "shieldedTRC20SolidityTracker";
   public static final String SHIELDED_TRC20_TRACKER = "shieldedTRC20Tracker";
+  public static final String TRANSFER_TRACKER = "transferTracker";
 
 
   @Getter
