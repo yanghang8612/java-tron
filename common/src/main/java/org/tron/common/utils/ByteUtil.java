@@ -444,5 +444,4 @@ public class ByteUtil {
     byte[] zeroBytes = new byte[24];
     return ByteUtil.merge(zeroBytes, longBytes);
   }
-  
 }
