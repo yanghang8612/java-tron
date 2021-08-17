@@ -178,7 +178,7 @@ public class TransferTrackerCapsule extends TriggerCapsule {
       }
 
       if (callTokenValue > 0) {
-        convertInfo(String.valueOf(tokenId), callValue, from, to, txid, note, trxAssetTransferInfoList, assetTransferInfoList);
+        convertInfo(String.valueOf(tokenId), callTokenValue, from, to, txid, note, trxAssetTransferInfoList, assetTransferInfoList);
       }
     } catch (Exception ex) {
       logger.error("", ex);
@@ -211,7 +211,7 @@ public class TransferTrackerCapsule extends TriggerCapsule {
       }
 
       if (callTokenValue > 0) {
-        convertInfo(String.valueOf(tokenId), callValue, from, to, txid, note, trxAssetTransferInfoList, assetTransferInfoList);
+        convertInfo(String.valueOf(tokenId), callTokenValue, from, to, txid, note, trxAssetTransferInfoList, assetTransferInfoList);
       }
     } catch (Exception ex) {
       logger.error("", ex);
