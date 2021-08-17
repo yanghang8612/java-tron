@@ -18,9 +18,9 @@ import org.tron.core.capsule.TransactionCapsule;
 import org.tron.protos.Protocol;
 import org.tron.protos.contract.AssetIssueContractOuterClass;
 import org.tron.protos.contract.BalanceContract;
+import org.tron.protos.contract.SmartContractOuterClass;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -105,18 +105,22 @@ public class TransferTrackerCapsule extends TriggerCapsule {
                                     List<AssetTransferInfo> trxAssetTransferInfoList,
                                     List<AssetTransferInfo> assetTransferInfoList) {
     try {
-
-      boolean isTvm = transactionCapsule.getInstance().getRawData().getContract(0).getType() == Protocol.Transaction.Contract.ContractType.TriggerSmartContract
-          || transactionCapsule.getInstance().getRawData().getContract(0).getType() == Protocol.Transaction.Contract.ContractType.CreateSmartContract;
+      boolean isTrigger = transactionCapsule.getInstance().getRawData().getContract(0).getType() == Protocol.Transaction.Contract.ContractType.TriggerSmartContract;
+      boolean isCreate = transactionCapsule.getInstance().getRawData().getContract(0).getType() == Protocol.Transaction.Contract.ContractType.CreateSmartContract;
       boolean isTrc10 = transactionCapsule.getInstance().getRawData().getContract(0).getType() == Protocol.Transaction.Contract.ContractType.TransferAssetContract;
 
-//      SmartContractOuterClass.TriggerSmartContract triggerSmartContract = transactionCapsule.getInstance().getRawData().getContract(0).getParameter().unpack(SmartContractOuterClass.TriggerSmartContract.class);
-//      String contractAddress = StringUtil.encode58Check(TransactionTrace.convertToTronAddress(triggerSmartContract.getContractAddress().toByteArray()));
-//      long callValue = triggerSmartContract.getCallValue();
-//      long callTokenValue = triggerSmartContract.getCallTokenValue();
-//      long tokenId = triggerSmartContract.getTokenId();
 
-      if (isTvm) {
+      if (isTrigger || isCreate ) {
+        if (Protocol.Transaction.Result.contractResult.SUCCESS != transactionCapsule.getInstance().getRet(0).getContractRet()) {
+          return;
+        }
+
+        if (isTrigger) {
+          handlerTrigger(transactionCapsule, trxAssetTransferInfoList, assetTransferInfoList);
+        } else if (isCreate) {
+          handlerCreate(transactionCapsule, trxAssetTransferInfoList, assetTransferInfoList);
+        }
+
         transactionCapsule.getTrxTrace().getRuntimeResult().getInternalTransactions().forEach(internalTransaction -> {
           if (internalTransaction.getValue() > 0) {
             convertInfo("", internalTransaction.getValue(), internalTransaction, transactionCapsule, trxAssetTransferInfoList, assetTransferInfoList);
@@ -140,10 +144,76 @@ public class TransferTrackerCapsule extends TriggerCapsule {
         assetTransferInfo.setTokenAddress(transferAssetContract.getAssetName().toStringUtf8());
         assetTransferInfo.setIsSuccess(true);
 
-        logger.info("handlerTrc10Transfer isTvm={}, isTrc10={}, assetTransfer={}", isTvm, isTrc10, JSON.toJSONString(assetTransferInfo));
+        logger.info("handlerTrc10Transfer isTvm={}, isTrc10={}, assetTransfer={}", false, isTrc10, JSON.toJSONString(assetTransferInfo));
         assetTransferInfoList.add(assetTransferInfo);
       }
     }  catch (Exception ex) {
+      logger.error("", ex);
+    }
+  }
+
+  private void handlerTrigger(TransactionCapsule transactionCapsule,
+                              List<AssetTransferInfo> trxAssetTransferInfoList,
+                              List<AssetTransferInfo> assetTransferInfoList) {
+    try {
+      SmartContractOuterClass.TriggerSmartContract triggerSmartContract = transactionCapsule.getInstance().getRawData().getContract(0).getParameter().unpack(SmartContractOuterClass.TriggerSmartContract.class);
+      //trx
+      long callValue = triggerSmartContract.getCallValue();
+
+      // trc10
+      long tokenId = triggerSmartContract.getTokenId();
+      long callTokenValue = triggerSmartContract.getCallTokenValue();
+
+      if (callValue <= 0 && callTokenValue <= 0) {
+        return;
+      }
+
+      String from = StringUtil.encode58Check(triggerSmartContract.getOwnerAddress().toByteArray());
+      String to = StringUtil.encode58Check(triggerSmartContract.getContractAddress().toByteArray());
+      String txid = transactionCapsule.getTransactionId().toString();
+      String note = convertNote(transactionCapsule);
+
+      if (callValue > 0) {
+        convertInfo("", callValue, from, to, txid, note, trxAssetTransferInfoList, assetTransferInfoList);
+      }
+
+      if (callTokenValue > 0) {
+        convertInfo(String.valueOf(tokenId), callValue, from, to, txid, note, trxAssetTransferInfoList, assetTransferInfoList);
+      }
+    } catch (Exception ex) {
+      logger.error("", ex);
+    }
+  }
+
+  private void handlerCreate(TransactionCapsule transactionCapsule,
+                              List<AssetTransferInfo> trxAssetTransferInfoList,
+                              List<AssetTransferInfo> assetTransferInfoList) {
+    try {
+      SmartContractOuterClass.CreateSmartContract createSmartContract = transactionCapsule.getInstance().getRawData().getContract(0).getParameter().unpack(SmartContractOuterClass.CreateSmartContract.class);
+      //trx
+      long callValue = createSmartContract.getNewContract().getCallValue();
+
+      // trc10
+      long tokenId = createSmartContract.getTokenId();
+      long callTokenValue = createSmartContract.getCallTokenValue();
+
+      if (callValue <= 0 && callTokenValue <= 0) {
+        return;
+      }
+
+      String from = StringUtil.encode58Check(createSmartContract.getOwnerAddress().toByteArray());
+      String to = StringUtil.encode58Check(createSmartContract.getNewContract().getContractAddress().toByteArray());
+      String txid = transactionCapsule.getTransactionId().toString();
+      String note = convertNote(transactionCapsule);
+
+      if (callValue > 0) {
+        convertInfo("", callValue, from, to, txid, note, trxAssetTransferInfoList, assetTransferInfoList);
+      }
+
+      if (callTokenValue > 0) {
+        convertInfo(String.valueOf(tokenId), callValue, from, to, txid, note, trxAssetTransferInfoList, assetTransferInfoList);
+      }
+    } catch (Exception ex) {
       logger.error("", ex);
     }
   }
@@ -152,13 +222,24 @@ public class TransferTrackerCapsule extends TriggerCapsule {
                            TransactionCapsule transactionCapsule,
                            List<AssetTransferInfo> trxAssetTransferInfoList,
                            List<AssetTransferInfo> assetTransferInfoList) {
+    String from = StringUtil.encode58Check(internalTransaction.getSender());
+    String to = StringUtil.encode58Check(internalTransaction.getReceiveAddress());
+    String txid = transactionCapsule.getTransactionId().toString();
+    String note = convertNote(transactionCapsule);
+    convertInfo(key, value, from, to, txid, note, trxAssetTransferInfoList, assetTransferInfoList);
+  }
+
+  private void convertInfo(String key, Long value, String from, String to,
+                           String txid, String note,
+                           List<AssetTransferInfo> trxAssetTransferInfoList,
+                           List<AssetTransferInfo> assetTransferInfoList) {
     AssetTransferInfo assetTransferInfo = new AssetTransferInfo();
-    assetTransferInfo.setFromAddress(StringUtil.encode58Check(internalTransaction.getSender()));
-    assetTransferInfo.setToAddress(StringUtil.encode58Check(internalTransaction.getReceiveAddress()));
+    assetTransferInfo.setFromAddress(from);
+    assetTransferInfo.setToAddress(to);
 
     assetTransferInfo.setAmount(String.valueOf(value));
-    assetTransferInfo.setTxId(transactionCapsule.getTransactionId().toString());
-    assetTransferInfo.setNote(convertNote(transactionCapsule));
+    assetTransferInfo.setTxId(txid);
+    assetTransferInfo.setNote(note);
     assetTransferInfo.setTokenAddress(key);
     if (StringUtils.isEmpty(key)) {
       assetTransferInfo.setAssetType(0);
@@ -166,17 +247,13 @@ public class TransferTrackerCapsule extends TriggerCapsule {
       assetTransferInfo.setAssetType(1);
     }
 
-    if (Protocol.Transaction.Result.contractResult.SUCCESS == transactionCapsule.getInstance().getRet(0).getContractRet()) {
-      assetTransferInfo.setIsSuccess(true);
+    assetTransferInfo.setIsSuccess(true);
 
-      if (assetTransferInfo.getAssetType() == 0) {
-        trxAssetTransferInfoList.add(assetTransferInfo);
-      } else {
-        assetTransferInfoList.add(assetTransferInfo);
-      }
+    if (assetTransferInfo.getAssetType() == 0) {
+      trxAssetTransferInfoList.add(assetTransferInfo);
+    } else {
+      assetTransferInfoList.add(assetTransferInfo);
     }
-
-    logger.info("handlerTrc10Transfer isTvm={}, isTrc10={}, assetTransfer={}", true, false, JSON.toJSONString(assetTransferInfo));
   }
 
   private void handlerTrxTransfer(TransactionCapsule transactionCapsule, List<AssetTransferInfo> assetTransferInfoList) {
