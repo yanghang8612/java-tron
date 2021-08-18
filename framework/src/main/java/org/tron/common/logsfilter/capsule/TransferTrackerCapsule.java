@@ -13,6 +13,7 @@ import org.tron.common.logsfilter.TRC20Utils;
 import org.tron.common.runtime.InternalTransaction;
 import org.tron.common.runtime.vm.LogInfo;
 import org.tron.common.utils.StringUtil;
+import org.tron.common.utils.WalletUtil;
 import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.capsule.TransactionCapsule;
 import org.tron.protos.Protocol;
@@ -105,9 +106,10 @@ public class TransferTrackerCapsule extends TriggerCapsule {
                                     List<AssetTransferInfo> trxAssetTransferInfoList,
                                     List<AssetTransferInfo> assetTransferInfoList) {
     try {
-      boolean isTrigger = transactionCapsule.getInstance().getRawData().getContract(0).getType() == Protocol.Transaction.Contract.ContractType.TriggerSmartContract;
-      boolean isCreate = transactionCapsule.getInstance().getRawData().getContract(0).getType() == Protocol.Transaction.Contract.ContractType.CreateSmartContract;
-      boolean isTrc10 = transactionCapsule.getInstance().getRawData().getContract(0).getType() == Protocol.Transaction.Contract.ContractType.TransferAssetContract;
+      final Protocol.Transaction.Contract contract = transactionCapsule.getInstance().getRawData().getContract(0);
+      boolean isTrigger = contract.getType() == Protocol.Transaction.Contract.ContractType.TriggerSmartContract;
+      boolean isCreate = contract.getType() == Protocol.Transaction.Contract.ContractType.CreateSmartContract;
+      boolean isTrc10 = contract.getType() == Protocol.Transaction.Contract.ContractType.TransferAssetContract;
 
 
       if (isTrigger || isCreate ) {
@@ -133,7 +135,7 @@ public class TransferTrackerCapsule extends TriggerCapsule {
           }
         });
       } else if (isTrc10) {
-        AssetIssueContractOuterClass.TransferAssetContract transferAssetContract = transactionCapsule.getInstance().getRawData().getContract(0).getParameter().unpack(AssetIssueContractOuterClass.TransferAssetContract.class);
+        AssetIssueContractOuterClass.TransferAssetContract transferAssetContract = contract.getParameter().unpack(AssetIssueContractOuterClass.TransferAssetContract.class);
         AssetTransferInfo assetTransferInfo = new AssetTransferInfo();
         assetTransferInfo.setAmount(String.valueOf(transferAssetContract.getAmount()));
         assetTransferInfo.setFromAddress(StringUtil.encode58Check(transferAssetContract.getOwnerAddress().toByteArray()));
@@ -202,7 +204,7 @@ public class TransferTrackerCapsule extends TriggerCapsule {
       }
 
       String from = StringUtil.encode58Check(createSmartContract.getOwnerAddress().toByteArray());
-      String to = StringUtil.encode58Check(createSmartContract.getNewContract().getContractAddress().toByteArray());
+      String to = StringUtil.encode58Check(WalletUtil.generateContractAddress(transactionCapsule.getInstance()));
       String txid = transactionCapsule.getTransactionId().toString();
       String note = convertNote(transactionCapsule);
 
