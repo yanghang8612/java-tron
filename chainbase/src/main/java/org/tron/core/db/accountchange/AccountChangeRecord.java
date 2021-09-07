@@ -190,14 +190,13 @@ public class AccountChangeRecord {
     }
 
     // check balance == 0; 否则报错
-    Assert.isTrue(oldAccount.getBalance() == 0, errorMsg);
-    Assert.isTrue(oldAccount.getFrozenBalance() == 0, errorMsg);
-    Assert.isTrue(oldAccount.getEnergyFrozenBalance() == 0, errorMsg);
-    Assert.isTrue(oldAccount.getDelegatedFrozenBalanceForEnergy() == 0, errorMsg);
-    Assert.isTrue(oldAccount.getDelegatedFrozenBalanceForBandwidth() == 0, errorMsg);
-    Assert.isTrue(oldAccount.getFrozenSupplyBalance() == 0, errorMsg);
-    Assert.isTrue(oldAccount.getAcquiredDelegatedFrozenBalanceForEnergy() == 0, errorMsg);
-    Assert.isTrue(oldAccount.getAcquiredDelegatedFrozenBalanceForBandwidth() == 0, errorMsg);
+    logger.info(" >>> delete account:{}", oldAccount.getAddress());
+    logger.info(" >>> delete account:{}", oldAccount.getBalance());
+    logger.info(" >>> delete account:{}", oldAccount.getFrozenBalance());
+    logger.info(" >>> delete account:{}", oldAccount.getEnergyFrozenBalance());
+    logger.info(" >>> delete account:{}", oldAccount.getDelegatedFrozenBalanceForEnergy());
+    logger.info(" >>> delete account:{}", oldAccount.getDelegatedFrozenBalanceForBandwidth());
+    logger.info(" >>> delete account:{}", oldAccount.getFrozenSupplyBalance());
 
     AccountInfo accountInfo = AccountInfo.of(oldAccount);
     accountInfo.getActions().add(DELETE);
