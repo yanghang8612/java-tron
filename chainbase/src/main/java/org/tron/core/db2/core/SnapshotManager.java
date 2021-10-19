@@ -36,7 +36,7 @@ import org.tron.core.store.CheckTmpStore;
 @Slf4j(topic = "DB")
 public class SnapshotManager implements RevokingDatabase {
 
-  public static final int DEFAULT_MAX_FLUSH_COUNT = 500;
+  public static final int DEFAULT_MAX_FLUSH_COUNT = 5;
   public static final int DEFAULT_MIN_FLUSH_COUNT = 1;
   private static final int DEFAULT_STACK_MAX_SIZE = 256;
   @Getter
