@@ -247,12 +247,10 @@ public class TRC20Utils {
     for (int i = 1; i < list.size(); i++) {
       final BalanceTrackerTrigger.Trc721Info item = list.get(i);
       final boolean remove = toList.remove(item.getFromAccountAddress());
+      toList.add(item.getToAccountAddress());
 
       if (!remove) {
         fromList.add(item.getFromAccountAddress());
-        toList.add(item.getToAccountAddress());
-      } else {
-        fromList.remove(item.getToAccountAddress());
       }
     }
 
