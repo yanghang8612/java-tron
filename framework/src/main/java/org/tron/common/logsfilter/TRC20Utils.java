@@ -241,17 +241,18 @@ public class TRC20Utils {
 
     List<String> fromList = new LinkedList<>();
     List<String> toList = new LinkedList<>();
+    fromList.add(info.getFromAccountAddress());
+    toList.add(info.getToAccountAddress());
 
-    list.forEach(item -> {
+    for (int i = 1; i < list.size(); i++) {
+      final BalanceTrackerTrigger.Trc721Info item = list.get(i);
       final boolean remove = toList.remove(item.getFromAccountAddress());
       toList.add(item.getToAccountAddress());
 
       if (!remove) {
         fromList.add(item.getFromAccountAddress());
-      } else {
-        fromList.remove(item.getToAccountAddress());
       }
-    });
+    }
 
     if (toList.size() == 1 && fromList.size() == 1) {
       info.setToAccountAddress(toList.get(0));
