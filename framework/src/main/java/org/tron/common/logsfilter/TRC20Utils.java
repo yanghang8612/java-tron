@@ -352,9 +352,8 @@ public class TRC20Utils {
 
           if (fixedTrc721List.contains(tokenAddress)) {
             // 是trc721
-            final byte[] data = logInfo.getTopics().get(3).getData();
-            logger.info(" transfer, data: {} ", Arrays.toString(data));
-            String assetId = new BigInteger(1, data).toString();
+            BigInteger increment = hexStrToBigInteger(logInfo.getHexData());
+            String assetId = increment.toString();
             logger.info(" transfer: {} , {}, {}, {}", tokenAddress, senderAddr, recAddr, assetId);
             handlerTrc721(assetId, tokenAddress, senderAddr, recAddr, trc721InfoMap);
           }
