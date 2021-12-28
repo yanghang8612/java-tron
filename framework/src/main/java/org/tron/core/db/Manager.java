@@ -939,7 +939,6 @@ public class Manager {
             while (!getDynamicPropertiesStore()
                 .getLatestBlockHeaderHash()
                 .equals(binaryTree.getValue().peekLast().getParentHash())) {
-              postBlockErasedTrigger();
               eraseBlock();
             }
 
@@ -1817,28 +1816,6 @@ public class Manager {
     postLogsFilter(blockCapsule, true, false);
   }
 
-  private void postSolidityTrigger(final long oldSolidNum, final long latestSolidifiedBlockNumber) {
-    logger.info("ready to postBlockErasedTrigger");
-    if (eventPluginLoaded && EventPluginLoader.getInstance().isBlockErasedTriggerEnable()) {
-      try {
-        BlockCapsule blockCapsule = chainBaseManager.getBlockById(
-            getDynamicPropertiesStore().getLatestBlockHeaderHash());
-        BlockErasedTriggerCapsule erasedTriggerCapsule = new BlockErasedTriggerCapsule(
-            blockCapsule);
-
-        erasedTriggerCapsule.processTrigger();
-        logger.info("success to post BlockErasedTrigger ,block num:{}", blockCapsule.getNum());
-
-      } catch (BadItemException e) {
-        logger.error("BadItemException when try to get block hash {} for enrase",
-            getDynamicPropertiesStore().getLatestBlockHeaderHash());
-      } catch (ItemNotFoundException e) {
-        logger.error("ItemNotFoundException when try to get block hash {} for enrase",
-            getDynamicPropertiesStore().getLatestBlockHeaderHash());
-      }
-    }
-  }
-
   private void postBalanceTrigger(BlockCapsule blockCapsule) {
     if (!eventPluginLoaded) {
       return;
@@ -1921,7 +1898,7 @@ public class Manager {
   }
 
 
-  private void postSolidityTrigger(final long latestSolidifiedBlockNumber) {
+  private void postSolidityTrigger(final long oldSolidNum, final long latestSolidifiedBlockNumber) {
     if (eventPluginLoaded && EventPluginLoader.getInstance().isSolidityLogTriggerEnable()) {
       for (Long i : Args.getSolidityContractLogTriggerMap().keySet()) {
         postSolidityLogContractTrigger(i, latestSolidifiedBlockNumber);
