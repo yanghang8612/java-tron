@@ -1,6 +1,7 @@
 package org.tron.common.logsfilter;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.google.common.primitives.Bytes;
 import com.google.protobuf.ByteString;
 import java.math.BigInteger;
@@ -327,6 +328,8 @@ public class TRC20Utils {
     return result;
   }
 
+  private static final Set<String> fixedTrc721List = Sets.newHashSet("THmGFax8tqkWcnmGcRb8ipyL9bzdAA8Svv");
+
   private static void handlerLogs(Map<String, BigInteger> incrementMap, List<LogInfo> logInfos,
                                   Set<String> trc20Tokens,
                                   Map<String, Map<String, List<BalanceTrackerTrigger.Trc721Info>>> trc721InfoMap) {
@@ -347,7 +350,14 @@ public class TRC20Utils {
           String senderAddr = convertAddress(logInfo.getTopics().get(1).getLast20Bytes());
           String recAddr = convertAddress(logInfo.getTopics().get(2).getLast20Bytes());
 
-          if (topics.size() == 3) {
+          if (fixedTrc721List.contains(tokenAddress)) {
+            // 是trc721
+            BigInteger increment = hexStrToBigInteger(logInfo.getHexData());
+            String assetId = increment.toString();
+            logger.info(" transfer: {} , {}, {}, {}", tokenAddress, senderAddr, recAddr, assetId);
+            handlerTrc721(assetId, tokenAddress, senderAddr, recAddr, trc721InfoMap);
+          }
+          else if (topics.size() == 3) {
             // 是trc20
             BigInteger increment = hexStrToBigInteger(logInfo.getHexData());
             if (increment == null) {
