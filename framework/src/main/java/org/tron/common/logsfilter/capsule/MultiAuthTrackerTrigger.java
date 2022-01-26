@@ -1,0 +1,22 @@
+package org.tron.common.logsfilter.capsule;
+
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import org.tron.common.entity.OwnerAuthInfo;
+import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger;
+import org.tron.common.logsfilter.trigger.Trigger;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Data
+@EqualsAndHashCode(callSuper = false)
+public class MultiAuthTrackerTrigger extends BalanceTrackerTrigger {
+
+  List<OwnerAuthInfo> authInfoList = new ArrayList<>();
+
+  MultiAuthTrackerTrigger() {
+    super();
+    setTriggerName(Trigger.MULTIAUTH_TRIGGER_NAME);
+  }
+}

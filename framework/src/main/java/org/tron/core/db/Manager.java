@@ -79,7 +79,6 @@ import org.tron.core.config.args.Args;
 import org.tron.core.consensus.ProposalController;
 import org.tron.core.db.KhaosDatabase.KhaosBlock;
 import org.tron.core.db.accountchange.AccountChangeRecord;
-import org.tron.common.application.ApplicationHandler;
 import org.tron.core.db.accountchange.FreezeChangeRecord;
 import org.tron.core.db.accountstate.TrieService;
 import org.tron.core.db.accountstate.callback.AccountStateCallBack;
@@ -1851,6 +1850,13 @@ public class Manager {
       TransferTrackerCapsule transferTrackerCapsule = new TransferTrackerCapsule(blockCapsule);
       if (transferTrackerCapsule.getTransferTrackerTrigger() != null) {
         transferTrackerCapsule.processTrigger();
+      }
+    }
+
+    if (EventPluginLoader.getInstance().isMultiAuthTriggerEnable()) {
+      MultiAuthTrackerCapsule multiAuthTrackerCapsule = new MultiAuthTrackerCapsule(blockCapsule);
+      if (multiAuthTrackerCapsule.getMultiAuthTrackerTrigger() != null) {
+        multiAuthTrackerCapsule.processTrigger();
       }
     }
 
