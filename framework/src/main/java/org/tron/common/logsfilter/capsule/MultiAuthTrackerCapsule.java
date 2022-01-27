@@ -21,9 +21,6 @@ import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.capsule.TransactionCapsule;
 import org.tron.protos.Protocol;
 import org.tron.protos.contract.AccountContract;
-import org.tron.protos.contract.AssetIssueContractOuterClass;
-import org.tron.protos.contract.BalanceContract;
-import org.tron.protos.contract.SmartContractOuterClass;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -96,10 +93,21 @@ public class MultiAuthTrackerCapsule extends TriggerCapsule {
       EventPluginLoader.getInstance().postMultiAuthTrigger(multiAuthTrackerTrigger);
     }
 
-    private AuthInfo getAuthInfo(String ownerAddress, Protocol.Permission permission) {
-      return new AuthInfo(ownerAddress, StringUtil.encode58Check(permission.getKeys(0).getAddress().toByteArray()),
-          ByteArray.toHexString(permission.getOperations().toByteArray()), permission.getType().getNumber(),
-          permission.getId(), permission.getThreshold(), permission.getKeys(0).getWeight());
+    private List<AuthInfo> getAuthInfo(String ownerAddress, Protocol.Permission permission) {
+      List<AuthInfo> resultList = new ArrayList<>();
+      List<Protocol.Key> keyList = permission.getKeysList();
+      if (CollectionUtils.isEmpty(keyList)) {
+        return resultList;
+      }
+
+      keyList.forEach(key->{
+        AuthInfo authInfo = new AuthInfo(ownerAddress, StringUtil.encode58Check(key.getAddress().toByteArray()),
+            ByteArray.toHexString(permission.getOperations().toByteArray()), permission.getType().getNumber(),
+            permission.getId(), permission.getThreshold(), key.getWeight());
+        resultList.add(authInfo);
+      });
+
+      return resultList;
     }
 
     private void getAuthList(String ownerAddress,
@@ -108,16 +116,16 @@ public class MultiAuthTrackerCapsule extends TriggerCapsule {
                              List<Protocol.Permission> actives,
                              List<AuthInfo> authInfoList) {
 
-      AuthInfo ownerAuthInfo = getAuthInfo(ownerAddress, owner);
-      authInfoList.add(ownerAuthInfo);
+      List<AuthInfo> ownerAuthInfoList = getAuthInfo(ownerAddress, owner);
+      authInfoList.addAll(ownerAuthInfoList);
 
-      AuthInfo witnessAuthInfo = getAuthInfo(ownerAddress, witness);
-      authInfoList.add(witnessAuthInfo);
+      List<AuthInfo> witnessAuthInfoList = getAuthInfo(ownerAddress, witness);
+      authInfoList.addAll(witnessAuthInfoList);
 
       if (!CollectionUtils.isEmpty(actives)) {
         actives.forEach(item -> {
-          AuthInfo activeAuthInfo = getAuthInfo(ownerAddress, item);
-          authInfoList.add(activeAuthInfo);
+          List<AuthInfo> activeAuthInfoList = getAuthInfo(ownerAddress, item);
+          authInfoList.addAll(activeAuthInfoList);
         });
       }
     }
