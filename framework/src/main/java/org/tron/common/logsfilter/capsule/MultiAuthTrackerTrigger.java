@@ -11,7 +11,13 @@ import java.util.List;
 
 @Data
 @EqualsAndHashCode(callSuper = false)
-public class MultiAuthTrackerTrigger extends BalanceTrackerTrigger {
+public class MultiAuthTrackerTrigger extends Trigger {
+
+  private long blockNumber;
+
+  private String parentHash;
+
+  private String blockHash;
 
   List<OwnerAuthInfo> authInfoList = new ArrayList<>();
 
