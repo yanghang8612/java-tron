@@ -36,6 +36,7 @@ import org.tron.api.GrpcAPI.TransactionInfoList;
 import org.tron.common.application.ApplicationHandler;
 import org.tron.common.args.GenesisBlock;
 import org.tron.common.bloom.Bloom;
+import org.tron.common.entity.OwnerAuthInfo;
 import org.tron.common.logsfilter.EventPluginLoader;
 import org.tron.common.logsfilter.FilterQuery;
 import org.tron.common.logsfilter.capsule.*;
@@ -848,7 +849,7 @@ public class Manager {
     accountChangeRecord.startRecordFreeze(recordFreeze);
 
     boolean recordMultiAuth = eventPluginLoaded && EventPluginLoader.getInstance().isMultiAuthTriggerEnable();
-    multiAuthRecord.startRecord(recordMultiAuth);
+    multiAuthRecord.startRecord(recordMultiAuth, block, getAccountStore());
 
     processBlock(block, txs);
 
@@ -1860,7 +1861,8 @@ public class Manager {
     }
 
     if (EventPluginLoader.getInstance().isMultiAuthTriggerEnable()) {
-      MultiAuthTrackerCapsule multiAuthTrackerCapsule = new MultiAuthTrackerCapsule(blockCapsule);
+      final Map<String, OwnerAuthInfo> ownerAuthMap = multiAuthRecord.getOwnerAuthMap();
+      MultiAuthTrackerCapsule multiAuthTrackerCapsule = new MultiAuthTrackerCapsule(blockCapsule, ownerAuthMap);
       if (multiAuthTrackerCapsule.getMultiAuthTrackerTrigger() != null) {
         multiAuthTrackerCapsule.processTrigger();
         multiAuthRecord.clear();
