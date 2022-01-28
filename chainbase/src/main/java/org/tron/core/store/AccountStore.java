@@ -3,10 +3,7 @@ package org.tron.core.store;
 import com.google.protobuf.ByteString;
 import com.typesafe.config.ConfigObject;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.OptionalLong;
+import java.util.*;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
@@ -22,6 +19,7 @@ import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.capsule.utils.AssetUtil;
 import org.tron.core.db.TronStoreWithRevoking;
 import org.tron.core.db.accountchange.AccountChangeRecord;
+import org.tron.core.db.accountchange.MultiAuthRecord;
 import org.tron.core.db.accountstate.AccountStateCallBackUtils;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.AccountAsset;
@@ -36,6 +34,9 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
 
   @Autowired
   private AccountChangeRecord accountChangeRecord;
+
+  @Autowired
+  private MultiAuthRecord multiAuthRecord;
 
   @Autowired
   private AccountStateCallBackUtils accountStateCallBackUtils;
@@ -93,6 +94,8 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
         }
       }
     }
+
+    multiAuthRecord.recordMultiAuth(item);
 
     if (AssetUtil.isAllowAssetOptimization()) {
       Account account = item.getInstance();

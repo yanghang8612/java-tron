@@ -73,10 +73,8 @@ public class MultiAuthTrackerCapsule extends TriggerCapsule {
       ownerAuthsMap.forEach((ownerAddress, newAuthInfoList)-> {
         byte[] ownerByte = Commons.decode58Check(ownerAddress);
         AccountCapsule accountCapsule = chainBaseManager.getAccountStore().get(ownerByte);
-        List<AuthInfo> oldAuthInfoList = new ArrayList<>();
-        getAuthList(ownerAddress, accountCapsule.getInstance().getOwnerPermission(),
-            accountCapsule.getInstance().getWitnessPermission(),
-            accountCapsule.getInstance().getActivePermissionList(), oldAuthInfoList);
+        List<AuthInfo> oldAuthInfoList = AuthInfo.getAuthList(ownerAddress, accountCapsule.getInstance().getOwnerPermission(),
+            accountCapsule.getInstance().getWitnessPermission(), accountCapsule.getInstance().getActivePermissionList());
 
         OwnerAuthInfo ownerAuthInfo = new OwnerAuthInfo(ownerAddress, oldAuthInfoList, newAuthInfoList);
         ownerAuthInfoList.add(ownerAuthInfo);
@@ -93,43 +91,6 @@ public class MultiAuthTrackerCapsule extends TriggerCapsule {
       EventPluginLoader.getInstance().postMultiAuthTrigger(multiAuthTrackerTrigger);
     }
 
-    private List<AuthInfo> getAuthInfo(String ownerAddress, Protocol.Permission permission) {
-      List<AuthInfo> resultList = new ArrayList<>();
-      List<Protocol.Key> keyList = permission.getKeysList();
-      if (CollectionUtils.isEmpty(keyList)) {
-        return resultList;
-      }
-
-      keyList.forEach(key->{
-        AuthInfo authInfo = new AuthInfo(ownerAddress, StringUtil.encode58Check(key.getAddress().toByteArray()),
-            ByteArray.toHexString(permission.getOperations().toByteArray()), permission.getType().getNumber(),
-            permission.getId(), permission.getThreshold(), key.getWeight());
-        resultList.add(authInfo);
-      });
-
-      return resultList;
-    }
-
-    private void getAuthList(String ownerAddress,
-                             Protocol.Permission owner,
-                             Protocol.Permission witness,
-                             List<Protocol.Permission> actives,
-                             List<AuthInfo> authInfoList) {
-
-      List<AuthInfo> ownerAuthInfoList = getAuthInfo(ownerAddress, owner);
-      authInfoList.addAll(ownerAuthInfoList);
-
-      List<AuthInfo> witnessAuthInfoList = getAuthInfo(ownerAddress, witness);
-      authInfoList.addAll(witnessAuthInfoList);
-
-      if (!CollectionUtils.isEmpty(actives)) {
-        actives.forEach(item -> {
-          List<AuthInfo> activeAuthInfoList = getAuthInfo(ownerAddress, item);
-          authInfoList.addAll(activeAuthInfoList);
-        });
-      }
-    }
-
     private void handlerTransferAuth(TransactionCapsule transactionCapsule, List<AuthInfo> authInfoList) {
       try {
         boolean isAuth = transactionCapsule.getInstance().getRawData().getContract(0).getType() == Protocol.Transaction.Contract.ContractType.AccountPermissionUpdateContract;
@@ -141,7 +102,7 @@ public class MultiAuthTrackerCapsule extends TriggerCapsule {
         Protocol.Permission owner = accountPermissionUpdateContract.getOwner();
         Protocol.Permission witness = accountPermissionUpdateContract.getWitness();
         List<Protocol.Permission> actives = accountPermissionUpdateContract.getActivesList();
-        getAuthList(ownerAddress, owner, witness, actives, authInfoList);
+        authInfoList = AuthInfo.getAuthList(ownerAddress, owner, witness, actives);
         logger.info("handlerTrxTransferAuth authInfoList={}", JSON.toJSONString(authInfoList));
       } catch (Exception ex) {
         logger.error("", ex);
