@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSON;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.tron.common.entity.AssetTransferInfo;
@@ -19,6 +20,7 @@ import org.tron.core.ChainBaseManager;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.capsule.TransactionCapsule;
+import org.tron.core.db.accountchange.MultiAuthRecord;
 import org.tron.protos.Protocol;
 import org.tron.protos.contract.AccountContract;
 
@@ -36,6 +38,9 @@ public class MultiAuthTrackerCapsule extends TriggerCapsule {
     private MultiAuthTrackerTrigger multiAuthTrackerTrigger;
 
     private ChainBaseManager chainBaseManager;
+
+    @Autowired
+    MultiAuthRecord multiAuthRecord;
 
     public MultiAuthTrackerCapsule(BlockCapsule block) {
       logger.info("MultiAuthTrackerCapsule start, blockNum={}", block.getNum());
@@ -71,11 +76,7 @@ public class MultiAuthTrackerCapsule extends TriggerCapsule {
 
       List<OwnerAuthInfo> ownerAuthInfoList = new ArrayList<>();
       ownerAuthsMap.forEach((ownerAddress, newAuthInfoList)-> {
-        byte[] ownerByte = Commons.decode58Check(ownerAddress);
-        AccountCapsule accountCapsule = chainBaseManager.getAccountStore().get(ownerByte);
-        List<AuthInfo> oldAuthInfoList = AuthInfo.getAuthList(ownerAddress, accountCapsule.getInstance().getOwnerPermission(),
-            accountCapsule.getInstance().getWitnessPermission(), accountCapsule.getInstance().getActivePermissionList());
-
+        List<AuthInfo> oldAuthInfoList = multiAuthRecord.getAccountAuthsMap().get(ownerAddress);
         OwnerAuthInfo ownerAuthInfo = new OwnerAuthInfo(ownerAddress, oldAuthInfoList, newAuthInfoList);
         ownerAuthInfoList.add(ownerAuthInfo);
       });
