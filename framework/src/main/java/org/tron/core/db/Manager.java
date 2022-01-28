@@ -849,7 +849,7 @@ public class Manager {
     accountChangeRecord.startRecordFreeze(recordFreeze);
 
     boolean recordMultiAuth = eventPluginLoaded && EventPluginLoader.getInstance().isMultiAuthTriggerEnable();
-    multiAuthRecord.startRecord(recordMultiAuth, block, getAccountStore());
+   // multiAuthRecord.startRecord(recordMultiAuth, block, getAccountStore());
 
     processBlock(block, txs);
 
