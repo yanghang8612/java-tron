@@ -14,6 +14,9 @@ public class OwnerAuthInfo implements Serializable {
 
   private List<AuthInfo> newAuthList;
 
+  public OwnerAuthInfo() {
+  }
+
   public OwnerAuthInfo(String ownerAddress, List<AuthInfo> oldAuthList, List<AuthInfo> newAuthList) {
     this.ownerAddress = ownerAddress;
     this.oldAuthList = oldAuthList;
