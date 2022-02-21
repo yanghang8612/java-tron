@@ -36,6 +36,7 @@ import org.tron.api.GrpcAPI.TransactionInfoList;
 import org.tron.common.application.ApplicationHandler;
 import org.tron.common.args.GenesisBlock;
 import org.tron.common.bloom.Bloom;
+import org.tron.common.entity.OwnerAuthInfo;
 import org.tron.common.logsfilter.EventPluginLoader;
 import org.tron.common.logsfilter.FilterQuery;
 import org.tron.common.logsfilter.capsule.*;
@@ -79,8 +80,8 @@ import org.tron.core.config.args.Args;
 import org.tron.core.consensus.ProposalController;
 import org.tron.core.db.KhaosDatabase.KhaosBlock;
 import org.tron.core.db.accountchange.AccountChangeRecord;
-import org.tron.common.application.ApplicationHandler;
 import org.tron.core.db.accountchange.FreezeChangeRecord;
+import org.tron.core.db.accountchange.MultiAuthRecord;
 import org.tron.core.db.accountstate.TrieService;
 import org.tron.core.db.accountstate.callback.AccountStateCallBack;
 import org.tron.core.db.api.AssetUpdateHelper;
@@ -203,6 +204,8 @@ public class Manager {
   private AccountChangeRecord accountChangeRecord;
   @Autowired
   private FreezeChangeRecord freezeChangeRecord;
+  @Autowired
+  private MultiAuthRecord multiAuthRecord;
   @Autowired
   private TrieService trieService;
   private Set<String> ownerAddressSet = new HashSet<>();
@@ -844,6 +847,9 @@ public class Manager {
     boolean recordFreeze = eventPluginLoaded && EventPluginLoader.getInstance().isFreezeBalanceTriggerEnable();
     freezeChangeRecord.startRecord(recordFreeze);
     accountChangeRecord.startRecordFreeze(recordFreeze);
+
+    boolean recordMultiAuth = eventPluginLoaded && EventPluginLoader.getInstance().isMultiAuthTriggerEnable();
+    multiAuthRecord.startRecord(recordMultiAuth, block, getAccountStore());
 
     processBlock(block, txs);
 
@@ -1851,6 +1857,15 @@ public class Manager {
       TransferTrackerCapsule transferTrackerCapsule = new TransferTrackerCapsule(blockCapsule);
       if (transferTrackerCapsule.getTransferTrackerTrigger() != null) {
         transferTrackerCapsule.processTrigger();
+      }
+    }
+
+    if (EventPluginLoader.getInstance().isMultiAuthTriggerEnable()) {
+      final Map<String, OwnerAuthInfo> ownerAuthMap = multiAuthRecord.getOwnerAuthMap();
+      MultiAuthTrackerCapsule multiAuthTrackerCapsule = new MultiAuthTrackerCapsule(blockCapsule, ownerAuthMap);
+      if (multiAuthTrackerCapsule.getMultiAuthTrackerTrigger() != null) {
+        multiAuthTrackerCapsule.processTrigger();
+        multiAuthRecord.clear();
       }
     }
 

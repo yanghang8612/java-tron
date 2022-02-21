@@ -16,6 +16,7 @@ import org.pf4j.DefaultPluginManager;
 import org.pf4j.ManifestPluginDescriptorFinder;
 import org.pf4j.PluginManager;
 import org.springframework.util.StringUtils;
+import org.tron.common.logsfilter.capsule.MultiAuthTrackerTrigger;
 import org.tron.common.logsfilter.capsule.TransferTrackerTrigger;
 import org.tron.common.logsfilter.nativequeue.NativeMessageQueue;
 import org.tron.common.logsfilter.trigger.*;
@@ -67,6 +68,8 @@ public class EventPluginLoader {
   private boolean transferTrackerTriggerEnable = false;
 
   private boolean freezeBalanceTriggerEnable = false;
+
+  private boolean multiAuthTriggerEnable = false;
 
   private boolean trc20TrackerSolidityTriggerEnable = false;
 
@@ -402,6 +405,14 @@ public class EventPluginLoader {
       if (!useNativeQueue) {
         setPluginTopic(Trigger.FREEZE_TRACKER_TRIGGER, triggerConfig.getTopic());
       }
+    } else if (EventPluginConfig.MULTIAUTH_TRACKER
+        .equalsIgnoreCase(triggerConfig.getTriggerName())) {
+      if (triggerConfig.isEnabled()) {
+        multiAuthTriggerEnable = true;
+      }
+      if (!useNativeQueue) {
+        setPluginTopic(Trigger.MULTIAUTH_TRACKER_TRIGGER, triggerConfig.getTopic());
+      }
     } else if (EventPluginConfig.SHIELDED_TRC20_SOLIDITY_TRACKER
         .equalsIgnoreCase(triggerConfig.getTriggerName())) {
       if (triggerConfig.isEnabled()) {
@@ -485,6 +496,10 @@ public class EventPluginLoader {
 
   public synchronized boolean isTransferTrackerTriggerEnable() {
     return transferTrackerTriggerEnable;
+  }
+
+  public synchronized boolean isMultiAuthTriggerEnable() {
+    return multiAuthTriggerEnable;
   }
 
   public synchronized boolean isFreezeBalanceTriggerEnable() {
@@ -679,6 +694,15 @@ public class EventPluginLoader {
     }
   }
 
+  public void postMultiAuthTrigger(MultiAuthTrackerTrigger trigger) {
+    if (useNativeQueue) {
+      NativeMessageQueue.getInstance()
+          .publishTrigger(toJsonString(trigger), trigger.getTriggerName());
+    } else {
+      eventListeners.forEach(listener ->
+          listener.handleMultiAuthTrigger(toJsonString(trigger)));
+    }
+  }
 
   private String toJsonString(Object data) {
     String jsonData = "";
