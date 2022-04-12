@@ -38,6 +38,8 @@ public class TRC20Utils {
 
   static VMActuator vmActuator = new VMActuator(true);
   static final String WTRXAddress = "TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR";
+  static final Set<String> WTRXSet = Sets.newHashSet("TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR",
+          "TCczUFrX1u4v1mzjBVXsiVyehj1vCaNxDt");
 
 
   public static BigInteger getTRC20Decimal(String contractAddress, BlockCapsule baseBlockCap) {
@@ -378,7 +380,7 @@ public class TRC20Utils {
 
           break;
         case Deposit:
-          if (!tokenAddress.equals(WTRXAddress) || topics.size() < 2) {
+          if (!WTRXSet.contains(tokenAddress) || topics.size() < 2) {
             continue;
           }
           // 是trc20
@@ -392,7 +394,7 @@ public class TRC20Utils {
           trc20Tokens.add(tokenAddress);
           break;
         case Withdrawal:
-          if (!tokenAddress.equals(WTRXAddress) || topics.size() < 2) {
+          if (!WTRXSet.contains(tokenAddress) || topics.size() < 2) {
             continue;
           }
           // 是trc20
