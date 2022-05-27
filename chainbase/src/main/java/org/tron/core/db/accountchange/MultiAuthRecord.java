@@ -2,8 +2,10 @@ package org.tron.core.db.accountchange;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import org.tron.common.entity.AuthInfo;
 import org.tron.common.entity.OwnerAuthInfo;
+import org.tron.common.utils.Commons;
 import org.tron.common.utils.StringUtil;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.BlockCapsule;
@@ -31,17 +33,23 @@ public class MultiAuthRecord {
 
   private AccountStore accountStore = null;
 
-  public void startRecord(boolean record, BlockCapsule block, AccountStore accountStore) {
+  public void startRecordOld(boolean record, BlockCapsule block, AccountStore accountStore) {
     this.recordMultiAuth = record;
     this.accountStore = accountStore;
 
     if (recordMultiAuth) {
-      handlerTransferAuth(block);
+      handlerTransferOldAuth(block);
     }
   }
 
-  private void handlerTransferAuth(BlockCapsule block) {
-    logger.info("handlerTransferAuth start, blockNum={}", block.getNum());
+  public void startRecordNew(BlockCapsule block) {
+    if (recordMultiAuth) {
+      handlerTransferNewAuth(block);
+    }
+  }
+
+  private void handlerTransferOldAuth(BlockCapsule block) {
+    logger.info("handlerTransferOldAuth start, blockNum={}", block.getNum());
     List<TransactionCapsule> transactionCapsules = block.getTransactions();
 
     for (TransactionCapsule transactionCapsule : transactionCapsules) {
@@ -54,6 +62,20 @@ public class MultiAuthRecord {
     }
   }
 
+  private void handlerTransferNewAuth(BlockCapsule block) {
+    if (CollectionUtils.isEmpty(ownerAuthMap)) {
+      return;
+    }
+
+    logger.info("handlerTransferNewAuth start, blockNum={}", block.getNum());
+    ownerAuthMap.forEach((ownerAddress, info) -> {
+      final byte[] ownerAddressBytes = Commons.decodeFromBase58Check(ownerAddress);
+      final AccountCapsule newAccount = accountStore.get(ownerAddressBytes);
+      final List<AuthInfo> multiAuth = getMultiAuth(ownerAddress, newAccount);
+      info.setNewAuthList(multiAuth);
+    });
+  }
+
   private OwnerAuthInfo handlerTransferAuth(TransactionCapsule transactionCapsule) {
     try {
       boolean isAuth = transactionCapsule.getInstance().getRawData().getContract(0).getType() == Protocol.Transaction.Contract.ContractType.AccountPermissionUpdateContract;
@@ -63,13 +85,13 @@ public class MultiAuthRecord {
       AccountContract.AccountPermissionUpdateContract accountPermissionUpdateContract = transactionCapsule.getInstance().getRawData().getContract(0).getParameter().unpack(AccountContract.AccountPermissionUpdateContract.class);
       final byte[] ownerAddressBytes = accountPermissionUpdateContract.getOwnerAddress().toByteArray();
       String ownerAddress = StringUtil.encode58Check(ownerAddressBytes);
-      Protocol.Permission owner = accountPermissionUpdateContract.getOwner();
-      Protocol.Permission witness = accountPermissionUpdateContract.getWitness();
-      List<Protocol.Permission> actives = accountPermissionUpdateContract.getActivesList();
-      final List<AuthInfo> authList = AuthInfo.getAuthList(ownerAddress, owner, witness, actives);
+//      Protocol.Permission owner = accountPermissionUpdateContract.getOwner();
+//      Protocol.Permission witness = accountPermissionUpdateContract.getWitness();
+//      List<Protocol.Permission> actives = accountPermissionUpdateContract.getActivesList();
+//      final List<AuthInfo> authList = AuthInfo.getAuthList(ownerAddress, owner, witness, actives);
       final OwnerAuthInfo ownerAuthInfo = new OwnerAuthInfo();
       ownerAuthInfo.setOwnerAddress(ownerAddress);
-      ownerAuthInfo.setNewAuthList(authList);
+//      ownerAuthInfo.setNewAuthList(authList);
       final AccountCapsule oldAccount = accountStore.get(ownerAddressBytes);
       ownerAuthInfo.setOldAuthList(getMultiAuth(ownerAddress, oldAccount));
       return ownerAuthInfo;

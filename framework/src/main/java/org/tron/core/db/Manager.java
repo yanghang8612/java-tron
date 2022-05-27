@@ -849,7 +849,7 @@ public class Manager {
     accountChangeRecord.startRecordFreeze(recordFreeze);
 
     boolean recordMultiAuth = eventPluginLoaded && EventPluginLoader.getInstance().isMultiAuthTriggerEnable();
-    multiAuthRecord.startRecord(recordMultiAuth, block, getAccountStore());
+    multiAuthRecord.startRecordOld(recordMultiAuth, block, getAccountStore());
 
     processBlock(block, txs);
 
@@ -1861,6 +1861,7 @@ public class Manager {
     }
 
     if (EventPluginLoader.getInstance().isMultiAuthTriggerEnable()) {
+      multiAuthRecord.startRecordNew(blockCapsule);
       final Map<String, OwnerAuthInfo> ownerAuthMap = multiAuthRecord.getOwnerAuthMap();
       MultiAuthTrackerCapsule multiAuthTrackerCapsule = new MultiAuthTrackerCapsule(blockCapsule, ownerAuthMap);
       if (multiAuthTrackerCapsule.getMultiAuthTrackerTrigger() != null) {
