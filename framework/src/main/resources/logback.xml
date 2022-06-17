@@ -23,7 +23,7 @@
       <fileNamePattern>./logs/tron-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
       <!-- each file should be at most 500MB, keep 30 days worth of history, but at most 50GB -->
       <maxFileSize>500MB</maxFileSize>
-      <maxHistory>3</maxHistory>
+      <maxHistory>7</maxHistory>
       <totalSizeCap>50GB</totalSizeCap>
     </rollingPolicy>
     <encoder>
@@ -65,6 +65,13 @@
   <root level="INFO">
     <!--<appender-ref ref="CONSOLE"/>-->
     <appender-ref ref="ASYNC"/>
+  </root>
+
+
+  <appender name="METRICS" class="org.tron.common.prometheus.InstrumentedAppender" />
+
+  <root level="INFO">
+    <appender-ref ref="METRICS" />
   </root>
 
   <logger level="INFO" name="app"/>

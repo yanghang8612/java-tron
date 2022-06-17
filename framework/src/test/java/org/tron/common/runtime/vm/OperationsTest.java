@@ -16,6 +16,7 @@ import org.tron.common.parameter.CommonParameter;
 import org.tron.common.runtime.InternalTransaction;
 import org.tron.core.config.args.Args;
 import org.tron.core.exception.ContractValidateException;
+import org.tron.core.vm.JumpTable;
 import org.tron.core.vm.Op;
 import org.tron.core.vm.Operation;
 import org.tron.core.vm.OperationRegistry;
@@ -30,6 +31,7 @@ public class OperationsTest {
 
   private ProgramInvokeMockImpl invoke;
   private Program program;
+  private final JumpTable jumpTable = OperationRegistry.newTronV10OperationSet();
 
   @BeforeClass
   public static void init() {
@@ -40,14 +42,6 @@ public class OperationsTest {
     VMConfig.initAllowTvmIstanbul(1);
     VMConfig.initAllowTvmLondon(1);
     VMConfig.initAllowTvmCompatibleEvm(1);
-    OperationRegistry.newBaseOperation();
-    OperationRegistry.newAllowTvmTransferTrc10Operation();
-    OperationRegistry.newAllowTvmConstantinopleOperation();
-    OperationRegistry.newAllowTvmSolidity059Operation();
-    OperationRegistry.newAllowTvmIstanbulOperation();
-    OperationRegistry.newAllowTvmFreezeOperation();
-    OperationRegistry.newAllowTvmVoteOperation();
-    OperationRegistry.newAllowTvmLondonOperation();
   }
 
   @AfterClass
@@ -64,10 +58,10 @@ public class OperationsTest {
   @Test
   public void testStackUnderFlow() {
     for (int i = 0; i < 256; i++) {
-      Operation op = OperationRegistry.get(i);
-      if (op != null) {
+      Operation op = jumpTable.get(i);
+      if (op.isEnabled()) {
         Program context = buildEmptyContext(new byte[]{(byte) op.getOpcode()});
-        VM.play(context);
+        VM.play(context, jumpTable);
 
         if (op.getRequire() != 0) {
           Assert.assertTrue(context.getResult().getException()
@@ -80,13 +74,13 @@ public class OperationsTest {
   @Test
   public void testStackOverFlow() {
     for (int i = 0; i < 256; i++) {
-      Operation op = OperationRegistry.get(i);
-      if (op != null) {
+      Operation op = jumpTable.get(i);
+      if (op.isEnabled()) {
         Program context = buildEmptyContext(new byte[]{(byte) op.getOpcode()});
         for (int j = 0; j < 1024; j++) {
           context.stackPushZero();
         }
-        VM.play(context);
+        VM.play(context, jumpTable);
 
         if (op.getRet() - op.getRequire() > 0) {
           Assert.assertTrue(context.getResult().getException()
@@ -99,8 +93,8 @@ public class OperationsTest {
   @SneakyThrows
   private Program buildEmptyContext(byte[] ops) {
     Program context = new Program(
-        ops,
-        new ProgramInvokeMockImpl(),
+        ops, ops,
+        new ProgramInvokeMockImpl(ops, ops),
         new InternalTransaction(
             Protocol.Transaction.getDefaultInstance(),
             InternalTransaction.TrxType.TRX_UNKNOWN_TYPE));
@@ -118,77 +112,77 @@ public class OperationsTest {
 
     // test ADD
     byte[] op = {0x60, 0x01, 0x60, 0x01, 0x01};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(9, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0x02), program.getStack().pop());
 
     // test MUL
     op = new byte[]{0x60, 0x01, 0x60, 0x01, 0x02};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(11, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0x01), program.getStack().pop());
 
     // test SUB
     op = new byte[]{0x60, 0x01, 0x60, 0x01, 0x03};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(9, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0x00), program.getStack().pop());
 
     // test DIV
     op = new byte[]{0x60, 0x01, 0x60, 0x02, 0x04};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(11, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0x02), program.getStack().pop());
 
     // test SDIV
     op = new byte[]{0x60, 0x01, 0x60, 0x01, 0x05};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(11, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0x01),program.getStack().pop());
 
     // test MOD
     op = new byte[]{0x60, 0x02, 0x60, 0x01, 0x06};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(11, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0x01), program.getStack().pop());
 
     // test SMOD
     op = new byte[]{0x60, 0x02, 0x60, 0x01, 0x07};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(11, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0x01), program.getStack().pop());
 
     // test ADDMOD
     op = new byte[]{0x60, 0x02, 0x60, 0x01, 0x60, 0x01, 0x08};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(17, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0x00), program.getStack().pop());
 
     // test MULMOD
     op = new byte[]{0x60, 0x02, 0x60, 0x01, 0x60, 0x01, 0x09};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);;
     testOperations(program);
     Assert.assertEquals(17, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0x01), program.getStack().pop());
 
     // test EXP
     op = new byte[]{0x60, 0x02, 0x60, 0x02, 0x0a};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(26, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0x04), program.getStack().pop());
 
     // test SIGNEXTEND
     op = new byte[]{0x60, 0x02, 0x60, 0x02, 0x0b};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(11, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0x02), program.getStack().pop());
@@ -204,98 +198,98 @@ public class OperationsTest {
 
     // test LT = 0x10
     byte[] op = {0x60, 0x01, 0x60, 0x02, 0x10};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(9, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0x00), program.getStack().pop());
 
     // test GT = 0X11
     op = new byte[]{0x60, 0x01, 0x60, 0x02, 0X11};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(9, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0x01), program.getStack().pop());
 
     // test SLT = 0X12
     op = new byte[]{0x60, 0x01, 0x60, 0x02, 0X12};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(9, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0x00), program.getStack().pop());
 
     // test SGT = 0X13
     op = new byte[]{0x60, 0x01, 0x60, 0x02, 0X13};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(9, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0x01), program.getStack().pop());
 
     // test EQ = 0X14
     op = new byte[]{0x60, 0x01, 0x60, 0x02, 0X14};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);;
     testOperations(program);
     Assert.assertEquals(9, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0x00), program.getStack().pop());
 
     // test ISZERO = 0x15
     op = new byte[]{0x60, 0x01, 0x15};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(6, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0x00), program.getStack().pop());
 
     // test AND = 0x16
     op = new byte[]{0x60, 0x01, 0x60, 0x02, 0x16};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(9, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0x00), program.getStack().pop());
 
     // test OR = 0x17
     op = new byte[]{0x60, 0x01, 0x60, 0x02, 0x17};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);;
     testOperations(program);
     Assert.assertEquals(9, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0x03), program.getStack().pop());
 
     // test XOR = 0x18
     op = new byte[]{0x60, 0x01, 0x60, 0x02, 0x18};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(9, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0x03), program.getStack().pop());
 
     // test NOT = 0x19
     op = new byte[]{0x60, 0x00, 0x19};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(6, program.getResult().getEnergyUsed());
     Assert.assertEquals((byte) (-0x01), program.getStack().pop().getData()[31]);
 
     // test BYTE = 0x1a
     op = new byte[]{0x60, 0x01, 0x60, 0x01, 0x1a};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(9, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0x00), program.getStack().pop());
 
     // test SHL = 0x1b
     op = new byte[]{0x60, 0x01, 0x60, 0x01, 0x1b};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);;
     testOperations(program);
     Assert.assertEquals(9, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0x02), program.getStack().pop());
 
     // test SHR = 0x1c
     op = new byte[]{0x60, 0x01, 0x60, 0x02, 0x1c};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(9, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0x00), program.getStack().pop());
 
     // test SAR = 0x1d
     op = new byte[]{0x60, 0x01, 0x60, 0x02, 0x1d};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(9, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0x00), program.getStack().pop());
@@ -312,7 +306,7 @@ public class OperationsTest {
 
     // test SHA3 = 0x20
     byte[] op = {0x60, 0x01, 0x60, 0x01, 0x20};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(45, program.getResult().getEnergyUsed());
     Assert.assertEquals("bc36789e7a1e281436464229828f817d6612f7b477d66591ff96a9e064bcc98a",
@@ -320,21 +314,21 @@ public class OperationsTest {
 
     // test ADDRESS = 0x30
     op = new byte[]{0x30};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);;
     testOperations(program);
     Assert.assertEquals(2, program.getResult().getEnergyUsed());
     Assert.assertEquals(invoke.getContractAddress(), program.getStack().pop());
 
     // test ORIGIN = 0x32
     op = new byte[]{0x32};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(2, program.getResult().getEnergyUsed());
     Assert.assertEquals(invoke.getOriginAddress(), program.getStack().pop());
 
     // test CALLER = 0x33
     op = new byte[]{0x33};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(2, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(invoke.getCallerAddress().getLast20Bytes()),
@@ -342,28 +336,28 @@ public class OperationsTest {
 
     // CALLVALUE = 0x34
     op = new byte[]{0x34};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(2, program.getResult().getEnergyUsed());
     Assert.assertEquals(invoke.getCallValue(), program.getStack().pop());
 
     // CALLDATALOAD = 0x35
     op = new byte[]{0x60, 0x01, 0x35};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(6, program.getResult().getEnergyUsed());
     Assert.assertEquals(invoke.getDataValue(new DataWord(0x01)), program.getStack().pop());
 
     // CALLDATASIZE = 0x36
     op = new byte[]{0x60, 0x01, 0x36};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(5, program.getResult().getEnergyUsed());
     Assert.assertEquals(invoke.getDataSize(), program.getStack().pop());
 
     // CALLDATACOPY = 0x37
     op = new byte[]{0x60, 0x01, 0x60, 0x01, 0x60, 0x01, 0x37};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(15, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(invoke.getDataCopy(new DataWord(0x01),
@@ -372,14 +366,14 @@ public class OperationsTest {
 
     // CODESIZE = 0x38
     op = new byte[]{0x38};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(2, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0x01), program.getStack().pop());
 
     // CODECOPY = 0x39
     op = new byte[]{0x60, 0x01, 0x60, 0x01, 0x60, 0x01, 0x39};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(15, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0x00), new DataWord(
@@ -387,14 +381,14 @@ public class OperationsTest {
 
     // RETURNDATASIZE = 0x3d
     op = new byte[]{0x3d};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(2, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0x00), program.getStack().pop());
 
     // RETURNDATACOPY = 0x3e
     op = new byte[]{0x60, 0x01, 0x60, 0x01, 0x60, 0x01, 0x3e};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(50, program.getResult().getEnergyUsed());
     Assert.assertNull(
@@ -402,7 +396,7 @@ public class OperationsTest {
 
     // GASPRICE = 0x3a
     op = new byte[]{0x3a};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(2, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0), program.getStack().pop());
@@ -418,7 +412,7 @@ public class OperationsTest {
 
     // BLOCKHASH = 0x40
     byte[] op = {0x40};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     program.stackPush(new DataWord(33));
     testOperations(program);
     Assert.assertEquals(20, program.getResult().getEnergyUsed());
@@ -426,7 +420,7 @@ public class OperationsTest {
 
     // COINBASE = 0x41
     op = new byte[]{0x41};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(2, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(invoke.getCoinbase().getLast20Bytes()),
@@ -434,28 +428,28 @@ public class OperationsTest {
 
     // TIMESTAMP = 0x42
     op = new byte[]{0x42};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(2, program.getResult().getEnergyUsed());
     Assert.assertEquals(invoke.getTimestamp(), program.getStack().pop());
 
     // NUMBER = 0x43
     op = new byte[]{0x43};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(2, program.getResult().getEnergyUsed());
     Assert.assertEquals(invoke.getNumber(), program.getStack().pop());
 
     // DIFFICULTY = 0x44
     op = new byte[]{0x44};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(2, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0), program.getStack().pop());
 
     // GASLIMIT = 0x45
     op = new byte[]{0x45};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(2, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0), program.getStack().pop());
@@ -476,28 +470,28 @@ public class OperationsTest {
 
     // POP = 0x50
     byte[] op = {0x60, 0x01, 0x50};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(5, program.getResult().getEnergyUsed());
     Assert.assertEquals(0, program.getStack().size());
 
     // MLOAD = 0x51
     op = new byte[]{0x60, 0x01, 0x51};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(9, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0x00), program.getStack().pop());
 
     // MSTORE = 0x52
     op = new byte[]{0x60, 0x01, 0x60, 0x01, 0x52};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(12, program.getResult().getEnergyUsed());
     Assert.assertEquals(64, program.getMemSize());
 
     // MSTORE8 = 0x53
     op = new byte[]{0x60, 0x01, 0x60, 0x01, 0x53};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);;
     testOperations(program);
     Assert.assertEquals(9, program.getResult().getEnergyUsed(), 41);
     Assert.assertEquals(32, program.getMemSize());
@@ -505,8 +499,10 @@ public class OperationsTest {
     // JUMP = 0x56
     // JUMPI = 0x57
     // JUMPDEST = 0x5b
-    program = new Program(compile(
-        "PUSH1 0x01 PUSH1 0x05 JUMPI JUMPDEST PUSH1 0xCC"), invoke, interTrx);
+    op = compile(
+        "PUSH1 0x01 PUSH1 0x05 JUMPI JUMPDEST PUSH1 0xCC");
+    invoke = new ProgramInvokeMockImpl(op, op);
+    program = new Program(op, op, invoke, interTrx);
     testSingleOperation(program);
     testSingleOperation(program);
     testSingleOperation(program);
@@ -518,21 +514,21 @@ public class OperationsTest {
 
     // PC = 0x58
     op = new byte[]{0x60, 0x01, 0x60, 0x00, 0x58};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(8, program.getResult().getEnergyUsed());
     Assert.assertEquals(5, program.getPC());
 
     // MSIZE = 0x59
     op = new byte[]{0x60, 0x01, 0x60, 0x00, 0x59};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(8, program.getResult().getEnergyUsed());
     Assert.assertEquals(0, program.getMemSize());
 
     // GAS = 0x5a
     op = new byte[]{0x60, 0x01, 0x60, 0x00, 0x5a};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(8, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0x2a), program.getStack().pop());
@@ -565,7 +561,7 @@ public class OperationsTest {
       for (int j = 0; j <= i; j++) {
         op[j + 1] = 0x01;
       }
-      program = new Program(op, invoke, interTrx);
+      program = new Program(op, op, invoke, interTrx);
       testOperations(program);
       Assert.assertEquals(3, program.getResult().getEnergyUsed());
       byte[] result = new byte[i + 1];
@@ -597,7 +593,7 @@ public class OperationsTest {
         op[2 * j] = 0x60;
         op[2 * j + 1] = (byte) i;
       }
-      program = new Program(op, invoke, interTrx);
+      program = new Program(op, op, invoke, interTrx);
       testOperations(program);
       Assert.assertEquals(3L * (i + 2), program.getResult().getEnergyUsed());
       Assert.assertEquals(new DataWord(i), program.getStack().pop());
@@ -625,7 +621,7 @@ public class OperationsTest {
         op[2 * (j + 1)] = 0x60;
         op[2 * (j + 1) + 1] = (byte) i;
       }
-      program = new Program(op, invoke, interTrx);
+      program = new Program(op, op, invoke, interTrx);
       testOperations(program);
       Assert.assertEquals((3L * (i + 3)), program.getResult().getEnergyUsed());
       Assert.assertEquals(new DataWord(0x01), program.getStack().pop());
@@ -633,8 +629,9 @@ public class OperationsTest {
 
     // test log(0-4)
     invoke.setEnergyLimit(5000);
-    program = new Program(compile(
-        "PUSH2 0x1234 PUSH1 0x00 MSTORE PUSH1 0x20 PUSH1 0x00 LOG0"), invoke, interTrx);
+    byte[] op = compile(
+        "PUSH2 0x1234 PUSH1 0x00 MSTORE PUSH1 0x20 PUSH1 0x00 LOG0");
+    program = new Program(op, op, invoke, interTrx);
     testSingleOperation(program);
     testSingleOperation(program);
     testSingleOperation(program);
@@ -651,9 +648,9 @@ public class OperationsTest {
         .getData()));
     Assert.assertEquals(646, program.getResult().getEnergyUsed());
 
-    program = new Program(compile(
-        "PUSH2 0x1234 PUSH1 0x00 MSTORE PUSH2 0x9999 PUSH1 0x20 PUSH1 0x00 LOG1"),
-        invoke, interTrx);
+    op = compile(
+        "PUSH2 0x1234 PUSH1 0x00 MSTORE PUSH2 0x9999 PUSH1 0x20 PUSH1 0x00 LOG1");
+    program = new Program(op, op, invoke, interTrx);
     testSingleOperation(program);
     testSingleOperation(program);
     testSingleOperation(program);
@@ -671,9 +668,9 @@ public class OperationsTest {
         .getData()));
     Assert.assertEquals(1024, program.getResult().getEnergyUsed());
 
-    program = new Program(compile(
-        "PUSH2 0x1234 PUSH1 0x00 MSTORE PUSH2 0x9999 PUSH2 0x6666 PUSH1 0x20 PUSH1 0x00 LOG2"),
-        invoke, interTrx);
+    op = compile(
+        "PUSH2 0x1234 PUSH1 0x00 MSTORE PUSH2 0x9999 PUSH2 0x6666 PUSH1 0x20 PUSH1 0x00 LOG2");
+    program = new Program(op, op, invoke, interTrx);
     testSingleOperation(program);
     testSingleOperation(program);
     testSingleOperation(program);
@@ -692,8 +689,9 @@ public class OperationsTest {
         .getData()));
     Assert.assertEquals(1402, program.getResult().getEnergyUsed());
 
-    program = new Program(compile("PUSH2 0x1234 PUSH1 0x00 MSTORE PUSH2 0x9999"
-        + " PUSH2 0x6666 PUSH2 0x3333 PUSH1 0x20 PUSH1 0x00 LOG3"), invoke, interTrx);
+    op = compile("PUSH2 0x1234 PUSH1 0x00 MSTORE PUSH2 0x9999"
+        + " PUSH2 0x6666 PUSH2 0x3333 PUSH1 0x20 PUSH1 0x00 LOG3");
+    program = new Program(op, op, invoke, interTrx);
     testSingleOperation(program);
     testSingleOperation(program);
     testSingleOperation(program);
@@ -713,8 +711,9 @@ public class OperationsTest {
         .getData()));
     Assert.assertEquals(1780, program.getResult().getEnergyUsed());
 
-    program = new Program(compile("PUSH2 0x1234 PUSH1 0x00 MSTORE PUSH2 0x9999 PUSH2"
-        + " 0x6666 PUSH2 0x3333 PUSH2 0x5555 PUSH1 0x20 PUSH1 0x00 LOG4"), invoke, interTrx);
+    op = compile("PUSH2 0x1234 PUSH1 0x00 MSTORE PUSH2 0x9999 PUSH2"
+        + " 0x6666 PUSH2 0x3333 PUSH2 0x5555 PUSH1 0x20 PUSH1 0x00 LOG4");
+    program = new Program(op, op, invoke, interTrx);
     testSingleOperation(program);
     testSingleOperation(program);
     testSingleOperation(program);
@@ -744,14 +743,14 @@ public class OperationsTest {
 
     // STOP = 0x00
     byte[] op = {0x00};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(0, program.getResult().getEnergyUsed());
     Assert.assertTrue(program.isStopped());
 
     // return = 0xf3
     op = new byte[]{0x60, 0x01, 0x60, 0x01, (byte) 0xf3};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(9, program.getResult().getEnergyUsed());
     Assert.assertEquals(1, program.getResult().getHReturn().length);
@@ -759,7 +758,7 @@ public class OperationsTest {
 
     // revert = 0xfd
     op = new byte[]{0x60, 0x01, 0x60, 0x01, (byte) 0xfd};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(9, program.getResult().getEnergyUsed());
     Assert.assertEquals(1, program.getResult().getHReturn().length);
@@ -777,7 +776,7 @@ public class OperationsTest {
 
     // test BALANCE = 0x31
     byte[] op = new byte[]{0x31};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     program.stackPush(new DataWord("41471fd3ad3e9eeadeec4608b92d16ce6b500704cc"));
     testOperations(program);
     Assert.assertEquals(20, program.getResult().getEnergyUsed());
@@ -785,7 +784,7 @@ public class OperationsTest {
 
     // SELFBALANCE = 0x47
     op = new byte[]{0x47};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testOperations(program);
     Assert.assertEquals(5, program.getResult().getEnergyUsed());
     Assert.assertEquals(new DataWord(0),program.getStack().pop());
@@ -798,9 +797,8 @@ public class OperationsTest {
     invoke.getDeposit().putStorageValue(Hex.decode(
             "41471fd3ad3e9eeadeec4608b92d16ce6b500704cc"), new DataWord(0xCC),
         new DataWord(0x01));
-    program = new Program(
-        compile("PUSH1 0x22 PUSH1 0xAA SSTORE PUSH1 0x33 PUSH1 0xCC SSTORE PUSH1 0xCC SLOAD"),
-        invoke, interTrx);
+    op = compile("PUSH1 0x22 PUSH1 0xAA SSTORE PUSH1 0x33 PUSH1 0xCC SSTORE PUSH1 0xCC SLOAD");
+    program = new Program(op, op, invoke, interTrx);
     testSingleOperation(program);
     testSingleOperation(program);
     testSingleOperation(program);
@@ -815,7 +813,7 @@ public class OperationsTest {
 
     // EXTCODESIZE = 0x3b
     op = new byte[]{0x3b};
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     program.stackPush(new DataWord("471fd3ad3e9eeadeec4608b92d16ce6b500704cc"));
     testOperations(program);
     Assert.assertEquals(20, program.getResult().getEnergyUsed());
@@ -823,7 +821,7 @@ public class OperationsTest {
 
     // EXTCODECOPY = 0x3c
     op = Hex.decode("60036007600073471FD3AD3E9EEADEEC4608B92D16CE6B500704CC3C123456");
-    program = new Program(op, invoke, interTrx);
+    program = new Program(op, op, invoke, interTrx);
     testSingleOperation(program);
     testSingleOperation(program);
     testSingleOperation(program);
@@ -842,8 +840,8 @@ public class OperationsTest {
           program.saveOpTrace();
         }
         try {
-          Operation op = OperationRegistry.get(program.getCurrentOpIntValue());
-          if (op == null) {
+          Operation op = jumpTable.get(program.getCurrentOpIntValue());
+          if (!op.isEnabled()) {
             throw Program.Exception.invalidOpCode(program.getCurrentOp());
           }
           program.setLastOp((byte) op.getOpcode());
@@ -884,8 +882,8 @@ public class OperationsTest {
   private void testSingleOperation(Program program) {
     try {
       try {
-        Operation op = OperationRegistry.get(program.getCurrentOpIntValue());
-        if (op == null) {
+        Operation op = jumpTable.get(program.getCurrentOpIntValue());
+        if (!op.isEnabled()) {
           throw Program.Exception.invalidOpCode(program.getCurrentOp());
         }
         program.setLastOp((byte) op.getOpcode());

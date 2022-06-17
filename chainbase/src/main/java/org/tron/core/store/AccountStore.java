@@ -13,19 +13,14 @@ import org.springframework.stereotype.Component;
 import org.tron.common.parameter.CommonParameter;
 import org.tron.common.utils.ByteUtil;
 import org.tron.common.utils.Commons;
-import org.tron.core.capsule.AccountAssetCapsule;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.BlockCapsule;
-import org.tron.core.capsule.utils.AssetUtil;
 import org.tron.core.db.TronStoreWithRevoking;
 import org.tron.core.db.accountchange.AccountChangeRecord;
 import org.tron.core.db.accountstate.AccountStateCallBackUtils;
-import org.tron.protos.Protocol.Account;
-import org.tron.protos.Protocol.AccountAsset;
 import org.tron.protos.contract.BalanceContract.TransactionBalanceTrace;
 import org.tron.protos.contract.BalanceContract.TransactionBalanceTrace.Operation;
 
-@Slf4j(topic = "DB")
 @Component
 public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
 
@@ -42,9 +37,6 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
 
   @Autowired
   private AccountTraceStore accountTraceStore;
-
-  @Autowired
-  private AccountAssetStore accountAssetStore;
 
   @Autowired
   private DynamicPropertiesStore dynamicPropertiesStore;
@@ -91,17 +83,6 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
       }
     }
 
-    if (AssetUtil.isAllowAssetOptimization()) {
-      Account account = item.getInstance();
-      AccountAsset accountAsset = AssetUtil.getAsset(account);
-      if (null != accountAsset) {
-        accountAssetStore.put(key, new AccountAssetCapsule(
-                accountAsset));
-        account = AssetUtil.clearAsset(account);
-        item.setIsAssetImport(false);
-        item.setInstance(account);
-      }
-    }
     AccountCapsule oldAccount = get(key);
     super.put(key, item);
     accountStateCallBackUtils.accountCallBack(key, item);
@@ -132,10 +113,6 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
     final AccountCapsule oldAccount = get(key);
 
     super.delete(key);
-
-    if (AssetUtil.isAllowAssetOptimization()) {
-      accountAssetStore.delete(key);
-    }
 
     if (!ByteUtil.equals(key, getBlackhole().getAddress().toByteArray())) {
       accountChangeRecord.delete(key, oldAccount);

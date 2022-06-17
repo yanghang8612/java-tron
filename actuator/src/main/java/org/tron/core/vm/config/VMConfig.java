@@ -33,6 +33,8 @@ public class VMConfig {
 
   private static boolean ALLOW_TVM_COMPATIBLE_EVM = false;
 
+  private static boolean ALLOW_HIGHER_LIMIT_FOR_MAX_CPU_TIME_OF_ONE_TX = false;
+
   private VMConfig() {
   }
 
@@ -88,6 +90,10 @@ public class VMConfig {
     ALLOW_TVM_COMPATIBLE_EVM = allow == 1;
   }
 
+  public static void initAllowHigherLimitForMaxCpuTimeOfOneTx(long allow) {
+    ALLOW_HIGHER_LIMIT_FOR_MAX_CPU_TIME_OF_ONE_TX = allow == 1;
+  }
+
   public static boolean getEnergyLimitHardFork() {
     return CommonParameter.ENERGY_LIMIT_HARD_FORK;
   }
@@ -130,5 +136,9 @@ public class VMConfig {
 
   public static boolean allowTvmCompatibleEvm() {
     return ALLOW_TVM_COMPATIBLE_EVM;
+  }
+
+  public static boolean allowHigherLimitForMaxCpuTimeOfOneTx() {
+    return ALLOW_HIGHER_LIMIT_FOR_MAX_CPU_TIME_OF_ONE_TX;
   }
 }

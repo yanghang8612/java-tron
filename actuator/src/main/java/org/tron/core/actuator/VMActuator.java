@@ -21,6 +21,7 @@ import org.tron.common.runtime.InternalTransaction;
 import org.tron.common.runtime.InternalTransaction.ExecutorType;
 import org.tron.common.runtime.InternalTransaction.TrxType;
 import org.tron.common.runtime.ProgramResult;
+import org.tron.common.runtime.vm.DataWord;
 import org.tron.common.utils.StorageUtils;
 import org.tron.common.utils.StringUtil;
 import org.tron.common.utils.WalletUtil;
@@ -34,6 +35,7 @@ import org.tron.core.exception.ContractValidateException;
 import org.tron.core.utils.TransactionUtil;
 import org.tron.core.vm.EnergyCost;
 import org.tron.core.vm.LogInfoTriggerParser;
+import org.tron.core.vm.OperationRegistry;
 import org.tron.core.vm.VM;
 import org.tron.core.vm.VMConstant;
 import org.tron.core.vm.VMUtils;
@@ -80,7 +82,7 @@ public class VMActuator implements Actuator2 {
 
   @Getter
   @Setter
-  private boolean isConstantCall = false;
+  private boolean isConstantCall;
 
   @Setter
   private boolean enableEventListener;
@@ -108,8 +110,10 @@ public class VMActuator implements Actuator2 {
       throw new RuntimeException("TransactionContext is null");
     }
 
-    //Load Config
+    // Load Config
     ConfigLoader.load(context.getStoreFactory());
+    // Warm up registry class
+    OperationRegistry.init();
     trx = context.getTrxCap().getInstance();
     blockCap = context.getBlockCap();
     if (VMConfig.allowTvmFreeze() && context.getTrxCap().getTrxTrace() != null) {
@@ -169,7 +173,7 @@ public class VMActuator implements Actuator2 {
           throw e;
         }
 
-        VM.play(program);
+        VM.play(program, OperationRegistry.getTable());
         result = program.getResult();
 
         if (TrxType.TRX_CONTRACT_CREATION_TYPE == trxType && !result.isRevert()) {
@@ -231,6 +235,9 @@ public class VMActuator implements Actuator2 {
         }
       } else {
         rootRepository.commit();
+      }
+      for (DataWord account : result.getDeleteAccounts()) {
+        RepositoryImpl.removeLruCache(account.toTronAddress());
       }
     } catch (JVMStackOverFlowException e) {
       program.spendAllEnergy();
@@ -335,8 +342,8 @@ public class VMActuator implements Actuator2 {
       long feeLimit = trx.getRawData().getFeeLimit();
       if (feeLimit < 0 || feeLimit > rootRepository.getDynamicPropertiesStore().getMaxFeeLimit()) {
         logger.info("invalid feeLimit {}", feeLimit);
-        throw new ContractValidateException(
-            "feeLimit must be >= 0 and <= " + rootRepository.getDynamicPropertiesStore().getMaxFeeLimit());
+        throw new ContractValidateException("feeLimit must be >= 0 and <= "
+            + rootRepository.getDynamicPropertiesStore().getMaxFeeLimit());
       }
       AccountCapsule creator = rootRepository
           .getAccount(newSmartContract.getOriginAddress().toByteArray());
@@ -377,7 +384,7 @@ public class VMActuator implements Actuator2 {
           .createProgramInvoke(TrxType.TRX_CONTRACT_CREATION_TYPE, executorType, trx,
               tokenValue, tokenId, blockCap.getInstance(), rootRepository, vmStartInUs,
               vmShouldEndInUs, energyLimit);
-      this.program = new Program(ops, programInvoke, rootInternalTx);
+      this.program = new Program(ops, contractAddress, programInvoke, rootInternalTx);
       if (VMConfig.allowTvmCompatibleEvm()) {
         this.program.setContractVersion(1);
       }
@@ -466,8 +473,8 @@ public class VMActuator implements Actuator2 {
       long feeLimit = trx.getRawData().getFeeLimit();
       if (feeLimit < 0 || feeLimit > rootRepository.getDynamicPropertiesStore().getMaxFeeLimit()) {
         logger.info("invalid feeLimit {}", feeLimit);
-        throw new ContractValidateException(
-            "feeLimit must be >= 0 and <= " + rootRepository.getDynamicPropertiesStore().getMaxFeeLimit());
+        throw new ContractValidateException("feeLimit must be >= 0 and <= "
+            + rootRepository.getDynamicPropertiesStore().getMaxFeeLimit());
       }
       AccountCapsule caller = rootRepository.getAccount(callerAddress);
       long energyLimit;
@@ -493,7 +500,7 @@ public class VMActuator implements Actuator2 {
         programInvoke.setConstantCall();
       }
       rootInternalTx = new InternalTransaction(trx, trxType);
-      this.program = new Program(code, programInvoke, rootInternalTx);
+      this.program = new Program(code, contractAddress, programInvoke, rootInternalTx);
       if (VMConfig.allowTvmCompatibleEvm()) {
         this.program.setContractVersion(deployedContract.getContractVersion());
       }
@@ -674,7 +681,8 @@ public class VMActuator implements Actuator2 {
     } else {
       if (consumeUserResourcePercent < VMConstant.ONE_HUNDRED) {
         // creatorEnergyLimit =
-        // min(callerEnergyLimit * (100 - percent) / percent, creatorLeftFrozenEnergy, originEnergyLimit)
+        // min(callerEnergyLimit * (100 - percent) / percent,
+        //   creatorLeftFrozenEnergy, originEnergyLimit)
 
         creatorEnergyLimit = min(
             BigInteger.valueOf(callerEnergyLimit)
@@ -714,6 +722,5 @@ public class VMActuator implements Actuator2 {
     return this.blockCap != null && !this.blockCap.getInstance().getBlockHeader()
         .getWitnessSignature().isEmpty();
   }
-
 
 }
