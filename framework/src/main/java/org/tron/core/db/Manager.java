@@ -1208,6 +1208,26 @@ public class Manager {
           postBalanceSolidityTrigger(getDynamicPropertiesStore().getLatestSolidifiedBlockNum());
         } catch (Throwable throwable) {
           logger.error(throwable.getMessage(), throwable);
+
+          logger.error("Start to print context info --->>>\n");
+          // Print received block info
+          logger.error("Save block error: {}\nReceived block info: {}\n",
+            throwable.getMessage(), newBlock);
+
+          // Print current latest block number and hash
+          logger.error("Current latest block number: {}\nCurrent latest block hash {}\n",
+            chainBaseManager.getDynamicPropertiesStore().getLatestBlockHeaderNumber(),
+            chainBaseManager.getDynamicPropertiesStore().getLatestBlockHeaderHash());
+
+          // Print KhaosDB status
+          logger.error("Current KhaosDB head: {}\n" +
+              "Current KhaosDB mini store: {}\n" +
+            "Current KhaosDB mini unlink store: {}\n",
+            khaosDb.getHead(),
+            khaosDb.getMiniStore(),
+            khaosDb.getMiniUnlinkedStore());
+          logger.error("End to print context info <<<---\n");
+
           khaosDb.removeBlk(block.getBlockId());
           // if exception, close self
           ApplicationHandler.closeSelf();
@@ -1609,10 +1629,12 @@ public class Manager {
 
     TransactionRetCapsule transactionRetCapsule =
         new TransactionRetCapsule(block);
+    TransactionCapsule currentTx = null;
     try {
       merkleContainer.resetCurrentMerkleTree();
       accountStateCallBack.preExecute(block);
       for (TransactionCapsule transactionCapsule : block.getTransactions()) {
+        currentTx = transactionCapsule;
         transactionCapsule.setBlockNum(block.getNum());
         if (block.generatedByMyself) {
           transactionCapsule.setVerified(true);
@@ -1625,6 +1647,13 @@ public class Manager {
         }
       }
       accountStateCallBack.executePushFinish();
+    } catch (Throwable throwable) {
+      // Print tx info
+      logger.error("Process tx error: {}\n", throwable.getMessage());
+      if (currentTx != null) {
+        logger.error("Tx details: {}\n", currentTx);
+      }
+      throw throwable;
     } finally {
       accountStateCallBack.exceptionFinish();
     }
