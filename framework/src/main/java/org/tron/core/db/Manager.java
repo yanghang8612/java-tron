@@ -1197,15 +1197,21 @@ public class Manager {
 
           applyBlock(newBlock, txs);
           tmpSession.commit();
+
           // if event subscribe is enabled, post block trigger to queue
           postBlockTrigger(newBlock);
           // if event subscribe is enabled, post solidity trigger to queue
           postSolidityTrigger(oldSolidNum,
               getDynamicPropertiesStore().getLatestSolidifiedBlockNum());
-          // if event subscribe is enabled, post block trigger to queue
-          postBlockTrigger(newBlock);
-          postBalanceTrigger(newBlock);
-          postBalanceSolidityTrigger(getDynamicPropertiesStore().getLatestSolidifiedBlockNum());
+
+          try {
+            postBalanceTrigger(newBlock);
+            postBalanceSolidityTrigger(getDynamicPropertiesStore().getLatestSolidifiedBlockNum());
+          } catch (Exception ex) {
+            logger.error("", ex);
+            // if exception, close self
+            ApplicationHandler.closeSelf();
+          }
         } catch (Throwable throwable) {
           logger.error(throwable.getMessage(), throwable);
 
@@ -1229,8 +1235,6 @@ public class Manager {
           logger.error("End to print context info <<<---\n");
 
           khaosDb.removeBlk(block.getBlockId());
-          // if exception, close self
-          ApplicationHandler.closeSelf();
           throw throwable;
         }
       }
