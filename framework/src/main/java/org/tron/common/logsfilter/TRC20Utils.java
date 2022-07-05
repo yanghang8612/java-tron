@@ -155,6 +155,7 @@ public class TRC20Utils {
 
   public static final String TRC20 = "trc20";
   public static final String TRC721 = "trc721";
+  public static final String TRC1155 = "trc1155";
   public static final String TRC20_TRANSFER = "trc20Transfer";
   public static final String TRC721_TRANSFER = "trc721Transfer";
 
