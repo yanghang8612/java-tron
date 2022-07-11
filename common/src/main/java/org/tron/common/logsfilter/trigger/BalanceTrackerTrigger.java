@@ -70,15 +70,36 @@ public class BalanceTrackerTrigger extends Trigger {
     public Long assetUrlTime;
   }
 
+  @Data
+  public static class Trc1155Info {
+    // 可能为空，表示没有transfer, 只有变动的url
+    public String fromAccountAddress = "";
+
+    // 可能为空，表示没有transfer, 只有变动的url
+    public String toAccountAddress = "";
+
+    // 不能为空
+    public String tokenAddress;
+
+    public String[] assetIds;
+
+    public String[] balances;
+
+    // 如果有值，就表示有变动，需要更新
+    public String assetUrl = "";
+  }
+
     public enum ConcernTopics {
     TRANSFER("Transfer(address,address,uint256)",
         "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
     Withdrawal("Withdrawal(address,uint256)",
         "7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65"),
-    TransferSingle("TransferSingle(address, address, address, uint256, uint256)",
-        "88cbbcac7d07358d4078ba128d36f3a13eb8abbb8a3d2e4fd200c1100e3149e3"),
-    TransferBatch("TransferBatch(address, address, address, uint256[], uint256[])",
-        "15a20852969264834106e41fd7b33f8f74d0f438687b383ca8bd797816039529"),
+    TransferSingle("TransferSingle(address,address,address,uint256,uint256)",
+        "c3d58168c5ae7397731d063d5bbf3d657854427343f4c083240f7aacaa2d0f62"),
+    TransferBatch("TransferBatch(address,address,address,uint256[],uint256[])",
+        "4a39dc06d4c0dbc64b70af90fd698a233a518aa5d07e595d983b8c0526c8f7fb"),
+    URI("URI(string,uint256)",
+        "6bb7ff708619ba0610cba295a58592e0451dee2622938c8755667688daf3529b"),
     Deposit("Deposit(address,uint256)",
         "e1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c"),
     UNKNOWN("UNKNOWN()",

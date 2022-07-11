@@ -165,6 +165,7 @@ public class TRC20Utils {
     Map<String, BigInteger> balanceMap = new LinkedHashMap<>();
     Map<String, BigInteger> decimalMap = new LinkedHashMap<>();
     Map<String, Map<String, List<BalanceTrackerTrigger.Trc721Info>>> trc721InfoMap = new HashMap<>();
+    Map<String, Map<String, List<BalanceTrackerTrigger.Trc1155Info>>> trc1155InfoMap = new HashMap<>();
     handlerLogs(trc20IncrementMap, logInfos, trc20Tokens, trc721InfoMap);
     if (!CollectionUtils.isEmpty(trc721InfoMap)) {
       logger.info(" >>>> trc721InfoMap:{}", trc721InfoMap);
@@ -343,75 +344,106 @@ public class TRC20Utils {
       }
 
       String tokenAddress = convertAddress(logInfo.getAddress());
+
       switch (ConcernTopics.getBySH(topics.get(0))) {
         case TRANSFER:
           if (topics.size() < 3) {
             continue;
           }
 
-          //TransferCase : decrease sender, increase receiver
-          String senderAddr = convertAddress(logInfo.getTopics().get(1).getLast20Bytes());
-          String recAddr = convertAddress(logInfo.getTopics().get(2).getLast20Bytes());
-
-          if (fixedTrc721List.contains(tokenAddress)) {
-            // 是trc721
-            BigInteger increment = hexStrToBigInteger(logInfo.getHexData());
-            String assetId = increment.toString();
-            logger.info(" transfer: {} , {}, {}, {}", tokenAddress, senderAddr, recAddr, assetId);
-            handlerTrc721(assetId, tokenAddress, senderAddr, recAddr, trc721InfoMap);
-          }
-          else if (topics.size() == 3) {
-            // 是trc20
-            BigInteger increment = hexStrToBigInteger(logInfo.getHexData());
-            if (increment == null) {
-              continue;
-            }
-
-            adjustIncrement(incrementMap, senderAddr, tokenAddress, increment.negate());
-            adjustIncrement(incrementMap, recAddr, tokenAddress, increment);
-            trc20Tokens.add(tokenAddress);
-          } else if(topics.size() == 4) {
-            // 是trc721
-            final byte[] data = logInfo.getTopics().get(3).getData();
-            logger.info(" transfer, data: {} ", Arrays.toString(data));
-            String assetId = new BigInteger(1, data).toString();
-            logger.info(" transfer: {} , {}, {}, {}", tokenAddress, senderAddr, recAddr, assetId);
-            handlerTrc721(assetId, tokenAddress, senderAddr, recAddr, trc721InfoMap);
-          }
-
+          caseTransfer(logInfo, tokenAddress, trc721InfoMap, topics, incrementMap, trc20Tokens);
           break;
         case Deposit:
-          if (!WTRXSet.contains(tokenAddress) || topics.size() < 2) {
-            continue;
-          }
-          // 是trc20
-          BigInteger increment = hexStrToBigInteger(logInfo.getHexData());
-          if (increment == null) {
-            continue;
-          }
-          //DepositCase : increase receiver
-          recAddr = convertAddress(logInfo.getTopics().get(1).getLast20Bytes());
-          adjustIncrement(incrementMap, recAddr, tokenAddress, increment);
-          trc20Tokens.add(tokenAddress);
+          caseDeposit(logInfo, tokenAddress, topics, incrementMap, trc20Tokens);
           break;
         case Withdrawal:
-          if (!WTRXSet.contains(tokenAddress) || topics.size() < 2) {
-            continue;
-          }
-          // 是trc20
-          increment = hexStrToBigInteger(logInfo.getHexData());
-          if (increment == null) {
-            continue;
-          }
-          //WithdrawalCase : decrease sender
-          senderAddr = convertAddress(logInfo.getTopics().get(1).getLast20Bytes());
-          adjustIncrement(incrementMap, senderAddr, tokenAddress, increment.negate());
-          trc20Tokens.add(tokenAddress);
+          caseWithdrawal(logInfo, tokenAddress, topics, incrementMap, trc20Tokens);
+          break;
+        case TransferSingle:
+          caseWithdrawal(logInfo, tokenAddress, topics, incrementMap, trc20Tokens);
+          break;
+        case TransferBatch:
+          caseWithdrawal(logInfo, tokenAddress, topics, incrementMap, trc20Tokens);
+          break;
+        case URI:
+          caseWithdrawal(logInfo, tokenAddress, topics, incrementMap, trc20Tokens);
           break;
         default:
           continue;
       }
     }
+  }
+
+  private static void caseUri() {
+
+  }
+
+  private static void caseTransfer(LogInfo logInfo, String tokenAddress,
+                               Map<String, Map<String, List<BalanceTrackerTrigger.Trc721Info>>> trc721InfoMap,
+                               List<String> topics, Map<String, BigInteger> incrementMap, Set<String> trc20Tokens) {
+
+    //TransferCase : decrease sender, increase receiver
+    String senderAddr = convertAddress(logInfo.getTopics().get(1).getLast20Bytes());
+    String recAddr = convertAddress(logInfo.getTopics().get(2).getLast20Bytes());
+
+    if (fixedTrc721List.contains(tokenAddress)) {
+      // 是trc721
+      BigInteger increment = hexStrToBigInteger(logInfo.getHexData());
+      String assetId = increment.toString();
+      logger.info(" transfer: {} , {}, {}, {}", tokenAddress, senderAddr, recAddr, assetId);
+      handlerTrc721(assetId, tokenAddress, senderAddr, recAddr, trc721InfoMap);
+    }
+    else if (topics.size() == 3) {
+      // 是trc20
+      BigInteger increment = hexStrToBigInteger(logInfo.getHexData());
+      if (increment == null) {
+        return;
+      }
+
+      adjustIncrement(incrementMap, senderAddr, tokenAddress, increment.negate());
+      adjustIncrement(incrementMap, recAddr, tokenAddress, increment);
+      trc20Tokens.add(tokenAddress);
+    } else if(topics.size() == 4) {
+      // 是trc721
+      final byte[] data = logInfo.getTopics().get(3).getData();
+      logger.info(" transfer, data: {} ", Arrays.toString(data));
+      String assetId = new BigInteger(1, data).toString();
+      logger.info(" transfer: {} , {}, {}, {}", tokenAddress, senderAddr, recAddr, assetId);
+      handlerTrc721(assetId, tokenAddress, senderAddr, recAddr, trc721InfoMap);
+    }
+
+  }
+
+  private static void caseDeposit(LogInfo logInfo, String tokenAddress, List<String> topics,
+                                  Map<String, BigInteger> incrementMap, Set<String> trc20Tokens) {
+    if (!WTRXSet.contains(tokenAddress) || topics.size() < 2) {
+      return;
+    }
+    // 是trc20
+    BigInteger increment = hexStrToBigInteger(logInfo.getHexData());
+    if (increment == null) {
+      return;
+    }
+    //DepositCase : increase receiver
+    String recAddr = convertAddress(logInfo.getTopics().get(1).getLast20Bytes());
+    adjustIncrement(incrementMap, recAddr, tokenAddress, increment);
+    trc20Tokens.add(tokenAddress);
+  }
+
+  private static void caseWithdrawal(LogInfo logInfo, String tokenAddress, List<String> topics,
+                                     Map<String, BigInteger> incrementMap, Set<String> trc20Tokens) {
+    if (!WTRXSet.contains(tokenAddress) || topics.size() < 2) {
+      return;
+    }
+    // 是trc20
+    BigInteger increment = hexStrToBigInteger(logInfo.getHexData());
+    if (increment == null) {
+      return;
+    }
+    //WithdrawalCase : decrease sender
+    String senderAddr = convertAddress(logInfo.getTopics().get(1).getLast20Bytes());
+    adjustIncrement(incrementMap, senderAddr, tokenAddress, increment.negate());
+    trc20Tokens.add(tokenAddress);
   }
 
   private static void handlerTransferLogs(List<AssetTransferLogInfo> assetTransferLogInfos,
