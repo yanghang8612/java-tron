@@ -73,17 +73,20 @@ public class BalanceTrackerTrigger extends Trigger {
   @Data
   public static class Trc1155Info {
     // 可能为空，表示没有transfer, 只有变动的url
-    public String fromAccountAddress = "";
-
-    // 可能为空，表示没有transfer, 只有变动的url
-    public String toAccountAddress = "";
+    public String accountAddress = "";
 
     // 不能为空
     public String tokenAddress;
 
-    public String[] assetIds;
+    // 不能为空
+    public String assetId;
 
-    public String[] balances;
+    public String balance = "";
+
+    public String incrementBalances = "";
+
+    // 计算每个assetId的totalSupply
+    public String incrementTotalSupply = "";
 
     // 如果有值，就表示有变动，需要更新
     public String assetUrl = "";
@@ -151,6 +154,8 @@ public class BalanceTrackerTrigger extends Trigger {
   private List<TrxStatusPojo> trxStatusList = new ArrayList<>();
 
   private List<Trc721Info> trc721InfoList = new ArrayList<>();
+
+  private List<Trc1155Info> trc1155InfoList = new ArrayList<>();
 
   public BalanceTrackerTrigger() {
     super();

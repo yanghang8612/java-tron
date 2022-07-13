@@ -165,8 +165,8 @@ public class TRC20Utils {
     Map<String, BigInteger> balanceMap = new LinkedHashMap<>();
     Map<String, BigInteger> decimalMap = new LinkedHashMap<>();
     Map<String, Map<String, List<BalanceTrackerTrigger.Trc721Info>>> trc721InfoMap = new HashMap<>();
-    Map<String, Map<String, List<BalanceTrackerTrigger.Trc1155Info>>> trc1155InfoMap = new HashMap<>();
-    handlerLogs(trc20IncrementMap, logInfos, trc20Tokens, trc721InfoMap);
+    Map<String, BalanceTrackerTrigger.Trc1155Info> trc1155InfoMap = new HashMap<>();
+    handlerLogs(trc20IncrementMap, logInfos, trc20Tokens, trc721InfoMap, trc1155InfoMap);
     if (!CollectionUtils.isEmpty(trc721InfoMap)) {
       logger.info(" >>>> trc721InfoMap:{}", trc721InfoMap);
     }
@@ -336,7 +336,8 @@ public class TRC20Utils {
 
   private static void handlerLogs(Map<String, BigInteger> incrementMap, List<LogInfo> logInfos,
                                   Set<String> trc20Tokens,
-                                  Map<String, Map<String, List<BalanceTrackerTrigger.Trc721Info>>> trc721InfoMap) {
+                                  Map<String, Map<String, List<BalanceTrackerTrigger.Trc721Info>>> trc721InfoMap,
+                                  Map<String, BalanceTrackerTrigger.Trc1155Info> trc1155InfoMap) {
     for (LogInfo logInfo : logInfos) {
       List<String> topics = logInfo.getHexTopics();
       if (CollectionUtils.isEmpty(topics)) {
@@ -360,13 +361,13 @@ public class TRC20Utils {
           caseWithdrawal(logInfo, tokenAddress, topics, incrementMap, trc20Tokens);
           break;
         case TransferSingle:
-          caseWithdrawal(logInfo, tokenAddress, topics, incrementMap, trc20Tokens);
+          caseTransferSingle(logInfo, tokenAddress, trc1155InfoMap);
           break;
         case TransferBatch:
-          caseWithdrawal(logInfo, tokenAddress, topics, incrementMap, trc20Tokens);
+          caseTransferBatch(logInfo, tokenAddress, trc1155InfoMap);
           break;
         case URI:
-          caseWithdrawal(logInfo, tokenAddress, topics, incrementMap, trc20Tokens);
+          caseUri(logInfo, tokenAddress, trc1155InfoMap);
           break;
         default:
           continue;
@@ -374,8 +375,45 @@ public class TRC20Utils {
     }
   }
 
-  private static void caseUri() {
+  private static void caseTransferBatch(LogInfo logInfo, String tokenAddress,
+                                        Map<String, BalanceTrackerTrigger.Trc1155Info> trc1155InfoMap) {
 
+    String senderAddr = convertAddress(logInfo.getTopics().get(2).getLast20Bytes());
+    String recAddr = convertAddress(logInfo.getTopics().get(3).getLast20Bytes());
+
+    String data = logInfo.getHexData();
+    logger.info(" >>>> caseTransferBatch {}, {}, {}, {}", senderAddr, recAddr, tokenAddress, data);
+
+
+  }
+
+  private static void caseTransferSingle(LogInfo logInfo, String tokenAddress,
+                                         Map<String, BalanceTrackerTrigger.Trc1155Info> trc1155InfoMap) {
+
+    String senderAddr = convertAddress(logInfo.getTopics().get(2).getLast20Bytes());
+    String recAddr = convertAddress(logInfo.getTopics().get(3).getLast20Bytes());
+
+    String data = logInfo.getHexData();
+    logger.info(" >>>> caseTransferSingle {}, {}, {}, {}", senderAddr, recAddr, tokenAddress, data);
+
+  }
+
+  private static void caseUri(LogInfo logInfo, String tokenAddress,
+                              Map<String, BalanceTrackerTrigger.Trc1155Info> trc1155InfoMap) {
+    final byte[] data = logInfo.getTopics().get(1).getData();
+    final String assetUri = unpackString(data);
+    final byte[] idData = logInfo.getTopics().get(2).getData();
+    final String assetId = new BigInteger(1, idData).toString();
+
+    BalanceTrackerTrigger.Trc1155Info info = new BalanceTrackerTrigger.Trc1155Info();
+    info.setTokenAddress(tokenAddress);
+    info.setAssetId(assetId);
+    info.setAssetUrl(assetUri);
+    trc1155InfoMap.put(trc1155Key("", tokenAddress, assetId), info);
+  }
+
+  private static String trc1155Key(String accountAddress, String tokenAddress, String assetId) {
+    return accountAddress + "_" + tokenAddress + "_" + assetId;
   }
 
   private static void caseTransfer(LogInfo logInfo, String tokenAddress,
@@ -553,6 +591,10 @@ public class TRC20Utils {
 
   private static String convertAddress(byte[] data) {
     return StringUtil.encode58Check(TransactionTrace.convertToTronAddress(data));
+  }
+
+  private static BigInteger convertBigInteger(byte[] data) {
+    return new BigInteger(1, data);
   }
 
   private static void handlerTrc721(String assetId, String tokenAddress, String senderAddr, String recAddr,
