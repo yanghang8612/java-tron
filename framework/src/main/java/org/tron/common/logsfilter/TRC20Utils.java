@@ -387,6 +387,8 @@ public class TRC20Utils {
 
   }
 
+  private static final String ZERO_ADDRESS = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
+
   private static void caseTransferSingle(LogInfo logInfo, String tokenAddress,
                                          Map<String, BalanceTrackerTrigger.Trc1155Info> trc1155InfoMap) {
 
@@ -394,8 +396,73 @@ public class TRC20Utils {
     String recAddr = convertAddress(logInfo.getTopics().get(3).getLast20Bytes());
 
     String data = logInfo.getHexData();
+    final String assetId = hexStrToBigInteger(data.substring(0, 64)).toString();
+    final String value = hexStrToBigInteger(data.substring(64)).toString();
     logger.info(" >>>> caseTransferSingle {}, {}, {}, {}", senderAddr, recAddr, tokenAddress, data);
+    caseTransferSingle(senderAddr, recAddr, tokenAddress, assetId, value, trc1155InfoMap);
+  }
 
+  private static void caseTransferSingle(String senderAddr, String recAddr, String tokenAddress,
+                                         String assetId, String value,
+                                         Map<String, BalanceTrackerTrigger.Trc1155Info> trc1155InfoMap) {
+
+    if (!Objects.equals(ZERO_ADDRESS, senderAddr)) {
+      final String sendKey = trc1155Key(senderAddr, tokenAddress, assetId);
+      final BalanceTrackerTrigger.Trc1155Info trc1155Info = convertTrc1155BySend(trc1155InfoMap.get(sendKey), senderAddr, tokenAddress, assetId, value);
+      trc1155InfoMap.put(sendKey, trc1155Info);
+
+      if (!Objects.equals(ZERO_ADDRESS, recAddr)) {
+        final String recKey = trc1155Key(recAddr, tokenAddress, assetId);
+        final BalanceTrackerTrigger.Trc1155Info recTrc1155Info = convertTrc1155ByRec(trc1155InfoMap.get(recKey), recAddr, tokenAddress, assetId, value);
+        trc1155InfoMap.put(recKey, recTrc1155Info);
+      } else {
+        // is burn
+        final BigInteger newIncrement = new BigInteger(trc1155Info.getIncrementTotalSupply()).add(new BigInteger(value).negate());
+        trc1155Info.setIncrementTotalSupply(newIncrement.toString());
+      }
+    } if (!Objects.equals(ZERO_ADDRESS, recAddr)) {
+      final String recKey = trc1155Key(recAddr, tokenAddress, assetId);
+      final BalanceTrackerTrigger.Trc1155Info trc1155Info = convertTrc1155ByRec(trc1155InfoMap.get(recKey), recAddr, tokenAddress, assetId, value);
+      trc1155InfoMap.put(recKey, trc1155Info);
+
+      // is mint
+      final BigInteger newIncrement = new BigInteger(trc1155Info.getIncrementTotalSupply()).add(new BigInteger(value));
+      trc1155Info.setIncrementTotalSupply(newIncrement.toString());
+    }
+  }
+
+  private static BalanceTrackerTrigger.Trc1155Info convertTrc1155BySend(BalanceTrackerTrigger.Trc1155Info oldInfo,
+                                                                        String senderAddr, String tokenAddress,
+                                                                        String assetId, String value) {
+    if (oldInfo == null) {
+      BalanceTrackerTrigger.Trc1155Info info = new BalanceTrackerTrigger.Trc1155Info();
+      info.setAccountAddress(senderAddr);
+      info.setTokenAddress(tokenAddress);
+      info.setAssetId(assetId);
+      info.setIncrementBalance(new BigInteger(value).negate().toString());
+      return info;
+    }
+
+    final BigInteger newIncrement = new BigInteger(oldInfo.getIncrementBalance()).add(new BigInteger(value).negate());
+    oldInfo.setIncrementBalance(newIncrement.toString());
+    return oldInfo;
+  }
+
+  private static BalanceTrackerTrigger.Trc1155Info convertTrc1155ByRec(BalanceTrackerTrigger.Trc1155Info oldInfo,
+                                                                        String recAddr, String tokenAddress,
+                                                                        String assetId, String value) {
+    if (oldInfo == null) {
+      BalanceTrackerTrigger.Trc1155Info info = new BalanceTrackerTrigger.Trc1155Info();
+      info.setAccountAddress(recAddr);
+      info.setTokenAddress(tokenAddress);
+      info.setAssetId(assetId);
+      info.setIncrementBalance(value);
+      return info;
+    }
+
+    final BigInteger newIncrement = new BigInteger(oldInfo.getIncrementBalance()).add(new BigInteger(value));
+    oldInfo.setIncrementBalance(newIncrement.toString());
+    return oldInfo;
   }
 
   private static void caseUri(LogInfo logInfo, String tokenAddress,

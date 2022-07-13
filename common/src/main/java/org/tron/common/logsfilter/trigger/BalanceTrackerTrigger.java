@@ -1,5 +1,6 @@
 package org.tron.common.logsfilter.trigger;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Data;
@@ -83,10 +84,10 @@ public class BalanceTrackerTrigger extends Trigger {
 
     public String balance = "";
 
-    public String incrementBalances = "";
+    public String incrementBalance = "0";
 
     // 计算每个assetId的totalSupply
-    public String incrementTotalSupply = "";
+    public String incrementTotalSupply = "0";
 
     // 如果有值，就表示有变动，需要更新
     public String assetUrl = "";
