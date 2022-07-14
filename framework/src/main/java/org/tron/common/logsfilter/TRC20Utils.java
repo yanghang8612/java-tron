@@ -150,7 +150,36 @@ public class TRC20Utils {
 
     logger.error(" >>>>> getTRC20Balance get error, {}, ownerAddress:{}", contractAddress, ownerAddress);
     return null;
+  }
 
+  public static BigInteger getTRC1155Balance(String ownerAddress, String contractAddress, String assetId,
+      BlockCapsule baseBlockCap) {
+    // c5524546 balanceOf(address,uint256)
+    // 000000000000000000000041DDB2CC247E543F1462711989FCC89379F943B623
+    final byte[] bytes = Commons.decodeFromBase58Check(ownerAddress);
+    bytes[0] = 0;
+
+    byte[] assetIdBytes = new BigInteger(assetId).toByteArray();
+    if (bytes.length > 32) {
+      assetIdBytes = Arrays.copyOfRange(assetIdBytes, 1, 33);
+    }
+    final DataWord dataWord = new DataWord(assetIdBytes);
+
+    byte[] data = Bytes.concat(Hex.decode("c55245460000000000000000000000"), bytes, dataWord.getData());
+    ProgramResult result = triggerFromVM(contractAddress, data, baseBlockCap);
+    if (Objects.isNull(result.getException()) &&
+        !result.isRevert() && StringUtils.isEmpty(result.getRuntimeError())
+        && result.getHReturn() != null) {
+      try {
+        BigInteger ret = toBigInteger(result.getHReturn());
+        return ret;
+      } catch (Exception e) {
+        logger.error("", e);
+      }
+    }
+
+    logger.error(" >>>>> getTRC1155Balance get error, {}, ownerAddress:{}", contractAddress, ownerAddress);
+    return null;
   }
 
   public static final String TRC20 = "trc20";
@@ -173,9 +202,13 @@ public class TRC20Utils {
 
     final List<AssetStatusPojo> trc20AssetList = handlerTrc20Asset(block, trc20IncrementMap, balanceMap, decimalMap, trc20Tokens);
     final List<BalanceTrackerTrigger.Trc721Info> trc721Infos = handlerTrc721(trc721InfoMap, block);
+    final List<BalanceTrackerTrigger.Trc1155Info> trc1155Infos = handlerTrc1155(trc1155InfoMap, block);
+
     Map<String, Object> result = new HashMap<>();
     result.put(TRC20, trc20AssetList);
     result.put(TRC721, trc721Infos);
+    result.put(TRC1155, trc1155Infos);
+
     if (!CollectionUtils.isEmpty(trc721Infos)) {
       logger.info(" >>>> trc721Infos:{}", trc721Infos);
     }
@@ -199,6 +232,27 @@ public class TRC20Utils {
       logger.info(" >>>> trc721AssetTransferList:{}", trc721AssetTransferInfoList);
     }
 
+    return result;
+  }
+
+  private static List<BalanceTrackerTrigger.Trc1155Info> handlerTrc1155(Map<String, BalanceTrackerTrigger.Trc1155Info> trc1155InfoMap,
+                                                                      BlockCapsule block) {
+    if (CollectionUtils.isEmpty(trc1155InfoMap)) {
+      return Lists.newArrayList();
+    }
+
+    List<BalanceTrackerTrigger.Trc1155Info> result = new LinkedList<>();
+
+    trc1155InfoMap.forEach((key, info) -> {
+      try {
+        // todo check 运行是否有问题
+        final BigInteger balance = getTRC1155Balance(info.getAccountAddress(), info.getTokenAddress(), info.getAssetId(), block);
+        info.setBalance(balance == null ? "" : balance.toString());
+        result.add(info);
+      } catch (Exception ex) {
+        logger.error("", ex);
+      }
+    });
     return result;
   }
 
@@ -382,9 +436,31 @@ public class TRC20Utils {
     String recAddr = convertAddress(logInfo.getTopics().get(3).getLast20Bytes());
 
     String data = logInfo.getHexData();
+    final BigInteger assetIdIndex = hexStrToBigInteger(data.substring(0, 64));
+    final BigInteger valueIndex = hexStrToBigInteger(data.substring(64, 64 + 64));
+
+    int assetIdStart = assetIdIndex.intValue() / 32 * 64;
+    final Integer assetIdSize = hexStrToBigInteger(data.substring(assetIdStart, assetIdStart + 64)).intValue();
+
+    int valueStart = valueIndex.intValue() / 32 * 64;
+    final Integer valueSize = hexStrToBigInteger(data.substring(valueStart, valueStart + 64)).intValue();
+
+    if (!assetIdSize.equals(valueSize)) {
+      logger.error(" >>>> param size not equals. {}, {}, {}, {}, {}, {}", senderAddr, recAddr, tokenAddress, assetIdSize, valueSize, data);
+      return;
+    }
+
+    for (int i = 0; i < valueSize; i++) {
+      assetIdStart = assetIdStart + 64;
+      final BigInteger assetId = hexStrToBigInteger(data.substring(assetIdStart, assetIdStart + 64));
+
+      valueStart = valueStart + 64;
+      final BigInteger value = hexStrToBigInteger(data.substring(valueStart, valueStart + 64));
+
+      caseTransferSingle(senderAddr, recAddr, tokenAddress, assetId.toString(), value.toString(), trc1155InfoMap);
+    }
+
     logger.info(" >>>> caseTransferBatch {}, {}, {}, {}", senderAddr, recAddr, tokenAddress, data);
-
-
   }
 
   private static final String ZERO_ADDRESS = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
@@ -407,23 +483,17 @@ public class TRC20Utils {
                                          Map<String, BalanceTrackerTrigger.Trc1155Info> trc1155InfoMap) {
 
     if (!Objects.equals(ZERO_ADDRESS, senderAddr)) {
-      final String sendKey = trc1155Key(senderAddr, tokenAddress, assetId);
-      final BalanceTrackerTrigger.Trc1155Info trc1155Info = convertTrc1155BySend(trc1155InfoMap.get(sendKey), senderAddr, tokenAddress, assetId, value);
-      trc1155InfoMap.put(sendKey, trc1155Info);
+      final BalanceTrackerTrigger.Trc1155Info trc1155Info = convertTrc1155BySend(trc1155InfoMap, senderAddr, tokenAddress, assetId, value);
 
       if (!Objects.equals(ZERO_ADDRESS, recAddr)) {
-        final String recKey = trc1155Key(recAddr, tokenAddress, assetId);
-        final BalanceTrackerTrigger.Trc1155Info recTrc1155Info = convertTrc1155ByRec(trc1155InfoMap.get(recKey), recAddr, tokenAddress, assetId, value);
-        trc1155InfoMap.put(recKey, recTrc1155Info);
+        convertTrc1155ByRec(trc1155InfoMap, recAddr, tokenAddress, assetId, value);
       } else {
         // is burn
         final BigInteger newIncrement = new BigInteger(trc1155Info.getIncrementTotalSupply()).add(new BigInteger(value).negate());
         trc1155Info.setIncrementTotalSupply(newIncrement.toString());
       }
     } if (!Objects.equals(ZERO_ADDRESS, recAddr)) {
-      final String recKey = trc1155Key(recAddr, tokenAddress, assetId);
-      final BalanceTrackerTrigger.Trc1155Info trc1155Info = convertTrc1155ByRec(trc1155InfoMap.get(recKey), recAddr, tokenAddress, assetId, value);
-      trc1155InfoMap.put(recKey, trc1155Info);
+      final BalanceTrackerTrigger.Trc1155Info trc1155Info = convertTrc1155ByRec(trc1155InfoMap, recAddr, tokenAddress, assetId, value);
 
       // is mint
       final BigInteger newIncrement = new BigInteger(trc1155Info.getIncrementTotalSupply()).add(new BigInteger(value));
@@ -431,15 +501,18 @@ public class TRC20Utils {
     }
   }
 
-  private static BalanceTrackerTrigger.Trc1155Info convertTrc1155BySend(BalanceTrackerTrigger.Trc1155Info oldInfo,
+  private static BalanceTrackerTrigger.Trc1155Info convertTrc1155BySend(Map<String, BalanceTrackerTrigger.Trc1155Info> trc1155InfoMap,
                                                                         String senderAddr, String tokenAddress,
                                                                         String assetId, String value) {
+    String sendKey = trc1155Key(senderAddr, tokenAddress, assetId);
+    final BalanceTrackerTrigger.Trc1155Info oldInfo = trc1155InfoMap.get(sendKey);
     if (oldInfo == null) {
       BalanceTrackerTrigger.Trc1155Info info = new BalanceTrackerTrigger.Trc1155Info();
       info.setAccountAddress(senderAddr);
       info.setTokenAddress(tokenAddress);
       info.setAssetId(assetId);
       info.setIncrementBalance(new BigInteger(value).negate().toString());
+      trc1155InfoMap.put(sendKey, info);
       return info;
     }
 
@@ -448,15 +521,18 @@ public class TRC20Utils {
     return oldInfo;
   }
 
-  private static BalanceTrackerTrigger.Trc1155Info convertTrc1155ByRec(BalanceTrackerTrigger.Trc1155Info oldInfo,
+  private static BalanceTrackerTrigger.Trc1155Info convertTrc1155ByRec(Map<String, BalanceTrackerTrigger.Trc1155Info> trc1155InfoMap,
                                                                         String recAddr, String tokenAddress,
                                                                         String assetId, String value) {
+    final String recKey = trc1155Key(recAddr, tokenAddress, assetId);
+    final BalanceTrackerTrigger.Trc1155Info oldInfo = trc1155InfoMap.get(recKey);
     if (oldInfo == null) {
       BalanceTrackerTrigger.Trc1155Info info = new BalanceTrackerTrigger.Trc1155Info();
       info.setAccountAddress(recAddr);
       info.setTokenAddress(tokenAddress);
       info.setAssetId(assetId);
       info.setIncrementBalance(value);
+      trc1155InfoMap.put(recKey, info);
       return info;
     }
 

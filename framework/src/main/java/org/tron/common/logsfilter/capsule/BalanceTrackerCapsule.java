@@ -45,6 +45,7 @@ public class BalanceTrackerCapsule extends TriggerCapsule {
       Map<String, Object> result = TRC20Utils.parseTrc20AssetStatusPojo(block, logInfos);
       trc20TrackerTrigger.setAssetStatusList((List<AssetStatusPojo>) result.get(TRC20Utils.TRC20));
       trc20TrackerTrigger.setTrc721InfoList((List<BalanceTrackerTrigger.Trc721Info>) result.get(TRC20Utils.TRC721));
+      trc20TrackerTrigger.setTrc1155InfoList((List<BalanceTrackerTrigger.Trc1155Info>) result.get(TRC20Utils.TRC1155));
     }
 
     List<BalanceTrackerTrigger.Trc10StatusPojo> trc10StatusList = new LinkedList<>();
