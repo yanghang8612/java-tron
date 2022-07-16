@@ -489,7 +489,7 @@ public class TRC20Utils {
         convertTrc1155ByRec(trc1155InfoMap, recAddr, tokenAddress, assetId, value);
       } else {
         // is burn
-        final BigInteger newIncrement = new BigInteger(trc1155Info.getIncrementTotalSupply()).add(new BigInteger(value).negate());
+        final BigInteger newIncrement = new BigInteger(trc1155Info.getIncrementTotalSupply()).subtract(new BigInteger(value));
         trc1155Info.setIncrementTotalSupply(newIncrement.toString());
       }
     } if (!Objects.equals(ZERO_ADDRESS, recAddr)) {
@@ -516,7 +516,7 @@ public class TRC20Utils {
       return info;
     }
 
-    final BigInteger newIncrement = new BigInteger(oldInfo.getIncrementBalance()).add(new BigInteger(value).negate());
+    final BigInteger newIncrement = new BigInteger(oldInfo.getIncrementBalance()).subtract(new BigInteger(value));
     oldInfo.setIncrementBalance(newIncrement.toString());
     return oldInfo;
   }
