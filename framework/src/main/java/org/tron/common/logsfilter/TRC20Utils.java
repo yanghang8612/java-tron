@@ -135,8 +135,9 @@ public class TRC20Utils {
       BlockCapsule baseBlockCap) {
     // 70a08231 balanceOf(address)
     // 000000000000000000000041DDB2CC247E543F1462711989FCC89379F943B623
-    byte[] data = Bytes.concat(Hex.decode("70a082310000000000000000000000"),
-            Commons.decodeFromBase58Check(ownerAddress));
+    final byte[] bytes = Commons.decodeFromBase58Check(ownerAddress);
+    bytes[0] = 0;
+    byte[] data = Bytes.concat(Hex.decode("70a082310000000000000000000000"), bytes);
     ProgramResult result = triggerFromVM(contractAddress, data, baseBlockCap);
     if (Objects.isNull(result.getException()) &&
         !result.isRevert() && StringUtils.isEmpty(result.getRuntimeError())
@@ -154,7 +155,7 @@ public class TRC20Utils {
 
   public static BigInteger getTRC1155Balance(String ownerAddress, String contractAddress, String assetId,
       BlockCapsule baseBlockCap) {
-    // c5524546 balanceOf(address,uint256)
+    // 00fdd58e balanceOf(address,uint256)
     // 000000000000000000000041DDB2CC247E543F1462711989FCC89379F943B623
     final byte[] bytes = Commons.decodeFromBase58Check(ownerAddress);
     bytes[0] = 0;
@@ -165,7 +166,7 @@ public class TRC20Utils {
     }
     final DataWord dataWord = new DataWord(assetIdBytes);
 
-    byte[] data = Bytes.concat(Hex.decode("c55245460000000000000000000000"), bytes, dataWord.getData());
+    byte[] data = Bytes.concat(Hex.decode("00fdd58e0000000000000000000000"), bytes, dataWord.getData());
     ProgramResult result = triggerFromVM(contractAddress, data, baseBlockCap);
     if (Objects.isNull(result.getException()) &&
         !result.isRevert() && StringUtils.isEmpty(result.getRuntimeError())
@@ -245,7 +246,6 @@ public class TRC20Utils {
 
     trc1155InfoMap.forEach((key, info) -> {
       try {
-        // todo check 运行是否有问题
         final BigInteger balance = getTRC1155Balance(info.getAccountAddress(), info.getTokenAddress(), info.getAssetId(), block);
         info.setBalance(balance == null ? "" : balance.toString());
         result.add(info);
@@ -543,16 +543,25 @@ public class TRC20Utils {
 
   private static void caseUri(LogInfo logInfo, String tokenAddress,
                               Map<String, BalanceTrackerTrigger.Trc1155Info> trc1155InfoMap) {
-    final byte[] data = logInfo.getTopics().get(1).getData();
-    final String assetUri = unpackString(data);
-    final byte[] idData = logInfo.getTopics().get(2).getData();
+
+    final byte[] idData = logInfo.getTopics().get(1).getData();
     final String assetId = new BigInteger(1, idData).toString();
 
-    BalanceTrackerTrigger.Trc1155Info info = new BalanceTrackerTrigger.Trc1155Info();
-    info.setTokenAddress(tokenAddress);
-    info.setAssetId(assetId);
-    info.setAssetUrl(assetUri);
-    trc1155InfoMap.put(trc1155Key("", tokenAddress, assetId), info);
+    try {
+      final String uri = new String(logInfo.getData(), "UTF-8").trim();
+      logger.info(" >>>> {}, {},  uri.data:{}", tokenAddress, assetId, uri);
+
+      BalanceTrackerTrigger.Trc1155Info info = new BalanceTrackerTrigger.Trc1155Info();
+      info.setTokenAddress(tokenAddress);
+      info.setAssetId(assetId);
+      info.setAssetUrl(uri);
+      trc1155InfoMap.put(trc1155Key("", tokenAddress, assetId), info);
+      return;
+    } catch (Exception e) {
+      logger.error("", e);
+    }
+
+    logger.info(" >>>> caseUri getUri error. {}, {}, {}", tokenAddress, assetId, logInfo.getHexData());
   }
 
   private static String trc1155Key(String accountAddress, String tokenAddress, String assetId) {
