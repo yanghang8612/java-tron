@@ -548,7 +548,8 @@ public class TRC20Utils {
     final String assetId = new BigInteger(1, idData).toString();
 
     try {
-      final String uri = new String(logInfo.getData(), "UTF-8").trim();
+      String uri = unpackString(logInfo.getData());
+//      final String uri = new String(logInfo.getData(), "UTF-8").trim();
       logger.info(" >>>> {}, {},  uri.data:{}", tokenAddress, assetId, uri);
 
       BalanceTrackerTrigger.Trc1155Info info = new BalanceTrackerTrigger.Trc1155Info();
