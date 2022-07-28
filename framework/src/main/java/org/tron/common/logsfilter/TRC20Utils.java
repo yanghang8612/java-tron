@@ -39,7 +39,8 @@ public class TRC20Utils {
   static VMActuator vmActuator = new VMActuator(true);
   static final String WTRXAddress = "TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR";
   static final Set<String> WTRXSet = Sets.newHashSet("TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR",
-          "TCczUFrX1u4v1mzjBVXsiVyehj1vCaNxDt", "TDsVDWKYgtidmsE4jQ8yogo5GqApYDMpML");
+          "TCczUFrX1u4v1mzjBVXsiVyehj1vCaNxDt", "TDsVDWKYgtidmsE4jQ8yogo5GqApYDMpML",
+          "TYsbWxNnyTgsZaTFaue9hqpxkU3Fkco94a");
 
 
   public static BigInteger getTRC20Decimal(String contractAddress, BlockCapsule baseBlockCap) {
