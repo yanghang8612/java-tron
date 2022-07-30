@@ -158,16 +158,16 @@ public class TRC20Utils {
       BlockCapsule baseBlockCap) {
     // 00fdd58e balanceOf(address,uint256)
     // 000000000000000000000041DDB2CC247E543F1462711989FCC89379F943B623
-    final byte[] bytes = Commons.decodeFromBase58Check(ownerAddress);
-    bytes[0] = 0;
+    final byte[] ownerAddressBytes = Commons.decodeFromBase58Check(ownerAddress);
+    ownerAddressBytes[0] = 0;
 
     byte[] assetIdBytes = new BigInteger(assetId).toByteArray();
-    if (bytes.length > 32) {
+    if (assetIdBytes.length > 32) {
       assetIdBytes = Arrays.copyOfRange(assetIdBytes, 1, 33);
     }
     final DataWord dataWord = new DataWord(assetIdBytes);
 
-    byte[] data = Bytes.concat(Hex.decode("00fdd58e0000000000000000000000"), bytes, dataWord.getData());
+    byte[] data = Bytes.concat(Hex.decode("00fdd58e0000000000000000000000"), ownerAddressBytes, dataWord.getData());
     ProgramResult result = triggerFromVM(contractAddress, data, baseBlockCap);
     if (Objects.isNull(result.getException()) &&
         !result.isRevert() && StringUtils.isEmpty(result.getRuntimeError())
@@ -180,7 +180,7 @@ public class TRC20Utils {
       }
     }
 
-    logger.error(" >>>>> getTRC1155Balance get error, {}, ownerAddress:{}", contractAddress, ownerAddress);
+    logger.error(" >>>>> getTRC1155Balance get error, {}, ownerAddress:{}, assetId:{}", contractAddress, ownerAddress, assetId);
     return null;
   }
 
@@ -248,7 +248,7 @@ public class TRC20Utils {
     trc1155InfoMap.forEach((key, info) -> {
       try {
         final BigInteger balance = getTRC1155Balance(info.getAccountAddress(), info.getTokenAddress(), info.getAssetId(), block);
-        info.setBalance(balance == null ? "" : balance.toString());
+        info.setBalance(balance == null ? "0" : balance.toString());
         result.add(info);
       } catch (Exception ex) {
         logger.error("", ex);
@@ -548,22 +548,27 @@ public class TRC20Utils {
     final byte[] idData = logInfo.getTopics().get(1).getData();
     final String assetId = new BigInteger(1, idData).toString();
 
+    final String data = logInfo.getHexData();
     try {
-      String uri = unpackString(logInfo.getData());
-//      final String uri = new String(logInfo.getData(), "UTF-8").trim();
-      logger.info(" >>>> {}, {},  uri.data:{}", tokenAddress, assetId, uri);
 
-      BalanceTrackerTrigger.Trc1155Info info = new BalanceTrackerTrigger.Trc1155Info();
-      info.setTokenAddress(tokenAddress);
-      info.setAssetId(assetId);
-      info.setAssetUrl(uri);
-      trc1155InfoMap.put(trc1155Key("", tokenAddress, assetId), info);
-      return;
+      if (!StringUtils.isEmpty(data) && data.length() > 128) {
+        final BigInteger uriLength = hexStrToBigInteger(data.substring(64, 128));
+        String uriHex = data.substring(128, 128 + uriLength.intValue() * 2);
+        final String uri = new String(Hex.decode(uriHex), "UTF-8");
+        logger.info(" >>>> {}, {},  uri.data:{}", tokenAddress, assetId, uri);
+
+        BalanceTrackerTrigger.Trc1155Info info = new BalanceTrackerTrigger.Trc1155Info();
+        info.setTokenAddress(tokenAddress);
+        info.setAssetId(assetId);
+        info.setAssetUrl(uri);
+        trc1155InfoMap.put(trc1155Key("", tokenAddress, assetId), info);
+        return;
+      }
     } catch (Exception e) {
       logger.error("", e);
     }
 
-    logger.info(" >>>> caseUri getUri error. {}, {}, {}", tokenAddress, assetId, logInfo.getHexData());
+    logger.info(" >>>> caseUri getUri error. {}, {}, {}", tokenAddress, assetId, data);
   }
 
   private static String trc1155Key(String accountAddress, String tokenAddress, String assetId) {
