@@ -493,7 +493,7 @@ public class TRC20Utils {
         final BigInteger newIncrement = new BigInteger(trc1155Info.getIncrementTotalSupply()).subtract(new BigInteger(value));
         trc1155Info.setIncrementTotalSupply(newIncrement.toString());
       }
-    } if (!Objects.equals(ZERO_ADDRESS, recAddr)) {
+    } else if (!Objects.equals(ZERO_ADDRESS, recAddr)) {
       final BalanceTrackerTrigger.Trc1155Info trc1155Info = convertTrc1155ByRec(trc1155InfoMap, recAddr, tokenAddress, assetId, value);
 
       // is mint

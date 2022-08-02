@@ -27,7 +27,7 @@ public class ServiceContainer {
   public ServiceContainer() {
     this.services = new ArrayList<>();
   }
-
+  services
   public void add(Service service) {
     this.services.add(service);
   }
@@ -49,7 +49,7 @@ public class ServiceContainer {
 
   public void start() {
     logger.debug("Starting services");
-    for (Service service : this.services) {
+    for (Service service : this.) {
       logger.debug("Starting " + service.getClass().getSimpleName());
       service.start();
     }
