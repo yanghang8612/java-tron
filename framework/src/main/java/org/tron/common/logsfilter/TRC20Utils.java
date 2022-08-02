@@ -247,9 +247,12 @@ public class TRC20Utils {
 
     trc1155InfoMap.forEach((key, info) -> {
       try {
-        final BigInteger balance = getTRC1155Balance(info.getAccountAddress(), info.getTokenAddress(), info.getAssetId(), block);
-        info.setBalance(balance == null ? "0" : balance.toString());
         result.add(info);
+
+        if (!StringUtils.isEmpty(info.getAccountAddress())) {
+          final BigInteger balance = getTRC1155Balance(info.getAccountAddress(), info.getTokenAddress(), info.getAssetId(), block);
+          info.setBalance(balance == null ? "0" : balance.toString());
+        }
       } catch (Exception ex) {
         logger.error("", ex);
       }
