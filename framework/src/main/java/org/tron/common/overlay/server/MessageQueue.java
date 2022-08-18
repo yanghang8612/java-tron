@@ -16,6 +16,9 @@ import org.springframework.stereotype.Component;
 import org.tron.common.overlay.message.Message;
 import org.tron.common.overlay.message.PingMessage;
 import org.tron.common.overlay.message.PongMessage;
+import org.tron.common.prometheus.MetricKeys;
+import org.tron.common.prometheus.MetricLabels;
+import org.tron.common.prometheus.Metrics;
 import org.tron.consensus.pbft.message.PbftBaseMessage;
 import org.tron.core.metrics.MetricsKey;
 import org.tron.core.metrics.MetricsUtil;
@@ -68,9 +71,12 @@ public class MessageQueue {
           Message msg = msgQueue.take();
           ctx.writeAndFlush(msg.getSendData()).addListener((ChannelFutureListener) future -> {
             if (!future.isSuccess() && !channel.isDisconnect()) {
-              logger.error("Failed to send to {}, {}", ctx.channel().remoteAddress(), msg);
+              logger.warn("Failed to send to {}, {}", ctx.channel().remoteAddress(), msg);
             }
           });
+        } catch (InterruptedException e) {
+          logger.warn("Send message server interrupted.");
+          Thread.currentThread().interrupt();
         } catch (Exception e) {
           logger.error("Failed to send to {}, error info: {}", ctx.channel().remoteAddress(),
               e.getMessage());
@@ -106,7 +112,11 @@ public class MessageQueue {
       logger.info("Send to {}, {} ", ctx.channel().remoteAddress(), msg);
     }
     channel.getNodeStatistics().messageStatistics.addTcpOutMessage(msg);
-    MetricsUtil.meterMark(MetricsKey.NET_TCP_OUT_TRAFFIC, msg.getSendData().readableBytes());
+    int length = msg.getSendData().readableBytes();
+    MetricsUtil.meterMark(MetricsKey.NET_TCP_OUT_TRAFFIC, length);
+    Metrics.histogramObserve(MetricKeys.Histogram.TCP_BYTES, length,
+        MetricLabels.Histogram.TRAFFIC_OUT);
+
     sendTime = System.currentTimeMillis();
     if (msg.getAnswerMessage() != null) {
       requestQueue.add(new MessageRoundTrip(msg));
@@ -141,6 +151,9 @@ public class MessageQueue {
       try {
         sendMsgThread.join(20);
         sendMsgThread = null;
+      } catch (InterruptedException e) {
+        logger.warn("Send message join interrupted.");
+        Thread.currentThread().interrupt();
       } catch (Exception e) {
         logger.warn("Join send thread failed, peer {}", ctx.channel().remoteAddress());
       }
@@ -183,7 +196,7 @@ public class MessageQueue {
 
     ctx.writeAndFlush(msg.getSendData()).addListener((ChannelFutureListener) future -> {
       if (!future.isSuccess()) {
-        logger.error("Fail send to {}, {}", ctx.channel().remoteAddress(), msg);
+        logger.warn("Fail send to {}, {}", ctx.channel().remoteAddress(), msg);
       }
     });
 
