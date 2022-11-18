@@ -10,19 +10,8 @@ import com.google.common.collect.Lists;
 import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteString;
 import io.prometheus.client.Histogram;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -51,14 +40,7 @@ import org.tron.common.bloom.Bloom;
 import org.tron.common.entity.OwnerAuthInfo;
 import org.tron.common.logsfilter.EventPluginLoader;
 import org.tron.common.logsfilter.FilterQuery;
-import org.tron.common.logsfilter.capsule.BlockFilterCapsule;
-import org.tron.common.logsfilter.capsule.BlockLogTriggerCapsule;
-import org.tron.common.logsfilter.capsule.ContractTriggerCapsule;
-import org.tron.common.logsfilter.capsule.FilterTriggerCapsule;
-import org.tron.common.logsfilter.capsule.LogsFilterCapsule;
-import org.tron.common.logsfilter.capsule.SolidityTriggerCapsule;
-import org.tron.common.logsfilter.capsule.TransactionLogTriggerCapsule;
-import org.tron.common.logsfilter.capsule.TriggerCapsule;
+import org.tron.common.logsfilter.capsule.*;
 import org.tron.common.logsfilter.trigger.ContractEventTrigger;
 import org.tron.common.logsfilter.trigger.ContractLogTrigger;
 import org.tron.common.logsfilter.trigger.ContractTrigger;
@@ -2109,7 +2091,6 @@ public class Manager {
       }
     }
 
-
   }
 
   private void postBalanceSolidityTrigger(long latestSolidifiedBlockNumber) {
@@ -2482,33 +2463,6 @@ public class Manager {
     }
     return ret;
   }
-
-  private static class ValidateSignTask implements Callable<Boolean> {
-
-    private TransactionCapsule trx;
-    private CountDownLatch countDownLatch;
-    private ChainBaseManager manager;
-
-    ValidateSignTask(TransactionCapsule trx, CountDownLatch countDownLatch,
-        ChainBaseManager manager) {
-      this.trx = trx;
-      this.countDownLatch = countDownLatch;
-      this.manager = manager;
-    }
-
-    @Override
-    public Boolean call() throws ValidateSignatureException {
-      try {
-        trx.validateSignature(manager.getAccountStore(), manager.getDynamicPropertiesStore());
-      } catch (ValidateSignatureException e) {
-        throw e;
-      } finally {
-        countDownLatch.countDown();
-      }
-      return true;
-    }
-  }
-
 
   private static void insertTransactionPojo(List<TransactionPojo> list,
       TransactionInfo transactionInfo, Map<ByteString, byte[]> inputDataMap) {
