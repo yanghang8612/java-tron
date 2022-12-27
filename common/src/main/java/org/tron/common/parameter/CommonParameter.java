@@ -1,6 +1,8 @@
 package org.tron.common.parameter;
 
 import com.beust.jcommander.Parameter;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -11,7 +13,6 @@ import org.tron.common.args.GenesisBlock;
 import org.tron.common.config.DbBackupConfig;
 import org.tron.common.logsfilter.EventPluginConfig;
 import org.tron.common.logsfilter.FilterQuery;
-import org.tron.common.overlay.discover.node.Node;
 import org.tron.common.setting.RocksDbSettings;
 import org.tron.core.Constant;
 import org.tron.core.config.args.Overlay;
@@ -91,8 +92,6 @@ public class CommonParameter {
   public String password;
   @Parameter(names = {"--storage-db-directory"}, description = "Storage db directory")
   public String storageDbDirectory = "";
-  @Parameter(names = {"--storage-db-version"}, description = "Storage db version.(1 or 2)")
-  public String storageDbVersion = "";
   @Parameter(names = {
       "--storage-db-engine"}, description = "Storage db engine.(leveldb or rocksdb)")
   public String storageDbEngine = "";
@@ -390,12 +389,12 @@ public class CommonParameter {
   public GenesisBlock genesisBlock;
   @Getter
   @Setter
-  public List<Node> activeNodes;
+  public List<InetSocketAddress> activeNodes;
   @Getter
   @Setter
-  public List<Node> passiveNodes;
+  public List<InetAddress> passiveNodes;
   @Getter
-  public List<Node> fastForwardNodes;
+  public List<InetSocketAddress> fastForwardNodes;
   @Getter
   public int maxFastForwardNum;
   @Getter
@@ -572,6 +571,14 @@ public class CommonParameter {
   @Getter
   @Setter
   public long allowDelegateOptimization = 0L;
+
+  @Getter
+  @Setter
+  public long unfreezeDelayDays = 0L;
+
+  @Getter
+  @Setter
+  public long allowOptimizedReturnValueOfChainId = 0L;
 
   private static double calcMaxTimeRatio() {
     //return max(2.0, min(5.0, 5 * 4.0 / max(Runtime.getRuntime().availableProcessors(), 1)));

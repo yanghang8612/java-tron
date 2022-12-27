@@ -193,6 +193,10 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
   private static final byte[] ALLOW_DELEGATE_OPTIMIZATION =
       "ALLOW_DELEGATE_OPTIMIZATION".getBytes();
 
+  private static final byte[] UNFREEZE_DELAY_DAYS = "UNFREEZE_DELAY_DAYS".getBytes();
+
+  private static final byte[] ALLOW_OPTIMIZED_RETURN_VALUE_OF_CHAIN_ID =
+      "ALLOW_OPTIMIZED_RETURN_VALUE_OF_CHAIN_ID".getBytes();
 
   @Autowired
   private DynamicPropertiesStore(@Value("properties") String dbName) {
@@ -888,6 +892,22 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
     } catch (IllegalArgumentException e) {
       this.saveAllowDelegateOptimization(
           CommonParameter.getInstance().getAllowDelegateOptimization());
+    }
+
+    try {
+      this.getUnfreezeDelayDays();
+    } catch (IllegalArgumentException e) {
+      this.saveUnfreezeDelayDays(
+              CommonParameter.getInstance().getUnfreezeDelayDays()
+      );
+    }
+
+    try {
+      this.getAllowOptimizedReturnValueOfChainId();
+    } catch (IllegalArgumentException e) {
+      this.saveAllowOptimizedReturnValueOfChainId(
+          CommonParameter.getInstance().getAllowOptimizedReturnValueOfChainId()
+      );
     }
   }
 
@@ -2620,6 +2640,35 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
 
   public boolean allowNewReward() {
     return getAllowNewReward() == 1;
+  }
+
+  public long getUnfreezeDelayDays() {
+    return Optional.ofNullable(getUnchecked(UNFREEZE_DELAY_DAYS))
+            .map(BytesCapsule::getData)
+            .map(ByteArray::toLong)
+            .orElseThrow(() -> new IllegalArgumentException("not found UNFREEZE_DELAY_DAYS"));
+  }
+
+  public boolean supportUnfreezeDelay() {
+    return getUnfreezeDelayDays() > 0;
+  }
+
+  public void saveUnfreezeDelayDays(long value) {
+    this.put(UNFREEZE_DELAY_DAYS, new BytesCapsule(ByteArray.fromLong(value)));
+  }
+
+  public void saveAllowOptimizedReturnValueOfChainId(long value) {
+    this.put(ALLOW_OPTIMIZED_RETURN_VALUE_OF_CHAIN_ID,
+        new BytesCapsule(ByteArray.fromLong(value)));
+  }
+
+  public long getAllowOptimizedReturnValueOfChainId() {
+    String msg = "not found ALLOW_OPTIMIZED_RETURN_VALUE_OF_CHAIN_ID";
+    return Optional.ofNullable(getUnchecked(ALLOW_OPTIMIZED_RETURN_VALUE_OF_CHAIN_ID))
+        .map(BytesCapsule::getData)
+        .map(ByteArray::toLong)
+        .orElseThrow(
+            () -> new IllegalArgumentException(msg));
   }
 
   private static class DynamicResourceProperties {

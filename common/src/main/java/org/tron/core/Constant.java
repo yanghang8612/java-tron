@@ -285,12 +285,15 @@ public class Constant {
 
   public static final String COMMITTEE_ALLOW_TVM_FREEZE = "committee.allowTvmFreeze";
   public static final String COMMITTEE_ALLOW_TVM_VOTE = "committee.allowTvmVote";
+  public static final String COMMITTEE_UNFREEZE_DELAY_DAYS = "committee.unfreezeDelayDays";
 
   public static final String COMMITTEE_ALLOW_TVM_LONDON = "committee.allowTvmLondon";
   public static final String COMMITTEE_ALLOW_TVM_COMPATIBLE_EVM = "committee.allowTvmCompatibleEvm";
   public static final String COMMITTEE_ALLOW_HIGHER_LIMIT_FOR_MAX_CPU_TIME_OF_ONE_TX =
       "committee.allowHigherLimitForMaxCpuTimeOfOneTx";
   public static final String COMMITTEE_ALLOW_NEW_REWARD_ALGORITHM = "committee.allowNewRewardAlgorithm";
+  public static final String COMMITTEE_ALLOW_OPTIMIZED_RETURN_VALUE_OF_CHAIN_ID =
+      "committee.allowOptimizedReturnValueOfChainId";
 
 
   public static final String METRICS_STORAGE_ENABLE = "node.metrics.storageEnable";

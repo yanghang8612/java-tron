@@ -596,6 +596,29 @@ public class ProposalUtil {
         }
         break;
       }
+      case UNFREEZE_DELAY_DAYS: {
+        if (!forkController.pass(ForkBlockVersionEnum.VERSION_4_7)) {
+          throw new ContractValidateException(
+                  "Bad chain parameter id [UNFREEZE_DELAY_DAYS]");
+        }
+        if (value < 1 || value > 365) {
+          throw new ContractValidateException(
+                  "This value[UNFREEZE_DELAY_DAYS] is only allowed to be in the range 1-365");
+        }
+        break;
+      }
+      case ALLOW_OPTIMIZED_RETURN_VALUE_OF_CHAIN_ID: {
+        if (!forkController.pass(ForkBlockVersionEnum.VERSION_4_7)) {
+          throw new ContractValidateException(
+              "Bad chain parameter id [ALLOW_OPTIMIZED_RETURN_VALUE_OF_CHAIN_ID]");
+        }
+        if (value != 1) {
+          throw new ContractValidateException(
+              "This value[ALLOW_OPTIMIZED_RETURN_VALUE_OF_CHAIN_ID] is only allowed to be 1");
+        }
+        break;
+      }
+
       default:
         break;
     }
@@ -662,7 +685,9 @@ public class ProposalUtil {
     ALLOW_ASSET_OPTIMIZATION(66), // 0, 1
     ALLOW_NEW_REWARD(67), // 0, 1
     MEMO_FEE(68), // 0, [0, 1000_000_000]
-    ALLOW_DELEGATE_OPTIMIZATION(69); // 0, 1
+    ALLOW_DELEGATE_OPTIMIZATION(69),
+    UNFREEZE_DELAY_DAYS(70), // 0, [1, 365]
+    ALLOW_OPTIMIZED_RETURN_VALUE_OF_CHAIN_ID(71); // 0, 1
 
     private long code;
 

@@ -5,7 +5,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.tron.core.capsule.ProposalCapsule;
 import org.tron.core.config.Parameter.ForkBlockVersionEnum;
 import org.tron.core.db.Manager;
+import org.tron.core.store.DynamicPropertiesStore;
 import org.tron.core.utils.ProposalUtil;
+import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 
 /**
  * Notice:
@@ -297,8 +299,28 @@ public class ProposalService extends ProposalUtil {
                   + "," + proposalCapsule.getExpirationTime() + ":" + entry.getValue());
           break;
         }
+        case UNFREEZE_DELAY_DAYS: {
+          DynamicPropertiesStore dynamicStore = manager.getDynamicPropertiesStore();
+          dynamicStore.saveUnfreezeDelayDays(entry.getValue());
+          dynamicStore.addSystemContractAndSetPermission(
+              ContractType.FreezeBalanceV2Contract_VALUE);
+          dynamicStore.addSystemContractAndSetPermission(
+              ContractType.UnfreezeBalanceV2Contract_VALUE);
+          dynamicStore.addSystemContractAndSetPermission(
+              ContractType.WithdrawExpireUnfreezeContract_VALUE);
+          dynamicStore.addSystemContractAndSetPermission(
+              ContractType.DelegateResourceContract_VALUE);
+          dynamicStore.addSystemContractAndSetPermission(
+              ContractType.UnDelegateResourceContract_VALUE);
+          break;
+        }
         case ALLOW_DELEGATE_OPTIMIZATION: {
           manager.getDynamicPropertiesStore().saveAllowDelegateOptimization(entry.getValue());
+          break;
+        }
+        case ALLOW_OPTIMIZED_RETURN_VALUE_OF_CHAIN_ID: {
+          manager.getDynamicPropertiesStore()
+              .saveAllowOptimizedReturnValueOfChainId(entry.getValue());
           break;
         }
         default:
