@@ -129,6 +129,14 @@ public class ReceiptCapsule {
     this.receipt = this.receipt.toBuilder().setEnergyUsageTotal(energyUsage).build();
   }
 
+  public long getEnergyPenaltyTotal() {
+    return this.receipt.getEnergyPenaltyTotal();
+  }
+
+  public void setEnergyPenaltyTotal(long penalty) {
+    this.receipt = this.receipt.toBuilder().setEnergyPenaltyTotal(penalty).build();
+  }
+
   public long getNetUsage() {
     return this.receipt.getNetUsage();
   }
@@ -184,7 +192,8 @@ public class ReceiptCapsule {
       long originEnergyLimit,
       EnergyProcessor energyProcessor, long originUsage) {
 
-    if (dynamicPropertiesStore.getAllowTvmFreeze() == 1 || dynamicPropertiesStore.supportUnfreezeDelay()) {
+    if (dynamicPropertiesStore.getAllowTvmFreeze() == 1
+        || dynamicPropertiesStore.supportUnfreezeDelay()) {
       return Math.min(originUsage, Math.min(originEnergyLeft, originEnergyLimit));
     }
 

@@ -158,6 +158,13 @@ public class TransactionTrace {
     receipt.setEnergyUsageTotal(energyUsage);
   }
 
+  public void setPenalty(long energyPenalty) {
+    if (energyPenalty < 0) {
+      energyPenalty = 0L;
+    }
+    receipt.setEnergyPenaltyTotal(energyPenalty);
+  }
+
   //set net bill
   public void setNetBill(long netUsage, long netFee) {
     receipt.setNetUsage(netUsage);
@@ -179,6 +186,7 @@ public class TransactionTrace {
     /*  VM execute  */
     runtime.execute(transactionContext);
     setBill(transactionContext.getProgramResult().getEnergyUsed());
+    setPenalty(transactionContext.getProgramResult().getEnergyPenaltyTotal());
 
 //    if (TrxType.TRX_PRECOMPILED_TYPE != trxType) {
 //      if (contractResult.OUT_OF_TIME
@@ -250,7 +258,7 @@ public class TransactionTrace {
         && receipt.getReceipt().getResult().equals(contractResult.SUCCESS)) {
 
       // just fo caller is not origin, we set the related field for origin account
-      if (!caller.getAddress().equals(origin.getAddress())) {
+      if (origin != null && !caller.getAddress().equals(origin.getAddress())) {
         long originPrevUsage = receipt.getOriginEnergyUsage() * receipt.getOriginEnergyWindowSize();
         long originRepayUsage = (receipt.getOriginEnergyMergedUsage() - origin.getEnergyUsage())
             * origin.getWindowSize(Common.ResourceCode.ENERGY);
