@@ -28,7 +28,7 @@ public class StakeChangeRecord {
   @Data
   public static class StakeInfo {
     String ownerAddress; //账户地址
-    String receiverAddress; //接收账户地址， 只有stakeType=1，stakeType=2有值
+    String receiverAddress; //接收账户地址， 只有stakeType=1有值
 
     Integer stakeType; //1=DelegateResource,UnDelegateResource, 3=UnfreezeBalanceV2, 4=WithdrawExpireUnfreeze（这个时候需要记录所有的解质押记录）
     Integer resource; //资源类型。0=带宽，1=能量，2=tron_power(stakeType=1没有这类型)
@@ -37,7 +37,7 @@ public class StakeChangeRecord {
     long oldBalance; //只有stakeType=1有值, stakeType3,4的值 跟balance相同
 
     Long expireTime; //DelegateResource, UnDelegateResource 是分别有 过期和未过期 两种情况
-    Long oldExpireTime; //只有stakeType=1，stakeType=2有值
+    Long oldExpireTime; //只有stakeType=1，有值
 
     boolean lock = false;
   }
