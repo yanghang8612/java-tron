@@ -21,6 +21,7 @@ import org.tron.common.utils.StringUtil;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.TransactionResultCapsule;
 import org.tron.core.capsule.VotesCapsule;
+import org.tron.core.db.accountchange.StakeChangeRecord;
 import org.tron.core.exception.ContractExeException;
 import org.tron.core.exception.ContractValidateException;
 import org.tron.core.service.MortgageService;
@@ -82,6 +83,7 @@ public class UnfreezeBalanceV2Actuator extends AbstractActuator {
 
     long expireTime = this.calcUnfreezeExpireTime(now);
     accountCapsule.addUnfrozenV2List(freezeType, unfreezeBalance, expireTime);
+    StakeChangeRecord.recordUnfreeze(ownerAddress, freezeType, unfreezeBalance, expireTime);
 
     this.updateTotalResourceWeight(accountCapsule, unfreezeBalanceV2Contract, unfreezeBalance);
     this.updateVote(accountCapsule, unfreezeBalanceV2Contract, ownerAddress);

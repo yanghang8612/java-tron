@@ -8,6 +8,7 @@ import org.tron.common.utils.StringUtil;
 import org.tron.core.actuator.UnfreezeBalanceV2Actuator;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.VotesCapsule;
+import org.tron.core.db.accountchange.StakeChangeRecord;
 import org.tron.core.exception.ContractValidateException;
 import org.tron.core.store.DynamicPropertiesStore;
 import org.tron.core.vm.config.VMConfig;
@@ -132,7 +133,10 @@ public class UnfreezeBalanceV2Processor {
     }
 
     long expireTime = this.calcUnfreezeExpireTime(now, repo);
+
     accountCapsule.addUnfrozenV2List(param.getResourceType(), unfreezeBalance, expireTime);
+
+    StakeChangeRecord.recordUnfreeze(ownerAddress, param.getResourceType(), unfreezeBalance, expireTime);
 
     this.updateTotalResourceWeight(accountCapsule, param.getResourceType(), unfreezeBalance, repo);
     this.updateVote(accountCapsule, param.getResourceType(), ownerAddress, repo);

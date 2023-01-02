@@ -11,6 +11,7 @@ import org.tron.core.capsule.DelegatedResourceAccountIndexCapsule;
 import org.tron.core.capsule.DelegatedResourceCapsule;
 import org.tron.core.db.BandwidthProcessor;
 import org.tron.core.db.EnergyProcessor;
+import org.tron.core.db.accountchange.StakeChangeRecord;
 import org.tron.core.exception.ContractValidateException;
 import org.tron.core.store.DelegatedResourceAccountIndexStore;
 import org.tron.core.store.DynamicPropertiesStore;
@@ -160,10 +161,16 @@ public class UnDelegateResourceProcessor {
     DelegatedResourceCapsule delegatedResourceCapsule = repo.getDelegatedResource(key);
     switch (param.getResourceType()) {
       case BANDWIDTH: {
+        final long frozenBalanceForBandwidth = delegatedResourceCapsule.getFrozenBalanceForBandwidth();
+        final long expireTimeForBandwidth = delegatedResourceCapsule.getExpireTimeForBandwidth();
+
         delegatedResourceCapsule.addFrozenBalanceForBandwidth(-unDelegateBalance, 0);
 
         ownerCapsule.addDelegatedFrozenV2BalanceForBandwidth(-unDelegateBalance);
         ownerCapsule.addFrozenBalanceForBandwidthV2(unDelegateBalance);
+
+        StakeChangeRecord.recordResource(ownerAddress, receiverAddress, BANDWIDTH,
+                frozenBalanceForBandwidth - unDelegateBalance, 0L, frozenBalanceForBandwidth, expireTimeForBandwidth, false);
 
         BandwidthProcessor processor = new BandwidthProcessor(ChainBaseManager.getInstance());
         if (Objects.nonNull(receiverCapsule) && transferUsage > 0) {
@@ -174,10 +181,16 @@ public class UnDelegateResourceProcessor {
       }
       break;
       case ENERGY: {
+        final long frozenBalanceForEnergy = delegatedResourceCapsule.getFrozenBalanceForEnergy();
+        final long expireTimeForEnergy = delegatedResourceCapsule.getExpireTimeForEnergy();
+
         delegatedResourceCapsule.addFrozenBalanceForEnergy(-unDelegateBalance, 0);
 
         ownerCapsule.addDelegatedFrozenV2BalanceForEnergy(-unDelegateBalance);
         ownerCapsule.addFrozenBalanceForEnergyV2(unDelegateBalance);
+
+        StakeChangeRecord.recordResource(ownerAddress, receiverAddress, ENERGY,
+                frozenBalanceForEnergy - unDelegateBalance, 0L, frozenBalanceForEnergy, expireTimeForEnergy, false);
 
         EnergyProcessor processor =
             new EnergyProcessor(dynamicStore, ChainBaseManager.getInstance().getAccountStore());
