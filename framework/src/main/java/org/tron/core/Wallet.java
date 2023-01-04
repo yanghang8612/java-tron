@@ -2847,7 +2847,12 @@ public class Wallet {
       throws ContractValidateException, ContractExeException, HeaderNotFound, VMIllegalException {
 
     if (!Args.getInstance().estimateEnergy) {
-      throw new ContractValidateException("this node does not estimate energy");
+      throw new ContractValidateException("this node does not support estimate energy");
+    }
+
+    if (!Args.getInstance().supportConstant) {
+      throw new ContractValidateException("this node does not support constant, "
+          + "so estimate energy cannot work");
     }
 
     DynamicPropertiesStore dps = chainBaseManager.getDynamicPropertiesStore();
@@ -2874,7 +2879,8 @@ public class Wallet {
 
       long mid = (high + low) / 2;
       txCap.setFeeLimit(mid);
-      triggerConstantContract(triggerSmartContract, txCap, txExtBuilder, txRetBuilder);
+      transaction = triggerConstantContract(
+          triggerSmartContract, txCap, txExtBuilder, txRetBuilder);
       if (transaction.getRet(0).getRet().equals(code.FAILED)) {
         low = mid;
       } else {
@@ -2887,7 +2893,7 @@ public class Wallet {
     txCap.setFeeLimit(high);
     txExtBuilder.clear();
     txRetBuilder.clear();
-    triggerConstantContract(triggerSmartContract, txCap, txExtBuilder, txRetBuilder);
+    transaction = triggerConstantContract(triggerSmartContract, txCap, txExtBuilder, txRetBuilder);
 
     // Setting estimating result
     estimateBuilder.setResult(txRetBuilder);
