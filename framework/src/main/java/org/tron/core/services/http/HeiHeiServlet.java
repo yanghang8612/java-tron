@@ -1,13 +1,15 @@
 package org.tron.core.services.http;
 
-import java.io.IOException;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.bouncycastle.util.encoders.Hex;
 import org.springframework.stereotype.Component;
 import org.tron.common.utils.Commons;
+import org.tron.common.utils.StringUtil;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.capsule.ContractStateCapsule;
 import org.tron.core.db2.common.WrappedByteArray;
@@ -31,13 +33,15 @@ public class HeiHeiServlet extends RateLimiterServlet {
       if (address == null) {
         Map<WrappedByteArray, ContractStateCapsule> contracts =
             css.prefixQuery(cycleNumber.getBytes());
-        contracts.forEach((k, v) -> {
-          try {
-            response.getWriter().println(Hex.toHexString(k.getBytes()) + " = " + v);
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
-        });
+        List<Map.Entry<WrappedByteArray, ContractStateCapsule>> list =
+            new LinkedList<>(contracts.entrySet());
+        list.sort((o1, o2) ->
+            (int) (o2.getValue().getEnergyUsage() - o1.getValue().getEnergyUsage()));
+        for (int i = 0; i < 10 && i < list.size(); i++) {
+          Map.Entry<WrappedByteArray, ContractStateCapsule> e = list.get(i);
+          byte[] key = Arrays.copyOfRange(e.getValue().getData(), 5, 26);
+          response.getWriter().println(StringUtil.encode58Check(key) + " = " + e.getValue());
+        }
       } else {
         response.getWriter().println(css.getByCycle(Commons.decodeFromBase58Check(address),
             Long.parseLong(cycleNumber)));

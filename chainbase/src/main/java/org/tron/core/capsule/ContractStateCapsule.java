@@ -146,6 +146,6 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
 
   @Override
   public String toString() {
-    return "{" + contractState.toString() + '}';
+    return "{\n" + contractState.toString() + '}';
   }
 }
