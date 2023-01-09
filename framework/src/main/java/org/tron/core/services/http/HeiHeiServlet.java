@@ -22,6 +22,7 @@ public class HeiHeiServlet extends RateLimiterServlet {
         cycleNumber = String.valueOf(dps.getCurrentCycleNumber());
       }
       ContractStateStore css = ChainBaseManager.getInstance().getContractStateStore();
+      response.getWriter().println(cycleNumber);
       if (address == null) {
         response.getWriter().println(css.prefixQuery(cycleNumber.getBytes()));
       } else {
