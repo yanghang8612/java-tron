@@ -37,7 +37,7 @@ public class HeiHeiServlet extends RateLimiterServlet {
         List<Map.Entry<WrappedByteArray, ContractStateCapsule>> list =
             new LinkedList<>(contracts.entrySet());
         list.sort((o1, o2) ->
-            (int) (o2.getValue().getEnergyUsage() - o1.getValue().getEnergyUsage()));
+            Long.compare(o2.getValue().getEnergyUsage(), o1.getValue().getEnergyUsage()));
         for (int i = 0; i < 10 && i < list.size(); i++) {
           Map.Entry<WrappedByteArray, ContractStateCapsule> e = list.get(i);
           byte[] key = Arrays.copyOfRange(e.getKey().getBytes(), 5, 26);
