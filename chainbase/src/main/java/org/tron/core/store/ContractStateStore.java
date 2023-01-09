@@ -36,7 +36,7 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
   }
 
   public ContractStateCapsule getByCycle(byte[] key, long cycleNumber) {
-    return get(addPrefix(cycleNumber, key));
+    return getUnchecked(addPrefix(cycleNumber, key));
   }
 
   private byte[] addPrefix(long cycleNumber, byte[] key) {
