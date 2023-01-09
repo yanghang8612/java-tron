@@ -187,18 +187,18 @@ public class VMConfig {
   }
 
   public static boolean allowDynamicEnergy() {
-    return ALLOW_DYNAMIC_ENERGY;
+    return true;
   }
 
   public static long getDynamicEnergyThreshold() {
-    return DYNAMIC_ENERGY_THRESHOLD;
+    return 2_000_000_000L;
   }
 
   public static long getDynamicEnergyIncreaseFactor() {
-    return DYNAMIC_ENERGY_INCREASE_FACTOR;
+    return 1000L;
   }
 
   public static long getDynamicEnergyMaxFactor() {
-    return DYNAMIC_ENERGY_MAX_FACTOR;
+    return 10_000L;
   }
 }
