@@ -23,7 +23,7 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
 
   @Override
   public ContractStateCapsule get(byte[] key) {
-    return getUnchecked(addPrefix(dps.getCurrentCycleNumber(), key));
+    return getUnchecked(key);
   }
 
   @Override
@@ -32,6 +32,7 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
       return;
     }
 
+    revokingDB.put(key, item.getData());
     revokingDB.put(addPrefix(dps.getCurrentCycleNumber(), key), item.getData());
   }
 
