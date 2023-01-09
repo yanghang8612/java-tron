@@ -195,10 +195,10 @@ public class VMConfig {
   }
 
   public static long getDynamicEnergyIncreaseFactor() {
-    return 1000L;
+    return 2000L;
   }
 
   public static long getDynamicEnergyMaxFactor() {
-    return 10_000L;
+    return 25_000L;
   }
 }
