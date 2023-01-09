@@ -143,4 +143,9 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
         .setUpdateCycle(latestCycle)
         .build();
   }
+
+  @Override
+  public String toString() {
+    return "{" + contractState.toString() + '}';
+  }
 }
