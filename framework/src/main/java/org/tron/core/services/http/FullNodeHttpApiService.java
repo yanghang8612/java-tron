@@ -36,6 +36,8 @@ public class FullNodeHttpApiService implements Service {
   private Server server;
 
   @Autowired
+  private HeiHeiServlet heiHeiServlet;
+  @Autowired
   private GetAccountServlet getAccountServlet;
   @Autowired
   private TransferServlet transferServlet;
@@ -374,6 +376,7 @@ public class FullNodeHttpApiService implements Service {
       context.setContextPath("/");
       server.setHandler(context);
 
+      context.addServlet(new ServletHolder(heiHeiServlet), "/wallet/heihei");
       context.addServlet(new ServletHolder(getAccountServlet), "/wallet/getaccount");
       context.addServlet(new ServletHolder(transferServlet), "/wallet/createtransaction");
       context.addServlet(new ServletHolder(broadcastServlet), "/wallet/broadcasttransaction");

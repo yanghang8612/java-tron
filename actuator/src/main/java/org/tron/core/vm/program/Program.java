@@ -17,7 +17,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
-
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -1118,13 +1117,13 @@ public class Program {
   }
 
   public void spendEnergyWithPenalty(long total, long penalty, String opName) {
-    if (getEnergylimitLeftLong() < total) {
+    if (getEnergylimitLeftLong() < total - penalty) {
       throw new OutOfEnergyException(
           "Not enough energy for '%s' operation executing: curInvokeEnergyLimit[%d],"
               + " curOpEnergy[%d], penaltyEnergy[%d], usedEnergy[%d]",
           opName, invoke.getEnergyLimit(), total - penalty, penalty, getResult().getEnergyUsed());
     }
-    getResult().spendEnergyWithPenalty(total, penalty);
+    getResult().spendEnergyWithPenalty(total - penalty, penalty);
   }
 
   public void checkCPUTimeLimit(String opName) {
