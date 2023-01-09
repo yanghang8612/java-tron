@@ -29,8 +29,9 @@ public class HeiHeiServlet extends RateLimiterServlet {
         cycleNumber = String.valueOf(dps.getCurrentCycleNumber());
       }
       ContractStateStore css = ChainBaseManager.getInstance().getContractStateStore();
-      response.getWriter().println("current cycle number:" + cycleNumber);
+      response.getWriter().println("Current cycle number:" + cycleNumber);
       if (address == null) {
+        response.getWriter().println("Top 10 contracts:");
         Map<WrappedByteArray, ContractStateCapsule> contracts =
             css.prefixQuery(cycleNumber.getBytes());
         List<Map.Entry<WrappedByteArray, ContractStateCapsule>> list =
@@ -39,7 +40,7 @@ public class HeiHeiServlet extends RateLimiterServlet {
             (int) (o2.getValue().getEnergyUsage() - o1.getValue().getEnergyUsage()));
         for (int i = 0; i < 10 && i < list.size(); i++) {
           Map.Entry<WrappedByteArray, ContractStateCapsule> e = list.get(i);
-          byte[] key = Arrays.copyOfRange(e.getValue().getData(), 5, 26);
+          byte[] key = Arrays.copyOfRange(e.getKey().getBytes(), 5, 26);
           response.getWriter().println(StringUtil.encode58Check(key) + " = " + e.getValue());
         }
       } else {
