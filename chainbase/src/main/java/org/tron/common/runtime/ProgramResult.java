@@ -194,10 +194,10 @@ public class ProgramResult {
     return internalTransactions;
   }
 
-  public InternalTransaction addInternalTransaction(byte[] parentHash, int deep,
+  public InternalTransaction addInternalTransaction(byte[] parentHash, int deep, int energyLeft,
       byte[] senderAddress, byte[] transferAddress, long value, byte[] data, String note,
       long nonce, Map<String, Long> token) {
-    InternalTransaction transaction = new InternalTransaction(parentHash, deep,
+    InternalTransaction transaction = new InternalTransaction(parentHash, deep, energyLeft,
         size(internalTransactions), senderAddress, transferAddress, value, data, note, nonce,
         token);
     getInternalTransactions().add(transaction);

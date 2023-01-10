@@ -61,6 +61,8 @@ public class InternalTransaction {
   @Getter
   private int deep;
   @Getter
+  private int energyLeft;
+  @Getter
   private int index;
   private boolean rejected;
   private String note;
@@ -118,11 +120,12 @@ public class InternalTransaction {
    * Construct a child InternalTransaction
    */
 
-  public InternalTransaction(byte[] parentHash, int deep, int index,
+  public InternalTransaction(byte[] parentHash, int deep, int energyLeft, int index,
       byte[] sendAddress, byte[] transferToAddress, long value, byte[] data, String note,
       long nonce, Map<String, Long> tokenInfo) {
     this.parentHash = parentHash.clone();
     this.deep = deep;
+    this.energyLeft = energyLeft;
     this.index = index;
     this.note = note;
     this.sendAddress = ArrayUtils.nullToEmpty(sendAddress);
