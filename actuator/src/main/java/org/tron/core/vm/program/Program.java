@@ -786,7 +786,7 @@ public class Program {
     increaseNonce();
     // [5] COOK THE INVOKE AND EXECUTE
     InternalTransaction internalTx = addInternalTx(getEnergyLimitLeft(), senderAddress, newAddress,
-        endowment, programCode, "create", nonce, null);
+        endowment, programCode, isCreate2 ? "creat2" : "create", nonce, null);
     long vmStartInUs = System.nanoTime() / 1000;
     ProgramInvoke programInvoke = ProgramInvokeFactory.createProgramInvoke(
         this, new DataWord(newAddress), getContractAddress(), value, DataWord.ZERO(),

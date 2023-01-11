@@ -132,7 +132,11 @@ public class TransactionUtil {
         programResult.getInternalTransactions().stream()
             .filter(it ->
                 "call".equals(it.getNote())
+                    || "callcode".equals(it.getNote())
+                    || "delegatecall".equals(it.getNote())
+                    || "staticcall".equals(it.getNote())
                     || "create".equals(it.getNote())
+                    || "create2".equals(it.getNote())
                     || "suicide".equals(it.getNote()))
             .forEach(it ->
                 builder.addInternalTransactions(buildInternalTransaction(it)));
