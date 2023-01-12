@@ -69,6 +69,8 @@ public class EventPluginLoader {
 
   private boolean freezeBalanceTriggerEnable = false;
 
+  private boolean stakeBalanceTriggerEnable = false;
+
   private boolean multiAuthTriggerEnable = false;
 
   private boolean trc20TrackerSolidityTriggerEnable = false;
@@ -405,6 +407,14 @@ public class EventPluginLoader {
       if (!useNativeQueue) {
         setPluginTopic(Trigger.FREEZE_TRACKER_TRIGGER, triggerConfig.getTopic());
       }
+    } else if (EventPluginConfig.STAKE_BALANCE_TRACKER
+        .equalsIgnoreCase(triggerConfig.getTriggerName())) {
+      if (triggerConfig.isEnabled()) {
+        stakeBalanceTriggerEnable = true;
+      }
+      if (!useNativeQueue) {
+        setPluginTopic(Trigger.STAKE_TRACKER_TRIGGER, triggerConfig.getTopic());
+      }
     } else if (EventPluginConfig.MULTIAUTH_TRACKER
         .equalsIgnoreCase(triggerConfig.getTriggerName())) {
       if (triggerConfig.isEnabled()) {
@@ -505,6 +515,13 @@ public class EventPluginLoader {
   public synchronized boolean isFreezeBalanceTriggerEnable() {
     return freezeBalanceTriggerEnable;
   }
+
+
+  public synchronized boolean isStakeBalanceTriggerEnable() {
+    return stakeBalanceTriggerEnable;
+  }
+
+
 
   public synchronized boolean isTrc20TrackerSolidityTriggerEnable() {
     return trc20TrackerSolidityTriggerEnable;
@@ -671,6 +688,17 @@ public class EventPluginLoader {
     } else {
       eventListeners.forEach(listener ->
           listener.handleFreezeBalanceEvent(toJsonString(trigger)));
+    }
+  }
+
+
+  public void postStakeBalanceTrigger(StakeBalanceTrigger trigger) {
+    if (useNativeQueue) {
+      NativeMessageQueue.getInstance()
+          .publishTrigger(toJsonString(trigger), trigger.getTriggerName());
+    } else {
+      eventListeners.forEach(listener ->
+          listener.handleStakeBalanceEvent(toJsonString(trigger)));
     }
   }
 

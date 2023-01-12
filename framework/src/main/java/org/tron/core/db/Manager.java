@@ -88,6 +88,7 @@ import org.tron.core.db.KhaosDatabase.KhaosBlock;
 import org.tron.core.db.accountchange.AccountChangeRecord;
 import org.tron.core.db.accountchange.FreezeChangeRecord;
 import org.tron.core.db.accountchange.MultiAuthRecord;
+import org.tron.core.db.accountchange.StakeChangeRecord;
 import org.tron.core.db.accountstate.TrieService;
 import org.tron.core.db.accountstate.callback.AccountStateCallBack;
 import org.tron.core.db.api.AssetUpdateHelper;
@@ -213,6 +214,8 @@ public class Manager {
   private AccountChangeRecord accountChangeRecord;
   @Autowired
   private FreezeChangeRecord freezeChangeRecord;
+  @Autowired
+  private StakeChangeRecord stakeChangeRecord;
   @Autowired
   private MultiAuthRecord multiAuthRecord;
   @Autowired
@@ -1013,6 +1016,7 @@ public class Manager {
     accountChangeRecord.startRecord(recordBalance);
     boolean recordFreeze = eventPluginLoaded && EventPluginLoader.getInstance().isFreezeBalanceTriggerEnable();
     freezeChangeRecord.startRecord(recordFreeze);
+    stakeChangeRecord.startRecord();
     accountChangeRecord.startRecordFreeze(recordFreeze);
 
     boolean recordMultiAuth = eventPluginLoaded && EventPluginLoader.getInstance().isMultiAuthTriggerEnable();
@@ -2120,6 +2124,13 @@ public class Manager {
         balanceTrackerCapsule.processTrigger();
         freezeChangeRecord.clear();
         accountChangeRecord.clearFreeze();
+      }
+    }
+
+    if (EventPluginLoader.getInstance().isStakeBalanceTriggerEnable()) {
+      StakeTrackerCapsule stakeTrackerCapsule = new StakeTrackerCapsule(blockCapsule, stakeChangeRecord.getStakeInfos());
+      if (stakeTrackerCapsule.getStakeBalanceTrigger() != null) {
+        stakeTrackerCapsule.processTrigger();
       }
     }
 

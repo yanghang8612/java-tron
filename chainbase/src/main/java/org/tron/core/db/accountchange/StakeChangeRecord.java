@@ -1,10 +1,10 @@
 package org.tron.core.db.accountchange;
 
 
-import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
+import org.tron.common.logsfilter.trigger.StakeBalanceTrigger;
 import org.tron.common.utils.StringUtil;
 import org.tron.protos.Protocol;
 import org.tron.protos.contract.Common;
@@ -16,30 +16,21 @@ import java.util.List;
 @Service
 public class StakeChangeRecord {
 
-  static List<StakeInfo> result = new ArrayList<>();
+  static List<StakeBalanceTrigger.StakeInfo> result = new ArrayList<>();
 
   static volatile boolean record = false;
 
-  public static void startRecord() {
+  public void startRecord() {
     record = true;
     result.clear();
   }
 
-  @Data
-  public static class StakeInfo {
-    String ownerAddress; //账户地址
-    String receiverAddress; //接收账户地址， 只有stakeType=1有值
+  public void clear() {
+    result.clear();
+  }
 
-    Integer stakeType; //1=DelegateResource,UnDelegateResource, 3=UnfreezeBalanceV2, 4=WithdrawExpireUnfreeze（这个时候需要记录所有的解质押记录）
-    Integer resource; //资源类型。0=带宽，1=能量，2=tron_power(stakeType=1没有这类型)
-
-    long balance; //代理余额或者解质押余额
-    long oldBalance; //只有stakeType=1有值, stakeType3,4的值 跟balance相同
-
-    Long expireTime; //DelegateResource, UnDelegateResource 是分别有 过期和未过期 两种情况
-    Long oldExpireTime; //只有stakeType=1，有值
-
-    boolean lock = false;
+  public List<StakeBalanceTrigger.StakeInfo> getStakeInfos() {
+    return result;
   }
 
   public static void recordUnfreeze(byte[] ownerAddress, Common.ResourceCode resourceCode,
@@ -48,7 +39,7 @@ public class StakeChangeRecord {
       return;
     }
 
-    StakeInfo stakeInfo = new StakeInfo();
+    StakeBalanceTrigger.StakeInfo stakeInfo = new StakeBalanceTrigger.StakeInfo();
     stakeInfo.setOwnerAddress(StringUtil.encode58Check(ownerAddress));
     stakeInfo.setReceiverAddress("");
     stakeInfo.setStakeType(3);
@@ -68,7 +59,7 @@ public class StakeChangeRecord {
     }
 
     totalWithdrawList.stream().forEach(item -> {
-      StakeInfo stakeInfo = new StakeInfo();
+      StakeBalanceTrigger.StakeInfo stakeInfo = new StakeBalanceTrigger.StakeInfo();
       stakeInfo.setOwnerAddress(StringUtil.encode58Check(ownerAddress));
       stakeInfo.setReceiverAddress("");
       stakeInfo.setStakeType(4);
@@ -90,7 +81,7 @@ public class StakeChangeRecord {
       return;
     }
 
-    StakeInfo stakeInfo = new StakeInfo();
+    StakeBalanceTrigger.StakeInfo stakeInfo = new StakeBalanceTrigger.StakeInfo();
     stakeInfo.setOwnerAddress(StringUtil.encode58Check(ownerAddress));
     stakeInfo.setReceiverAddress(StringUtil.encode58Check(receiverAddress));
     stakeInfo.setStakeType(1);

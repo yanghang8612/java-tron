@@ -35,6 +35,8 @@ public interface IPluginEventListener extends ExtensionPoint {
 
   void handleFreezeBalanceEvent(Object trigger);
 
+  void handleStakeBalanceEvent(Object trigger);
+
   void handleShieldedTRC20Event(Object trigger);
 
   void handleTransferEvent(Object trigger);
