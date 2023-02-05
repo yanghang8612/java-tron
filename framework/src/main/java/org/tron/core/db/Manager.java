@@ -1468,10 +1468,9 @@ public class Manager {
         // Record penalty and trx burn
         if (trace.getReceipt().getEnergyPenaltyTotal() > 0)  {
           csc.addEnergyPenalty(trace.getReceipt().getEnergyPenaltyTotal());
-          long energyByTrxBurned = trace.getReceipt().getEnergyFee()
-              / getDynamicPropertiesStore().getEnergyFee();
-//          trace.getReceipt().getEnergyPenaltyTotal() -
-//          csc.addTrxPenalty();
+          long energyByTrxBurned = trace.getReceipt().getEnergyUsageTotal()
+              - trace.getReceipt().getEnergyUsage() - trace.getReceipt().getOriginEnergyUsage();
+          csc.addTrxPenalty(energyByTrxBurned * getDynamicPropertiesStore().getEnergyFee());
         }
         if (trace.getReceipt().getEnergyFee() > 0) {
           csc.addTrxBurn(trace.getReceipt().getEnergyFee());
