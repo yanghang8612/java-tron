@@ -2,6 +2,7 @@ package org.tron.core.db;
 
 import static org.tron.common.utils.Commons.adjustBalance;
 import static org.tron.protos.Protocol.Transaction.Contract.ContractType.TransferContract;
+import static org.tron.protos.Protocol.Transaction.Result.contractResult.OUT_OF_ENERGY;
 import static org.tron.protos.Protocol.Transaction.Result.contractResult.SUCCESS;
 
 import com.google.common.cache.Cache;
@@ -1475,6 +1476,14 @@ public class Manager {
         if (trace.getReceipt().getEnergyFee() > 0) {
           csc.addTrxBurn(trace.getReceipt().getEnergyFee());
         }
+        if (trace.getReceipt().getResult() == OUT_OF_ENERGY && csc.getEnergyFactor() > 0) {
+          if (trxCap.getFeeLimit() < 6200000 * 1.2) {
+            logger.error("Feelimit is not enough ["
+                + Hex.toHexString(trxCap.getTransactionId().getBytes()) + "] "
+                + trxCap.getFeeLimit());
+          }
+        }
+        chainBaseManager.getContractStateStore().put(addr, csc);
       }
     }
     chainBaseManager.getTransactionStore().put(trxCap.getTransactionId().getBytes(), trxCap);
