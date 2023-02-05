@@ -75,6 +75,7 @@ import org.tron.common.utils.Pair;
 import org.tron.common.utils.SessionOptional;
 import org.tron.common.utils.Sha256Hash;
 import org.tron.common.utils.StringUtil;
+import org.tron.common.utils.Time;
 import org.tron.common.zksnark.MerkleContainer;
 import org.tron.consensus.Consensus;
 import org.tron.consensus.base.Param.Miner;
@@ -1457,7 +1458,8 @@ public class Manager {
           totalCap = new ContractStateCapsule(0);
         }
         totalCap.addEnergyUsage(trace.getReceipt().getEnergyUsageTotal());
-        totalCap.setEnergyFactor(totalCap.getEnergyFactor() + trace.getReceipt().getEnergyPenaltyTotal());
+        totalCap.setEnergyFactor(totalCap.getEnergyFactor()
+            + trace.getReceipt().getEnergyPenaltyTotal());
         totalCap.addUpdateCycle(trace.getReceipt().getEnergyFee());
         chainBaseManager.getContractStateStore().setTotalRecord(totalCap);
 
@@ -1471,6 +1473,11 @@ public class Manager {
           csc.addEnergyPenalty(trace.getReceipt().getEnergyPenaltyTotal());
           long energyByTrxBurned = trace.getReceipt().getEnergyUsageTotal()
               - trace.getReceipt().getEnergyUsage() - trace.getReceipt().getOriginEnergyUsage();
+
+          energyByTrxBurned = Math.min(
+              energyByTrxBurned,
+              trace.getReceipt().getEnergyPenaltyTotal());
+
           csc.addTrxPenalty(energyByTrxBurned * getDynamicPropertiesStore().getEnergyFee());
         }
         if (trace.getReceipt().getEnergyFee() > 0) {
@@ -1480,7 +1487,7 @@ public class Manager {
           if (trxCap.getFeeLimit() < 6200000 * 1.2) {
             logger.error("Feelimit is not enough ["
                 + Hex.toHexString(trxCap.getTransactionId().getBytes()) + "] "
-                + trxCap.getFeeLimit());
+                + trxCap.getFeeLimit() + " [" + Time.getTimeString(blockCap.getTimeStamp()) + "]");
           }
         }
         chainBaseManager.getContractStateStore().put(addr, csc);
