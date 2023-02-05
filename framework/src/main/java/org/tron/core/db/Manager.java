@@ -86,6 +86,7 @@ import org.tron.core.capsule.BlockBalanceTraceCapsule;
 import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.capsule.BlockCapsule.BlockId;
 import org.tron.core.capsule.BytesCapsule;
+import org.tron.core.capsule.ContractStateCapsule;
 import org.tron.core.capsule.TransactionCapsule;
 import org.tron.core.capsule.TransactionInfoCapsule;
 import org.tron.core.capsule.TransactionRetCapsule;
@@ -1446,6 +1447,36 @@ public class Manager {
     trace.finalization();
     if (getDynamicPropertiesStore().supportVM()) {
       trxCap.setResult(trace.getTransactionContext());
+      // Record something for smart contract
+      if (trxCap.isContractType()) {
+        // Record total energy consumption
+        long currentCycle = getDynamicPropertiesStore().getCurrentCycleNumber();
+        ContractStateCapsule totalCap = chainBaseManager.getContractStateStore().getTotalRecord();
+        if (totalCap == null) {
+          totalCap = new ContractStateCapsule(0);
+        }
+        totalCap.addEnergyUsage(trace.getReceipt().getEnergyUsageTotal());
+        totalCap.setEnergyFactor(totalCap.getEnergyFactor() + trace.getReceipt().getEnergyPenaltyTotal());
+        totalCap.addUpdateCycle(trace.getReceipt().getEnergyFee());
+        chainBaseManager.getContractStateStore().setTotalRecord(totalCap);
+
+        byte[] addr = trace.getRuntimeResult().getContractAddress();
+        ContractStateCapsule csc = getChainBaseManager().getContractStateStore().get(addr);
+        if (csc == null) {
+          csc = new ContractStateCapsule(getDynamicPropertiesStore().getCurrentCycleNumber());
+        }
+        // Record penalty and trx burn
+        if (trace.getReceipt().getEnergyPenaltyTotal() > 0)  {
+          csc.addEnergyPenalty(trace.getReceipt().getEnergyPenaltyTotal());
+          long energyByTrxBurned = trace.getReceipt().getEnergyFee()
+              / getDynamicPropertiesStore().getEnergyFee();
+//          trace.getReceipt().getEnergyPenaltyTotal() -
+//          csc.addTrxPenalty();
+        }
+        if (trace.getReceipt().getEnergyFee() > 0) {
+          csc.addTrxBurn(trace.getReceipt().getEnergyFee());
+        }
+      }
     }
     chainBaseManager.getTransactionStore().put(trxCap.getTransactionId().getBytes(), trxCap);
 

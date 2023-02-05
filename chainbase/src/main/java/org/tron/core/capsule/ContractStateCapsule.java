@@ -72,6 +72,24 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
     setUpdateCycle(getUpdateCycle() + toAdd);
   }
 
+  public void addEnergyPenalty(long toAdd) {
+    this.contractState = this.contractState.toBuilder()
+        .setEnergyPenalty(this.contractState.getEnergyPenalty() + toAdd)
+        .build();
+  }
+
+  public void addTrxBurn(long toAdd) {
+    this.contractState = this.contractState.toBuilder()
+        .setTrxBurn(this.contractState.getTrxBurn() + toAdd)
+        .build();
+  }
+
+  public void addTrxPenalty(long toAdd) {
+    this.contractState = this.contractState.toBuilder()
+        .setTrxPenalty(this.contractState.getTrxPenalty() + toAdd)
+        .build();
+  }
+
   public boolean catchUpToCycle(DynamicPropertiesStore dps) {
     return catchUpToCycle(
         dps.getCurrentCycleNumber(),
@@ -142,5 +160,10 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
     this.contractState = ContractState.newBuilder()
         .setUpdateCycle(latestCycle)
         .build();
+  }
+
+  @Override
+  public String toString() {
+    return "{\n" + contractState.toString() + '}';
   }
 }
