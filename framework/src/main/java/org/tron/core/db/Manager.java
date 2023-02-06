@@ -1870,7 +1870,7 @@ public class Manager {
           }
         }
       }
-      if (sb.length() > 0 && "".equals(Args.getInstance().slackWebhook)) {
+      if (sb.length() > 0 && !"".equals(Args.getInstance().slackWebhook)) {
         NetUtil.post(Args.getInstance().slackWebhook, String.format("{\"text\":\"%s\"}", sb));
       }
     }
