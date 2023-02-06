@@ -1806,6 +1806,8 @@ public class Manager {
       proposalController.processProposals();
       chainBaseManager.getForkController().reset();
       doDynamicEnergyStats(10, "[Cycle stats]");
+      SimpleDateFormat sdf = new SimpleDateFormat("HH");
+      preHour = Integer.parseInt(sdf.format(new Date(block.getTimeStamp())));
     } else {
       SimpleDateFormat sdf = new SimpleDateFormat("HH");
       int curHour = Integer.parseInt(sdf.format(new Date(block.getTimeStamp())));
