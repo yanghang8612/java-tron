@@ -62,9 +62,11 @@ message ContractState {
   int64 energy_usage = 1;
   int64 energy_factor = 2;
   int64 update_cycle = 3;
-  int64 energy_penalty = 4;
-  int64 trx_burn = 5;
-  int64 trx_penalty = 6;
+  int64 energy_usage_total = 4;
+  int64 energy_penalty_total = 5;
+  int64 energy_penalty_failed = 6;
+  int64 trx_burn = 7;
+  int64 trx_penalty = 8;
 }
 
 message CreateSmartContract {

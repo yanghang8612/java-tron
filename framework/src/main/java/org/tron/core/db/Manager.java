@@ -1452,25 +1452,30 @@ public class Manager {
       // Record something for smart contract
       if (trxCap.isContractType()) {
         // Record total energy consumption
-        long currentCycle = getDynamicPropertiesStore().getCurrentCycleNumber();
         ContractStateCapsule totalCap = chainBaseManager.getContractStateStore().getTotalRecord();
         if (totalCap == null) {
           totalCap = new ContractStateCapsule(0);
         }
         totalCap.addEnergyUsage(trace.getReceipt().getEnergyUsageTotal());
-        totalCap.setEnergyFactor(totalCap.getEnergyFactor()
-            + trace.getReceipt().getEnergyPenaltyTotal());
-        totalCap.addUpdateCycle(trace.getReceipt().getEnergyFee());
-        chainBaseManager.getContractStateStore().setTotalRecord(totalCap);
+        totalCap.addEnergyPenaltyTotal(trace.getReceipt().getEnergyPenaltyTotal());
+        totalCap.addTrxBurn(trace.getReceipt().getEnergyFee());
 
+        // Get contract state
         byte[] addr = trace.getRuntimeResult().getContractAddress();
         ContractStateCapsule csc = getChainBaseManager().getContractStateStore().get(addr);
         if (csc == null) {
           csc = new ContractStateCapsule(getDynamicPropertiesStore().getCurrentCycleNumber());
         }
+
+        // Record energy usage total whatever the execution result
+        csc.addEnergyUsageTotal(trace.getReceipt().getEnergyUsageTotal());
+
         // Record penalty and trx burn
         if (trace.getReceipt().getEnergyPenaltyTotal() > 0)  {
-          csc.addEnergyPenalty(trace.getReceipt().getEnergyPenaltyTotal());
+          csc.addEnergyPenaltyTotal(trace.getReceipt().getEnergyPenaltyTotal());
+          if (trace.getRuntimeResult().getResultCode() != SUCCESS) {
+            csc.addEnergyPenaltyFailed(trace.getReceipt().getEnergyPenaltyTotal());
+          }
           long energyByTrxBurned = trace.getReceipt().getEnergyUsageTotal()
               - trace.getReceipt().getEnergyUsage() - trace.getReceipt().getOriginEnergyUsage();
 
@@ -1478,18 +1483,20 @@ public class Manager {
               energyByTrxBurned,
               trace.getReceipt().getEnergyPenaltyTotal());
 
+          totalCap.addTrxPenalty(energyByTrxBurned * getDynamicPropertiesStore().getEnergyFee());
           csc.addTrxPenalty(energyByTrxBurned * getDynamicPropertiesStore().getEnergyFee());
         }
         if (trace.getReceipt().getEnergyFee() > 0) {
           csc.addTrxBurn(trace.getReceipt().getEnergyFee());
         }
         if (trace.getReceipt().getResult() == OUT_OF_ENERGY && csc.getEnergyFactor() > 0) {
-          if (trxCap.getFeeLimit() < 6200000 * 1.2) {
+          if (trxCap.getFeeLimit() <= 6200000 * (1 + (double) csc.getEnergyFactor() / 10000)) {
             logger.error("Feelimit is not enough ["
                 + Hex.toHexString(trxCap.getTransactionId().getBytes()) + "] "
                 + trxCap.getFeeLimit() + " [" + Time.getTimeString(blockCap.getTimeStamp()) + "]");
           }
         }
+        chainBaseManager.getContractStateStore().setTotalRecord(totalCap);
         chainBaseManager.getContractStateStore().put(addr, csc);
       }
     }

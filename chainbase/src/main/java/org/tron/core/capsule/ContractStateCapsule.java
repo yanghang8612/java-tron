@@ -72,9 +72,21 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
     setUpdateCycle(getUpdateCycle() + toAdd);
   }
 
-  public void addEnergyPenalty(long toAdd) {
+  public void addEnergyUsageTotal(long toAdd) {
     this.contractState = this.contractState.toBuilder()
-        .setEnergyPenalty(this.contractState.getEnergyPenalty() + toAdd)
+        .setEnergyUsageTotal(this.contractState.getEnergyUsageTotal() + toAdd)
+        .build();
+  }
+
+  public void addEnergyPenaltyTotal(long toAdd) {
+    this.contractState = this.contractState.toBuilder()
+        .setEnergyPenaltyTotal(this.contractState.getEnergyPenaltyTotal() + toAdd)
+        .build();
+  }
+
+  public void addEnergyPenaltyFailed(long toAdd) {
+    this.contractState = this.contractState.toBuilder()
+        .setEnergyPenaltyFailed(this.contractState.getEnergyPenaltyFailed() + toAdd)
         .build();
   }
 
