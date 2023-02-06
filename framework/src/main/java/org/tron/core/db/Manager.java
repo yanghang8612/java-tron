@@ -1860,7 +1860,7 @@ public class Manager {
         Map.Entry<WrappedByteArray, ContractStateCapsule> entry = list.get(i);
         ContractStateCapsule topCap = entry.getValue();
         byte[] key = Arrays.copyOfRange(entry.getKey().getBytes(),
-            cycleNumber.length() + 1, cycleNumber.length() + 22);
+            cycleNumber.length(), cycleNumber.length() + 21);
         sb.append("Top-").append(i).append(": ")
             .append(StringUtil.encode58Check(key)).append("\n");
         if (topCap.getEnergyUsage() > 0) {
