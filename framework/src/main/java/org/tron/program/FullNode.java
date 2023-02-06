@@ -55,7 +55,7 @@ public class FullNode {
     logger.info("Full node running.");
     Args.setParam(args, Constant.TESTNET_CONF);
     CommonParameter parameter = Args.getInstance();
-    NetUtil.post(parameter.slackWebhook, "Track Bot is running");
+    NetUtil.post(parameter.slackWebhook, "{\"text\":\"Track Bot is running\"}");
 
     load(parameter.getLogbackPath());
 
