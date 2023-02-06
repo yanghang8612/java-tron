@@ -12,6 +12,7 @@ import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteString;
 import io.prometheus.client.Histogram;
 import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -255,6 +256,8 @@ public class Manager {
 
   private AtomicInteger blockWaitLock = new AtomicInteger(0);
   private Object transactionLock = new Object();
+
+  private int preHour = 0;
 
   /**
    * Cycle thread to rePush Transactions
@@ -1802,76 +1805,13 @@ public class Manager {
         <= block.getTimeStamp()) {
       proposalController.processProposals();
       chainBaseManager.getForkController().reset();
-
-      // Send dynamic energy to slack webhook
-      String cycleNumber = "" + getDynamicPropertiesStore().getCurrentCycleNumber();
-      ContractStateStore css = getChainBaseManager().getContractStateStore();
-      Map<WrappedByteArray, ContractStateCapsule> contracts =
-          css.prefixQuery(cycleNumber.getBytes());
-      List<Map.Entry<WrappedByteArray, ContractStateCapsule>> list =
-          new LinkedList<>(contracts.entrySet());
-      list.sort((o1, o2) ->
-          Long.compare(o2.getValue().getEnergyUsage(), o1.getValue().getEnergyUsage()));
-      StringBuilder sb = new StringBuilder();
-      if (list.size() > 0) {
-        DecimalFormat df = new DecimalFormat("#,###");
-        ContractStateCapsule totalCap = list.get(0).getValue();
-        sb.append("Cycle-").append(cycleNumber).append(": ");
-        sb.append(String.format("`TotalEnergyUsage`: %s, ",
-            df.format(totalCap.getEnergyUsage())));
-        sb.append(String.format("`TotalEnergyPenalty`: %s, ",
-            df.format(totalCap.getEnergyPenaltyTotal())));
-        sb.append(String.format("`TotalTrxBurn`: %s, ",
-            df.format(totalCap.getTrxBurn())));
-        sb.append(String.format("`TotalTxCount`: %s\n",
-            df.format(totalCap.getTxTotalCount())));
-        for (int i = 1; i <= 10 && i < list.size(); i++) {
-          Map.Entry<WrappedByteArray, ContractStateCapsule> entry = list.get(i);
-          ContractStateCapsule topCap = entry.getValue();
-          byte[] key = Arrays.copyOfRange(entry.getKey().getBytes(),
-              cycleNumber.length() + 1, cycleNumber.length() + 22);
-          sb.append("Top-").append(i).append(": ")
-              .append(StringUtil.encode58Check(key)).append("\n");
-          if (topCap.getEnergyUsage() > 0) {
-            sb.append("> `EnergyUsage`: ")
-                .append(df.format(topCap.getEnergyUsage())).append("\n");
-          }
-          if (topCap.getEnergyFactor() > 0) {
-            sb.append("> `EnergyFactor`: ")
-                .append(df.format(topCap.getEnergyFactor())).append("\n");
-          }
-          if (topCap.getEnergyUsageTotal() > 0) {
-            sb.append("> `EnergyUsageTotal`: ")
-                .append(df.format(topCap.getEnergyUsageTotal())).append("\n");
-          }
-          if (topCap.getEnergyPenaltyTotal() > 0) {
-            sb.append("> `EnergyPenaltyTotal`: ")
-                .append(df.format(topCap.getEnergyPenaltyTotal())).append("\n");
-          }
-          if (topCap.getEnergyPenaltyFailed() > 0) {
-            sb.append("> `EnergyPenaltyFailed`: ")
-                .append(df.format(topCap.getEnergyPenaltyFailed())).append("\n");
-          }
-          if (topCap.getTrxBurn() > 0) {
-            sb.append("> `TrxBurn`: ")
-                .append(df.format(topCap.getTrxBurn())).append("\n");
-          }
-          if (topCap.getTrxPenalty() > 0) {
-            sb.append("> `TrxPenalty`: ")
-                .append(df.format(topCap.getTrxPenalty())).append("\n");
-          }
-          if (topCap.getTxTotalCount() > 0) {
-            sb.append("> `TxTotalCount`: ")
-                .append(df.format(topCap.getTxTotalCount())).append("\n");
-          }
-          if (topCap.getTxOOECount() > 0) {
-            sb.append("> `TxOOECount`: ")
-                .append(df.format(topCap.getTxOOECount())).append("\n");
-          }
-        }
-      }
-      if (sb.length() > 0 && !"".equals(Args.getInstance().slackWebhook)) {
-        NetUtil.post(Args.getInstance().slackWebhook, String.format("{\"text\":\"%s\"}", sb));
+      doDynamicEnergyStats(10, "[Cycle stats]");
+    } else {
+      SimpleDateFormat sdf = new SimpleDateFormat("HH");
+      int curHour = Integer.parseInt(sdf.format(new Date(block.getTimeStamp())));
+      if (curHour != preHour) {
+        preHour = curHour;
+        doDynamicEnergyStats(3, "[Hour stats]");
       }
     }
 
@@ -1891,6 +1831,79 @@ public class Manager {
           .initBlockSection(transactionRetCapsule);
       chainBaseManager.getSectionBloomStore().write(block.getNum());
       block.setBloom(blockBloom);
+    }
+  }
+
+  private void doDynamicEnergyStats(long topN, String title) {
+    String cycleNumber = getDynamicPropertiesStore().getCurrentCycleNumber() + "-";
+    ContractStateStore css = getChainBaseManager().getContractStateStore();
+    Map<WrappedByteArray, ContractStateCapsule> contracts =
+        css.prefixQuery(cycleNumber.getBytes());
+    List<Map.Entry<WrappedByteArray, ContractStateCapsule>> list =
+        new LinkedList<>(contracts.entrySet());
+    list.sort((o1, o2) ->
+        Long.compare(o2.getValue().getEnergyUsage(), o1.getValue().getEnergyUsage()));
+    StringBuilder sb = new StringBuilder(title + "\n");
+    if (list.size() > 0) {
+      DecimalFormat df = new DecimalFormat("#,###");
+      ContractStateCapsule totalCap = list.get(0).getValue();
+      sb.append("Cycle-").append(cycleNumber).append(": ");
+      sb.append(String.format("`TotalEnergyUsage`: %s, ",
+          df.format(totalCap.getEnergyUsage())));
+      sb.append(String.format("`TotalEnergyPenalty`: %s, ",
+          df.format(totalCap.getEnergyPenaltyTotal())));
+      sb.append(String.format("`TotalTrxBurn`: %s, ",
+          df.format(totalCap.getTrxBurn())));
+      sb.append(String.format("`TotalTxCount`: %s\n",
+          df.format(totalCap.getTxTotalCount())));
+      for (int i = 1; i <= topN && i < list.size(); i++) {
+        Map.Entry<WrappedByteArray, ContractStateCapsule> entry = list.get(i);
+        ContractStateCapsule topCap = entry.getValue();
+        byte[] key = Arrays.copyOfRange(entry.getKey().getBytes(),
+            cycleNumber.length() + 1, cycleNumber.length() + 22);
+        sb.append("Top-").append(i).append(": ")
+            .append(StringUtil.encode58Check(key)).append("\n");
+        if (topCap.getEnergyUsage() > 0) {
+          sb.append("> `EnergyUsage`: ")
+              .append(df.format(topCap.getEnergyUsage())).append("\n");
+        }
+        if (topCap.getEnergyFactor() > 0) {
+          sb.append("> `EnergyFactor`: ")
+              .append(df.format(topCap.getEnergyFactor())).append("\n");
+        }
+        if (topCap.getEnergyUsageTotal() > 0) {
+          sb.append("> `EnergyUsageTotal`: ")
+              .append(df.format(topCap.getEnergyUsageTotal())).append("\n");
+        }
+        if (topCap.getEnergyPenaltyTotal() > 0) {
+          sb.append("> `EnergyPenaltyTotal`: ")
+              .append(df.format(topCap.getEnergyPenaltyTotal())).append("\n");
+        }
+        if (topCap.getEnergyPenaltyFailed() > 0) {
+          sb.append("> `EnergyPenaltyFailed`: ")
+              .append(df.format(topCap.getEnergyPenaltyFailed())).append("\n");
+        }
+        if (topCap.getTrxBurn() > 0) {
+          sb.append("> `TrxBurn`: ")
+              .append(df.format(topCap.getTrxBurn())).append("\n");
+        }
+        if (topCap.getTrxPenalty() > 0) {
+          sb.append("> `TrxPenalty`: ")
+              .append(df.format(topCap.getTrxPenalty())).append("\n");
+        }
+        if (topCap.getTxTotalCount() > 0) {
+          sb.append("> `TxTotalCount`: ")
+              .append(df.format(topCap.getTxTotalCount())).append("\n");
+        }
+        if (topCap.getTxOOECount() > 0) {
+          sb.append("> `TxOOECount`: ")
+              .append(df.format(topCap.getTxOOECount())).append("\n");
+        }
+      }
+    }
+    if (sb.length() > 0) {
+      logger.error(sb.toString());
+      NetUtil.post(Args.getInstance().slackWebhook, String.format("{\"text\":\"%s\"}", sb));
     }
   }
 
