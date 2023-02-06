@@ -1459,6 +1459,7 @@ public class Manager {
         totalCap.addEnergyUsage(trace.getReceipt().getEnergyUsageTotal());
         totalCap.addEnergyPenaltyTotal(trace.getReceipt().getEnergyPenaltyTotal());
         totalCap.addTrxBurn(trace.getReceipt().getEnergyFee());
+        totalCap.addTxTotalCount();
 
         // Get contract state
         byte[] addr = trace.getRuntimeResult().getContractAddress();
@@ -1469,6 +1470,7 @@ public class Manager {
 
         // Record energy usage total whatever the execution result
         csc.addEnergyUsageTotal(trace.getReceipt().getEnergyUsageTotal());
+        csc.addTxTotalCount();
 
         // Record penalty and trx burn
         if (trace.getReceipt().getEnergyPenaltyTotal() > 0)  {
@@ -1490,6 +1492,7 @@ public class Manager {
           csc.addTrxBurn(trace.getReceipt().getEnergyFee());
         }
         if (trace.getReceipt().getResult() == OUT_OF_ENERGY && csc.getEnergyFactor() > 0) {
+          csc.addTxOOECount();
           if (trxCap.getFeeLimit() <= 6200000 * (1 + (double) csc.getEnergyFactor() / 10000)) {
             logger.error("Feelimit is not enough ["
                 + Hex.toHexString(trxCap.getTransactionId().getBytes()) + "] "

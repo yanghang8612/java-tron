@@ -102,6 +102,18 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
         .build();
   }
 
+  public void addTxTotalCount() {
+    this.contractState = this.contractState.toBuilder()
+        .setTxTotalCount(this.contractState.getTxTotalCount() + 1)
+        .build();
+  }
+
+  public void addTxOOECount() {
+    this.contractState = this.contractState.toBuilder()
+        .setTxOoeCount(this.contractState.getTxOoeCount() + 1)
+        .build();
+  }
+
   public boolean catchUpToCycle(DynamicPropertiesStore dps) {
     return catchUpToCycle(
         dps.getCurrentCycleNumber(),

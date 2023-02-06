@@ -67,6 +67,8 @@ message ContractState {
   int64 energy_penalty_failed = 6;
   int64 trx_burn = 7;
   int64 trx_penalty = 8;
+  int64 tx_total_count = 9;
+  int64 tx_ooe_count = 10;
 }
 
 message CreateSmartContract {
