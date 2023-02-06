@@ -1125,6 +1125,10 @@ public class Args extends CommonParameter {
           Math.max(PARAMETER.dynamicEnergyMaxFactor, 0);
     }
 
+    if (config.hasPath(Constant.DYNAMIC_ENERGY_MAX_FACTOR)) {
+      PARAMETER.slackWebhook = config.getString(Constant.DYNAMIC_ENERGY_MAX_FACTOR);
+    }
+
     logConfig();
   }
 

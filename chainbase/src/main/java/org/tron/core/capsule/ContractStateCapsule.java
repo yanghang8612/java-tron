@@ -72,10 +72,18 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
     setUpdateCycle(getUpdateCycle() + toAdd);
   }
 
+  public long getEnergyUsageTotal() {
+    return this.getInstance().getEnergyUsageTotal();
+  }
+
   public void addEnergyUsageTotal(long toAdd) {
     this.contractState = this.contractState.toBuilder()
         .setEnergyUsageTotal(this.contractState.getEnergyUsageTotal() + toAdd)
         .build();
+  }
+
+  public long getEnergyPenaltyTotal() {
+    return this.getInstance().getEnergyPenaltyTotal();
   }
 
   public void addEnergyPenaltyTotal(long toAdd) {
@@ -84,10 +92,18 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
         .build();
   }
 
+  public long getEnergyPenaltyFailed() {
+    return this.getInstance().getEnergyPenaltyFailed();
+  }
+
   public void addEnergyPenaltyFailed(long toAdd) {
     this.contractState = this.contractState.toBuilder()
         .setEnergyPenaltyFailed(this.contractState.getEnergyPenaltyFailed() + toAdd)
         .build();
+  }
+
+  public long getTrxBurn() {
+    return this.getInstance().getTrxBurn();
   }
 
   public void addTrxBurn(long toAdd) {
@@ -96,16 +112,28 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
         .build();
   }
 
+  public long getTrxPenalty() {
+    return this.getInstance().getTrxPenalty();
+  }
+
   public void addTrxPenalty(long toAdd) {
     this.contractState = this.contractState.toBuilder()
         .setTrxPenalty(this.contractState.getTrxPenalty() + toAdd)
         .build();
   }
 
+  public long getTxTotalCount() {
+    return this.getInstance().getTxTotalCount();
+  }
+
   public void addTxTotalCount() {
     this.contractState = this.contractState.toBuilder()
         .setTxTotalCount(this.contractState.getTxTotalCount() + 1)
         .build();
+  }
+
+  public long getTxOOECount() {
+    return this.getInstance().getTxOoeCount();
   }
 
   public void addTxOOECount() {
