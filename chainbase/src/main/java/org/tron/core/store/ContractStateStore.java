@@ -51,4 +51,25 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
   private byte[] addPrefix(long cycleNumber, byte[] key) {
     return ByteUtil.merge((cycleNumber + "-").getBytes(), key);
   }
+
+  public ContractStateCapsule getDayState(long cycleNum, byte[] addr) {
+    ContractStateCapsule total = new ContractStateCapsule(0);
+    for (int i = 0; i < 4; i++) {
+      ContractStateCapsule csc = get(addPrefix(cycleNum, addr));
+      if (csc == null) {
+        break;
+      }
+      total.addEnergyUsage(csc.getEnergyUsage());
+      total.addEnergyUsageTotal(csc.getEnergyUsageTotal());
+      total.addEnergyUsageFailed(csc.getEnergyUsageFailed());
+      total.addEnergyPenaltyTotal(csc.getEnergyPenaltyTotal());
+      total.addEnergyPenaltyFailed(csc.getEnergyPenaltyFailed());
+      total.addTrxBurn(csc.getTrxBurn());
+      total.addTrxPenalty(csc.getTrxPenalty());
+      total.addTxTotalCount(csc.getTxTotalCount());
+      total.addTxFailedCount(csc.getTxFailedCount());
+      total.addTxOOECount(csc.getTxOOECount());
+    }
+    return total;
+  }
 }

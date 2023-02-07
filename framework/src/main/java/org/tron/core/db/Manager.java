@@ -72,8 +72,8 @@ import org.tron.common.prometheus.MetricLabels;
 import org.tron.common.prometheus.Metrics;
 import org.tron.common.runtime.RuntimeImpl;
 import org.tron.common.utils.ByteArray;
+import org.tron.common.utils.Commons;
 import org.tron.common.utils.JsonUtil;
-import org.tron.common.utils.NetUtil;
 import org.tron.common.utils.Pair;
 import org.tron.common.utils.SessionOptional;
 import org.tron.common.utils.Sha256Hash;
@@ -108,7 +108,6 @@ import org.tron.core.db.api.BandwidthPriceHistoryLoader;
 import org.tron.core.db.api.EnergyPriceHistoryLoader;
 import org.tron.core.db.api.MoveAbiHelper;
 import org.tron.core.db2.ISession;
-import org.tron.core.db2.common.WrappedByteArray;
 import org.tron.core.db2.core.Chainbase;
 import org.tron.core.db2.core.ITronChainBase;
 import org.tron.core.db2.core.SnapshotManager;
@@ -1808,15 +1807,24 @@ public class Manager {
         <= block.getTimeStamp()) {
       proposalController.processProposals();
       chainBaseManager.getForkController().reset();
-      doDynamicEnergyStats(10, "[Cycle stats]");
+
       SimpleDateFormat sdf = new SimpleDateFormat("HH");
       preHour = Integer.parseInt(sdf.format(new Date(block.getTimeStamp())));
+
+      // Do cycle stats
+      // doDynamicEnergyCycleStats();
+      // Do day stats
+      long cycleNum = getDynamicPropertiesStore().getCurrentCycleNumber();
+      if (cycleNum % 4 == 2) {
+        // Now is 8:00 am
+        doDynamicEnergyDayStats(cycleNum, block.getTimeStamp());
+      }
     } else if (System.currentTimeMillis() - block.getTimeStamp() < 60000) {
       SimpleDateFormat sdf = new SimpleDateFormat("HH");
       int curHour = Integer.parseInt(sdf.format(new Date(block.getTimeStamp())));
       if (curHour != preHour) {
         preHour = curHour;
-        doDynamicEnergyStats(3, "[Hour stats]");
+        //doDynamicEnergyStats(3, "[Hour stats]");
       }
     }
 
@@ -1839,40 +1847,91 @@ public class Manager {
     }
   }
 
-  private void doDynamicEnergyStats(long topN, String title) {
-    String cycleNumber = String.valueOf(getDynamicPropertiesStore().getCurrentCycleNumber());
+//  private void doDynamicEnergyCycleStats() {
+//    String cycleNumber = String.valueOf(getDynamicPropertiesStore().getCurrentCycleNumber());
+//    ContractStateStore css = getChainBaseManager().getContractStateStore();
+//    Map<WrappedByteArray, ContractStateCapsule> contracts =
+//        css.prefixQuery((cycleNumber + "-").getBytes());
+//    List<Map.Entry<WrappedByteArray, ContractStateCapsule>> list =
+//        new LinkedList<>(contracts.entrySet());
+//    list.sort((o1, o2) ->
+//        Long.compare(o2.getValue().getEnergyUsage(), o1.getValue().getEnergyUsage()));
+//    StringBuilder sb = new StringBuilder(title + "\n");
+//    if (list.size() > 0) {
+//      DecimalFormat df = new DecimalFormat("#,###");
+//      ContractStateCapsule totalCap = list.get(0).getValue();
+//      sb.append("Cycle-").append(cycleNumber).append(": ");
+//      sb.append(String.format("`TotalEnergyUsage`: %s, ",
+//          df.format(totalCap.getEnergyUsage())));
+//      sb.append(String.format("`TotalEnergyPenalty`: %s, ",
+//          df.format(totalCap.getEnergyPenaltyTotal())));
+//      sb.append(String.format("`TotalTrxBurn`: %s, ",
+//          df.format(totalCap.getTrxBurn() / 1000000)));
+//      sb.append(String.format("`TotalTxCount`: %s\n",
+//          df.format(totalCap.getTxTotalCount())));
+//      for (int i = 1; i <= topN && i < list.size(); i++) {
+//        Map.Entry<WrappedByteArray, ContractStateCapsule> entry = list.get(i);
+//        byte[] key = Arrays.copyOfRange(entry.getKey().getBytes(),
+//            cycleNumber.length() + 1, cycleNumber.length() + 22);
+//        sb.append("Top-").append(i).append(": ")
+//            .append(StringUtil.encode58Check(key)).append("\n");
+//        sb.append(entry.getValue().toSlackMsg());
+//      }
+//    }
+//    if (sb.length() > 0) {
+//      logger.error(sb.toString());
+//      NetUtil.post(Args.getInstance().slackWebhook, String.format("{\"text\":\"%s\"}", sb));
+//    }
+//  }
+
+  private void doDynamicEnergyDayStats(long cycleNum, long timestamp) {
+    byte[] addr = Commons.decodeFromBase58Check("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t");
     ContractStateStore css = getChainBaseManager().getContractStateStore();
-    Map<WrappedByteArray, ContractStateCapsule> contracts =
-        css.prefixQuery((cycleNumber + "-").getBytes());
-    List<Map.Entry<WrappedByteArray, ContractStateCapsule>> list =
-        new LinkedList<>(contracts.entrySet());
-    list.sort((o1, o2) ->
-        Long.compare(o2.getValue().getEnergyUsage(), o1.getValue().getEnergyUsage()));
-    StringBuilder sb = new StringBuilder(title + "\n");
-    if (list.size() > 0) {
-      DecimalFormat df = new DecimalFormat("#,###");
-      ContractStateCapsule totalCap = list.get(0).getValue();
-      sb.append("Cycle-").append(cycleNumber).append(": ");
-      sb.append(String.format("`TotalEnergyUsage`: %s, ",
-          df.format(totalCap.getEnergyUsage())));
-      sb.append(String.format("`TotalEnergyPenalty`: %s, ",
-          df.format(totalCap.getEnergyPenaltyTotal())));
-      sb.append(String.format("`TotalTrxBurn`: %s, ",
-          df.format(totalCap.getTrxBurn() / 1000000)));
-      sb.append(String.format("`TotalTxCount`: %s\n",
-          df.format(totalCap.getTxTotalCount())));
-      for (int i = 1; i <= topN && i < list.size(); i++) {
-        Map.Entry<WrappedByteArray, ContractStateCapsule> entry = list.get(i);
-        byte[] key = Arrays.copyOfRange(entry.getKey().getBytes(),
-            cycleNumber.length() + 1, cycleNumber.length() + 22);
-        sb.append("Top-").append(i).append(": ")
-            .append(StringUtil.encode58Check(key)).append("\n");
-        sb.append(entry.getValue().toSlackMsg());
-      }
-    }
-    if (sb.length() > 0) {
-      logger.error(sb.toString());
-      NetUtil.post(Args.getInstance().slackWebhook, String.format("{\"text\":\"%s\"}", sb));
+
+    StringBuilder sb = new StringBuilder();
+    SimpleDateFormat sdf = new SimpleDateFormat("MM-dd");
+    String todayStr = sdf.format(new Date(timestamp));
+    String yesterdayStr = sdf.format(new Date(timestamp - 86400000));
+    sb.append(todayStr).append("相较于").append(yesterdayStr).append(":\n");
+
+    DecimalFormat df = new DecimalFormat("#,###");
+    ContractStateCapsule todayTotal = css.getDayState(cycleNum, "total".getBytes());
+    ContractStateCapsule yesterdayTotal = css.getDayState(cycleNum - 4, "total".getBytes());
+    sb.append(String.format("总能量燃烧: %s TRX, 相对昨日: %s, 相对基准: %s\n",
+        df.format(todayTotal.getTrxBurn()),
+        formatPercent(todayTotal.getTrxBurn(), yesterdayTotal.getTrxBurn()),
+        formatPercent(todayTotal.getTrxBurn(), yesterdayTotal.getTrxBurn())));
+    ContractStateCapsule today = css.getDayState(cycleNum, addr);
+    ContractStateCapsule yesterday = css.getDayState(cycleNum - 4, addr);
+    sb.append(String.format("USDT 燃烧: %s TRX, 相对昨日: %s, 相对基准: %s [占比 %.2f%%]\n",
+        df.format(today.getTrxBurn()),
+        formatPercent(today.getTrxBurn(), yesterday.getTrxBurn()),
+        formatPercent(today.getTrxBurn(), yesterday.getTrxBurn()),
+        (double) today.getTrxBurn() / 420 / today.getEnergyUsageTotal() * 100));
+    sb.append(String.format("USDT 能量: %.2f B (%s, %s) / %.2f B (%s, %s) / %.2f%% (%.2f%%)\n",
+        (double) today.getEnergyUsageTotal() / 1_000_000_000L,
+        formatPercent(today.getEnergyUsageTotal(), yesterday.getEnergyUsageTotal()),
+        formatPercent(today.getEnergyUsageTotal(), yesterday.getEnergyUsageTotal()),
+        (double) today.getEnergyPenaltyTotal() / 1_000_000_000L,
+        formatPercent(today.getEnergyUsageTotal(), yesterday.getEnergyUsageTotal()),
+        formatPercent(today.getEnergyUsageTotal(), yesterday.getEnergyUsageTotal()),
+        (double) today.getEnergyPenaltyTotal()
+            / (today.getEnergyUsageTotal() - today.getEnergyPenaltyTotal()) * 100,
+        (double) yesterday.getEnergyPenaltyTotal()
+            / (yesterday.getEnergyUsageTotal() - yesterday.getEnergyPenaltyTotal()) * 100));
+    sb.append(String.format("USDT 手续费: %.2f$ - %.2f$ @TRON / %.2f$ - %.2f$ @ETH\n",
+        0.85,
+        1.72,
+        1.07,
+        1.65));
+    sb.append(String.format("USDT 因子: 当前 %f", (double) today.getEnergyFactor() / 10000));
+  }
+
+  private String formatPercent(long newValue, long oldValue) {
+    if (newValue > oldValue) {
+      return "+" + String.format("%.2f%%", (double) (newValue - oldValue) / oldValue * 100);
+    } else {
+      return "-" + String.format("%.2f%%", (double) (oldValue - newValue) / oldValue * 100);
     }
   }
 

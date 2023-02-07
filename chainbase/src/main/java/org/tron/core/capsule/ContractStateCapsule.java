@@ -143,6 +143,12 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
         .build();
   }
 
+  public void addTxTotalCount(long toAdd) {
+    this.contractState = this.contractState.toBuilder()
+        .setTxTotalCount(this.contractState.getTxTotalCount() + toAdd)
+        .build();
+  }
+
   public long getTxFailedCount() {
     return this.getInstance().getTxFailedCount();
   }
@@ -153,6 +159,12 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
         .build();
   }
 
+  public void addTxFailedCount(long toAdd) {
+    this.contractState = this.contractState.toBuilder()
+        .setTxFailedCount(this.contractState.getTxFailedCount() + toAdd)
+        .build();
+  }
+
   public long getTxOOECount() {
     return this.getInstance().getTxOoeCount();
   }
@@ -160,6 +172,12 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
   public void addTxOOECount() {
     this.contractState = this.contractState.toBuilder()
         .setTxOoeCount(this.contractState.getTxOoeCount() + 1)
+        .build();
+  }
+
+  public void addTxOOECount(long toAdd) {
+    this.contractState = this.contractState.toBuilder()
+        .setTxOoeCount(this.contractState.getTxOoeCount() + toAdd)
         .build();
   }
 
