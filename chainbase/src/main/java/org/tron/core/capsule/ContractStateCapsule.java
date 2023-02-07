@@ -4,6 +4,7 @@ import static org.tron.core.Constant.DYNAMIC_ENERGY_DECREASE_DIVISION;
 import static org.tron.core.Constant.DYNAMIC_ENERGY_FACTOR_DECIMAL;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.text.DecimalFormat;
 import lombok.extern.slf4j.Slf4j;
 import org.tron.core.store.DynamicPropertiesStore;
 import org.tron.protos.contract.SmartContractOuterClass;
@@ -82,6 +83,16 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
         .build();
   }
 
+  public long getEnergyUsageFailed() {
+    return this.getInstance().getEnergyUsageFailed();
+  }
+
+  public void addEnergyUsageFailed(long toAdd) {
+    this.contractState = this.contractState.toBuilder()
+        .setEnergyUsageFailed(this.contractState.getEnergyUsageFailed() + toAdd)
+        .build();
+  }
+
   public long getEnergyPenaltyTotal() {
     return this.getInstance().getEnergyPenaltyTotal();
   }
@@ -129,6 +140,16 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
   public void addTxTotalCount() {
     this.contractState = this.contractState.toBuilder()
         .setTxTotalCount(this.contractState.getTxTotalCount() + 1)
+        .build();
+  }
+
+  public long getTxFailedCount() {
+    return this.getInstance().getTxFailedCount();
+  }
+
+  public void addTxFailedCount() {
+    this.contractState = this.contractState.toBuilder()
+        .setTxFailedCount(this.contractState.getTxFailedCount() + 1)
         .build();
   }
 
@@ -217,5 +238,55 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
   @Override
   public String toString() {
     return "{\n" + contractState.toString() + '}';
+  }
+
+  public String toSlackMsg() {
+    StringBuilder sb = new StringBuilder();
+    DecimalFormat df = new DecimalFormat("#,###");
+    if (this.getEnergyUsage() > 0) {
+      sb.append("> `EnergyUsage`: ")
+          .append(df.format(this.getEnergyUsage())).append("\n");
+    }
+    if (this.getEnergyFactor() > 0) {
+      sb.append("> `EnergyFactor`: ")
+          .append(df.format(this.getEnergyFactor())).append("\n");
+    }
+    if (this.getEnergyUsageTotal() > 0) {
+      sb.append("> `EnergyUsageTotal`: ")
+          .append(df.format(this.getEnergyUsageTotal())).append("\n");
+    }
+    if (this.getEnergyUsageFailed() > 0) {
+      sb.append("> `EnergyUsageFailed`: ")
+          .append(df.format(this.getEnergyUsageFailed())).append("\n");
+    }
+    if (this.getEnergyPenaltyTotal() > 0) {
+      sb.append("> `EnergyPenaltyTotal`: ")
+          .append(df.format(this.getEnergyPenaltyTotal())).append("\n");
+    }
+    if (this.getEnergyPenaltyFailed() > 0) {
+      sb.append("> `EnergyPenaltyFailed`: ")
+          .append(df.format(this.getEnergyPenaltyFailed())).append("\n");
+    }
+    if (this.getTrxBurn() > 0) {
+      sb.append("> `TrxBurn`: ")
+          .append(df.format(this.getTrxBurn() / 1000000)).append("\n");
+    }
+    if (this.getTrxPenalty() > 0) {
+      sb.append("> `TrxPenalty`: ")
+          .append(df.format(this.getTrxPenalty() / 1000000)).append("\n");
+    }
+    if (this.getTxTotalCount() > 0) {
+      sb.append("> `TxTotalCount`: ")
+          .append(df.format(this.getTxTotalCount())).append("\n");
+    }
+    if (this.getTxFailedCount() > 0) {
+      sb.append("> `TxFailedCount`: ")
+          .append(df.format(this.getTxFailedCount())).append("\n");
+    }
+    if (this.getTxOOECount() > 0) {
+      sb.append("> `TxOOECount`: ")
+          .append(df.format(this.getTxOOECount())).append("\n");
+    }
+    return sb.toString();
   }
 }
