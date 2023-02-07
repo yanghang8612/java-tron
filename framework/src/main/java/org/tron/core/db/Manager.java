@@ -74,6 +74,7 @@ import org.tron.common.runtime.RuntimeImpl;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Commons;
 import org.tron.common.utils.JsonUtil;
+import org.tron.common.utils.NetUtil;
 import org.tron.common.utils.Pair;
 import org.tron.common.utils.SessionOptional;
 import org.tron.common.utils.Sha256Hash;
@@ -1925,6 +1926,10 @@ public class Manager {
         1.07,
         1.65));
     sb.append(String.format("USDT 因子: 当前 %f", (double) today.getEnergyFactor() / 10000));
+    if (sb.length() > 0) {
+      logger.error(sb.toString());
+      NetUtil.post(Args.getInstance().slackWebhook, String.format("{\"text\":\"%s\"}", sb));
+    }
   }
 
   private String formatPercent(long newValue, long oldValue) {
