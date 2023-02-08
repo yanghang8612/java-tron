@@ -109,6 +109,7 @@ import org.tron.core.db.api.BandwidthPriceHistoryLoader;
 import org.tron.core.db.api.EnergyPriceHistoryLoader;
 import org.tron.core.db.api.MoveAbiHelper;
 import org.tron.core.db2.ISession;
+import org.tron.core.db2.common.WrappedByteArray;
 import org.tron.core.db2.core.Chainbase;
 import org.tron.core.db2.core.ITronChainBase;
 import org.tron.core.db2.core.SnapshotManager;
@@ -1811,17 +1812,19 @@ public class Manager {
       proposalController.processProposals();
       chainBaseManager.getForkController().reset();
 
-      // Do cycle stats
-      // doDynamicEnergyCycleStats();
-      // Do day stats
+      SimpleDateFormat sdf = new SimpleDateFormat("HH");
+      preHour = Integer.parseInt(sdf.format(new Date(block.getTimeStamp())));
+
+      // Do cycle stats within day
       long cycleNum = getDynamicPropertiesStore().getCurrentCycleNumber();
       doDynamicEnergyDayStats(cycleNum);
+      doDynamicEnergyCycleStats(cycleNum);
     } else if (System.currentTimeMillis() - block.getTimeStamp() < 60000) {
       SimpleDateFormat sdf = new SimpleDateFormat("HH");
       int curHour = Integer.parseInt(sdf.format(new Date(block.getTimeStamp())));
       if (curHour != preHour) {
         preHour = curHour;
-        //doDynamicEnergyStats(3, "[Hour stats]");
+
       }
     }
 
@@ -1844,42 +1847,40 @@ public class Manager {
     }
   }
 
-//  private void doDynamicEnergyCycleStats() {
-//    String cycleNumber = String.valueOf(getDynamicPropertiesStore().getCurrentCycleNumber());
-//    ContractStateStore css = getChainBaseManager().getContractStateStore();
-//    Map<WrappedByteArray, ContractStateCapsule> contracts =
-//        css.prefixQuery((cycleNumber + "-").getBytes());
-//    List<Map.Entry<WrappedByteArray, ContractStateCapsule>> list =
-//        new LinkedList<>(contracts.entrySet());
-//    list.sort((o1, o2) ->
-//        Long.compare(o2.getValue().getEnergyUsage(), o1.getValue().getEnergyUsage()));
-//    StringBuilder sb = new StringBuilder(title + "\n");
-//    if (list.size() > 0) {
-//      DecimalFormat df = new DecimalFormat("#,###");
-//      ContractStateCapsule totalCap = list.get(0).getValue();
-//      sb.append("Cycle-").append(cycleNumber).append(": ");
-//      sb.append(String.format("`TotalEnergyUsage`: %s, ",
-//          df.format(totalCap.getEnergyUsage())));
-//      sb.append(String.format("`TotalEnergyPenalty`: %s, ",
-//          df.format(totalCap.getEnergyPenaltyTotal())));
-//      sb.append(String.format("`TotalTrxBurn`: %s, ",
-//          df.format(totalCap.getTrxBurn() / 1000000)));
-//      sb.append(String.format("`TotalTxCount`: %s\n",
-//          df.format(totalCap.getTxTotalCount())));
-//      for (int i = 1; i <= topN && i < list.size(); i++) {
-//        Map.Entry<WrappedByteArray, ContractStateCapsule> entry = list.get(i);
-//        byte[] key = Arrays.copyOfRange(entry.getKey().getBytes(),
-//            cycleNumber.length() + 1, cycleNumber.length() + 22);
-//        sb.append("Top-").append(i).append(": ")
-//            .append(StringUtil.encode58Check(key)).append("\n");
-//        sb.append(entry.getValue().toSlackMsg());
-//      }
-//    }
-//    if (sb.length() > 0) {
-//      logger.error(sb.toString());
-//      NetUtil.post(Args.getInstance().slackWebhook, String.format("{\"text\":\"%s\"}", sb));
-//    }
-//  }
+  private void doDynamicEnergyCycleStats(long cycleNum) {
+    String cycleNumber = String.valueOf(cycleNum);
+    ContractStateStore css = getChainBaseManager().getContractStateStore();
+    Map<WrappedByteArray, ContractStateCapsule> contracts =
+        css.prefixQuery((cycleNumber + "-").getBytes());
+    List<Map.Entry<WrappedByteArray, ContractStateCapsule>> list =
+        new LinkedList<>(contracts.entrySet());
+    list.sort((o1, o2) ->
+        Long.compare(o2.getValue().getEnergyUsage(), o1.getValue().getEnergyUsage()));
+    StringBuilder sb = new StringBuilder();
+    if (list.size() > 0) {
+      DecimalFormat df = new DecimalFormat("#,###");
+      ContractStateCapsule totalCap = list.get(0).getValue();
+      sb.append("> Cycle-").append(cycleNumber).append(": ");
+      sb.append(String.format("`TotalEnergyUsage`: %s, ",
+          df.format(totalCap.getEnergyUsage())));
+      sb.append(String.format("`TotalEnergyPenalty`: %s, ",
+          df.format(totalCap.getEnergyPenaltyTotal())));
+      sb.append(String.format("`TotalTrxBurn`: %s, ",
+          df.format(totalCap.getTrxBurn() / 1000000)));
+      sb.append(String.format("`TotalTxCount`: %s\n",
+          df.format(totalCap.getTxTotalCount())));
+      Map.Entry<WrappedByteArray, ContractStateCapsule> entry = list.get(1);
+      byte[] key = Arrays.copyOfRange(entry.getKey().getBytes(),
+          cycleNumber.length() + 1, cycleNumber.length() + 22);
+      sb.append("> Top-1").append(": ")
+          .append(StringUtil.encode58Check(key)).append("\n");
+      sb.append(entry.getValue().toSlackMsg());
+    }
+    if (sb.length() > 0) {
+      logger.error(sb.toString());
+      NetUtil.post(Args.getInstance().defiSlackWebhook, String.format("{\"text\":\"%s\"}", sb));
+    }
+  }
 
   private void doDynamicEnergyDayStats(long cycleNum) {
     byte[] addr = Commons.decodeFromBase58Check("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t");
@@ -1897,7 +1898,7 @@ public class Manager {
         formatPercent(todayTotal.getTrxBurn(), yesterdayTotal.getTrxBurn())));
     ContractStateCapsule today = css.getDayState(cycleNum, addr);
     ContractStateCapsule yesterday = css.getDayState(cycleNum - 4, addr);
-    sb.append(String.format("> USDT 燃烧: `%s` TRX, 相对昨日: `%s`, 相对基准: `%s` [占比 %.2f%%]\n",
+    sb.append(String.format("> USDT 燃烧: `%s` TRX, 相对昨日: `%s`, 相对基准: `%s` [占比 %.2f%%]\n\n",
         df.format(today.getTrxBurn() / 1_000_000L),
         formatPercent(today.getTrxBurn(), yesterday.getTrxBurn()),
         formatPercent(today.getTrxBurn(), yesterday.getTrxBurn()),
@@ -1913,15 +1914,21 @@ public class Manager {
             / (today.getEnergyUsageTotal() - today.getEnergyPenaltyTotal()) * 100,
         (double) yesterday.getEnergyPenaltyTotal()
             / (yesterday.getEnergyUsageTotal() - yesterday.getEnergyPenaltyTotal()) * 100));
-    sb.append(String.format("> USDT 手续费: `%.2f$` - `%.2f$` @TRON / `%.2f$` - `%.2f$` @ETH\n",
+    sb.append(String.format("> USDT 交易: 共 %d 笔 / %d out_energy (%.2f%%)/ %d other fails (%.2f%%)\n",
+        today.getTxTotalCount(),
+        today.getTxOOECount(),
+        (double) today.getTxOOECount() / today.getTxTotalCount() * 100,
+        today.getTxFailedCount() - today.getTxOOECount(),
+        (double) (today.getTxFailedCount() - today.getTxOOECount() / today.getTxTotalCount() * 100)));
+    sb.append(String.format("> USDT 手续费: `%.2f$` - `%.2f$` @TRON / `%.2f$` - `%.2f$` @ETH\n\n",
         0.85,
         1.72,
         1.07,
         1.65));
-    sb.append(String.format("> USDT 因子: 当前 `%d`", css.get(addr).getEnergyFactor()));
+    sb.append(String.format("> USDT 因子: 当前 `%f`", (double) css.get(addr).getEnergyFactor() / 10000));
     if (sb.length() > 0) {
       logger.error(sb.toString());
-      NetUtil.post(Args.getInstance().slackWebhook, String.format("{\"text\":\"%s\"}", sb));
+      NetUtil.post(Args.getInstance().trackerSlackWebhook, String.format("{\"text\":\"%s\"}", sb));
     }
   }
 

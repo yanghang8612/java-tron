@@ -55,7 +55,7 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
   public ContractStateCapsule getDayState(long cycleNum, byte[] addr) {
     ContractStateCapsule total = new ContractStateCapsule(0);
     for (int i = 0; i < 4; i++) {
-      ContractStateCapsule csc = get(addPrefix(cycleNum, addr));
+      ContractStateCapsule csc = get(addPrefix(cycleNum - i, addr));
       if (csc == null) {
         break;
       }

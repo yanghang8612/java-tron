@@ -1125,8 +1125,12 @@ public class Args extends CommonParameter {
           Math.max(PARAMETER.dynamicEnergyMaxFactor, 0);
     }
 
-    if (config.hasPath(Constant.SLACK_WEBHOOK)) {
-      PARAMETER.slackWebhook = config.getString(Constant.SLACK_WEBHOOK);
+    if (config.hasPath(Constant.SLACK_TRACKER_WEBHOOK)) {
+      PARAMETER.trackerSlackWebhook = config.getString(Constant.SLACK_TRACKER_WEBHOOK);
+    }
+
+    if (config.hasPath(Constant.SLACK_DEFI_WEBHOOK)) {
+      PARAMETER.defiSlackWebhook = config.getString(Constant.SLACK_DEFI_WEBHOOK);
     }
 
     logConfig();

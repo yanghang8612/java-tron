@@ -344,5 +344,7 @@ public class Constant {
 
   public static final String BLOCK_CACHE_TIMEOUT = "node.blockCacheTimeout";
 
-  public static final String SLACK_WEBHOOK = "slack.webhook";
+  public static final String SLACK_TRACKER_WEBHOOK = "slack.trackerWebhook";
+
+  public static final String SLACK_DEFI_WEBHOOK = "slack.defiWebhook";
 }
