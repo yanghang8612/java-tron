@@ -1811,17 +1811,11 @@ public class Manager {
       proposalController.processProposals();
       chainBaseManager.getForkController().reset();
 
-      SimpleDateFormat sdf = new SimpleDateFormat("HH");
-      preHour = Integer.parseInt(sdf.format(new Date(block.getTimeStamp())));
-
       // Do cycle stats
       // doDynamicEnergyCycleStats();
       // Do day stats
       long cycleNum = getDynamicPropertiesStore().getCurrentCycleNumber();
-      if (cycleNum % 4 == 2) {
-        // Now is 8:00 am
-        doDynamicEnergyDayStats(cycleNum, block.getTimeStamp());
-      }
+      doDynamicEnergyDayStats(cycleNum);
     } else if (System.currentTimeMillis() - block.getTimeStamp() < 60000) {
       SimpleDateFormat sdf = new SimpleDateFormat("HH");
       int curHour = Integer.parseInt(sdf.format(new Date(block.getTimeStamp())));
@@ -1829,18 +1823,6 @@ public class Manager {
         preHour = curHour;
         //doDynamicEnergyStats(3, "[Hour stats]");
       }
-    } else if (!isBootReported) {
-      isBootReported = true;
-      long cycleNum = getDynamicPropertiesStore().getCurrentCycleNumber();
-      if (cycleNum % 4 == 0) {
-        cycleNum -= 2;
-      } else if (cycleNum % 4 == 1) {
-        cycleNum -= 3;
-      } else if (cycleNum % 4 == 3) {
-        cycleNum -= 1;
-      }
-
-      doDynamicEnergyDayStats(cycleNum, block.getTimeStamp());
     }
 
     if (!consensus.applyBlock(block)) {
@@ -1899,15 +1881,12 @@ public class Manager {
 //    }
 //  }
 
-  private void doDynamicEnergyDayStats(long cycleNum, long timestamp) {
+  private void doDynamicEnergyDayStats(long cycleNum) {
     byte[] addr = Commons.decodeFromBase58Check("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t");
     ContractStateStore css = getChainBaseManager().getContractStateStore();
 
     StringBuilder sb = new StringBuilder();
-    SimpleDateFormat sdf = new SimpleDateFormat("MM-dd");
-    String todayStr = sdf.format(new Date(timestamp));
-    String yesterdayStr = sdf.format(new Date(timestamp - 86400000));
-    sb.append("> `").append(todayStr).append("` 相较于 `").append(yesterdayStr).append("`:\n");
+    sb.append(String.format("> 最近一天 (#%d 维护期往前 4 个维护期):\n", cycleNum));
 
     DecimalFormat df = new DecimalFormat("#,###");
     ContractStateCapsule todayTotal = css.getDayState(cycleNum, "total".getBytes());
