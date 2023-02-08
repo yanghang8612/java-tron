@@ -259,6 +259,8 @@ public class Manager {
 
   private int preHour = 0;
 
+  private boolean isBootReported = false;
+
   /**
    * Cycle thread to rePush Transactions
    */
@@ -1827,6 +1829,18 @@ public class Manager {
         preHour = curHour;
         //doDynamicEnergyStats(3, "[Hour stats]");
       }
+    } else if (!isBootReported) {
+      isBootReported = true;
+      long cycleNum = getDynamicPropertiesStore().getCurrentCycleNumber();
+      if (cycleNum % 4 == 0) {
+        cycleNum -= 2;
+      } else if (cycleNum % 4 == 1) {
+        cycleNum -= 3;
+      } else if (cycleNum % 4 == 3) {
+        cycleNum -= 1;
+      }
+
+      doDynamicEnergyDayStats(cycleNum, block.getTimeStamp());
     }
 
     if (!consensus.applyBlock(block)) {
