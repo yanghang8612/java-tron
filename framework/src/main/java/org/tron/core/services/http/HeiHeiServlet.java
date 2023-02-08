@@ -31,7 +31,7 @@ public class HeiHeiServlet extends RateLimiterServlet {
         cycleNumber = String.valueOf(dps.getCurrentCycleNumber());
       }
       response.getWriter().println("Current cycle number: " + dps.getCurrentCycleNumber());
-      response.getWriter().println("Query cycle number: " + cycleNumber);
+      response.getWriter().println("Query cycle number: " + cycleNumber + "\n");
 
       if (address == null) {
         Map<WrappedByteArray, ContractStateCapsule> contracts =
@@ -65,7 +65,7 @@ public class HeiHeiServlet extends RateLimiterServlet {
         }
         response.getWriter().println("Total" + " = "
             + css.getByCycle("total".getBytes(), Long.parseLong(cycleNumber)));
-        response.getWriter().println("Top 10 contracts (sorted by " + sortedBy + "):");
+        response.getWriter().println("\nTop 10 contracts (sorted by " + sortedBy + "):\n");
         for (int i = 0; i < 11 && i < list.size(); i++) {
           Map.Entry<WrappedByteArray, ContractStateCapsule> e = list.get(i);
           byte[] key = Arrays.copyOfRange(e.getKey().getBytes(), 5, 26);
@@ -74,8 +74,10 @@ public class HeiHeiServlet extends RateLimiterServlet {
           }
         }
       } else {
-        response.getWriter().println(css.getByCycle(Commons.decodeFromBase58Check(address),
-            Long.parseLong(cycleNumber)));
+        response.getWriter().println("Total" + " = "
+            + css.getDayState(Long.parseLong(cycleNumber), "total".getBytes()));
+        response.getWriter().println(address + " = "
+            + css.getDayState(Long.parseLong(cycleNumber), Commons.decodeFromBase58Check(address)));
       }
     } catch (Exception e) {
       Util.processError(e, response);
