@@ -63,12 +63,15 @@ public class HeiHeiServlet extends RateLimiterServlet {
             list.sort((o1, o2) ->
                 Long.compare(o2.getValue().getEnergyUsage(), o1.getValue().getEnergyUsage()));
         }
-        response.getWriter().println("Total" + " = " + list.get(0).getValue());
+        response.getWriter().println("Total" + " = "
+            + css.getByCycle("total".getBytes(), Long.parseLong(cycleNumber)));
         response.getWriter().println("Top 10 contracts (sorted by " + sortedBy + "):");
-        for (int i = 1; i <= 10 && i < list.size(); i++) {
+        for (int i = 0; i < 11 && i < list.size(); i++) {
           Map.Entry<WrappedByteArray, ContractStateCapsule> e = list.get(i);
           byte[] key = Arrays.copyOfRange(e.getKey().getBytes(), 5, 26);
-          response.getWriter().println(StringUtil.encode58Check(key) + " = " + e.getValue());
+          if (key[0] == 0x41) {
+            response.getWriter().println(StringUtil.encode58Check(key) + " = " + e.getValue());
+          }
         }
       } else {
         response.getWriter().println(css.getByCycle(Commons.decodeFromBase58Check(address),
