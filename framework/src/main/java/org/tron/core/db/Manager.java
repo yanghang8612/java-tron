@@ -1907,39 +1907,39 @@ public class Manager {
     SimpleDateFormat sdf = new SimpleDateFormat("MM-dd");
     String todayStr = sdf.format(new Date(timestamp));
     String yesterdayStr = sdf.format(new Date(timestamp - 86400000));
-    sb.append(todayStr).append("相较于").append(yesterdayStr).append(":\n");
+    sb.append('`').append(todayStr).append("` 相较于 `").append(yesterdayStr).append("`:\n");
 
     DecimalFormat df = new DecimalFormat("#,###");
     ContractStateCapsule todayTotal = css.getDayState(cycleNum, "total".getBytes());
     ContractStateCapsule yesterdayTotal = css.getDayState(cycleNum - 4, "total".getBytes());
-    sb.append(String.format("总能量燃烧: %s TRX, 相对昨日: %s, 相对基准: %s\n",
-        df.format(todayTotal.getTrxBurn()),
+    sb.append(String.format("总能量燃烧: `%s` TRX, 相对昨日: `%s`, 相对基准: `%s`\n",
+        df.format(todayTotal.getTrxBurn() / 1_000_000L),
         formatPercent(todayTotal.getTrxBurn(), yesterdayTotal.getTrxBurn()),
         formatPercent(todayTotal.getTrxBurn(), yesterdayTotal.getTrxBurn())));
     ContractStateCapsule today = css.getDayState(cycleNum, addr);
     ContractStateCapsule yesterday = css.getDayState(cycleNum - 4, addr);
-    sb.append(String.format("USDT 燃烧: %s TRX, 相对昨日: %s, 相对基准: %s [占比 %.2f%%]\n",
-        df.format(today.getTrxBurn()),
+    sb.append(String.format("USDT 燃烧: `%s` TRX, 相对昨日: `%s`, 相对基准: `%s` [占比 %.2f%%]\n",
+        df.format(today.getTrxBurn() / 1_000_000L),
         formatPercent(today.getTrxBurn(), yesterday.getTrxBurn()),
         formatPercent(today.getTrxBurn(), yesterday.getTrxBurn()),
         (double) today.getTrxBurn() / 420 / today.getEnergyUsageTotal() * 100));
-    sb.append(String.format("USDT 能量: %.2f B (%s, %s) / %.2f B (%s, %s) / %.2f%% (%.2f%%)\n",
+    sb.append(String.format("USDT 能量: `%.2f` B (%s, %s) / %.2f B (%s, %s) / %.2f%% (%.2f%%)\n",
         (double) today.getEnergyUsageTotal() / 1_000_000_000L,
         formatPercent(today.getEnergyUsageTotal(), yesterday.getEnergyUsageTotal()),
         formatPercent(today.getEnergyUsageTotal(), yesterday.getEnergyUsageTotal()),
         (double) today.getEnergyPenaltyTotal() / 1_000_000_000L,
-        formatPercent(today.getEnergyUsageTotal(), yesterday.getEnergyUsageTotal()),
-        formatPercent(today.getEnergyUsageTotal(), yesterday.getEnergyUsageTotal()),
+        formatPercent(today.getEnergyPenaltyTotal(), yesterday.getEnergyPenaltyTotal()),
+        formatPercent(today.getEnergyPenaltyTotal(), yesterday.getEnergyPenaltyTotal()),
         (double) today.getEnergyPenaltyTotal()
             / (today.getEnergyUsageTotal() - today.getEnergyPenaltyTotal()) * 100,
         (double) yesterday.getEnergyPenaltyTotal()
             / (yesterday.getEnergyUsageTotal() - yesterday.getEnergyPenaltyTotal()) * 100));
-    sb.append(String.format("USDT 手续费: %.2f$ - %.2f$ @TRON / %.2f$ - %.2f$ @ETH\n",
+    sb.append(String.format("USDT 手续费: `%.2f$` - `%.2f$` @TRON / `%.2f$` - `%.2f$` @ETH\n",
         0.85,
         1.72,
         1.07,
         1.65));
-    sb.append(String.format("USDT 因子: 当前 %f", (double) today.getEnergyFactor() / 10000));
+    sb.append(String.format("USDT 因子: 当前 `%d`", today.getEnergyFactor()));
     if (sb.length() > 0) {
       logger.error(sb.toString());
       NetUtil.post(Args.getInstance().slackWebhook, String.format("{\"text\":\"%s\"}", sb));
