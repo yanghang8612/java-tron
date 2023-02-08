@@ -1887,7 +1887,7 @@ public class Manager {
     ContractStateStore css = getChainBaseManager().getContractStateStore();
 
     StringBuilder sb = new StringBuilder();
-    sb.append(String.format("> 最近一天 (#%d 维护期往前 4 个维护期):\n", cycleNum));
+    sb.append(String.format("> *最近一天 (#%d 维护期往前 4 个维护期):*\n", cycleNum));
 
     DecimalFormat df = new DecimalFormat("#,###");
     ContractStateCapsule todayTotal = css.getDayState(cycleNum, "total".getBytes());
@@ -1898,7 +1898,7 @@ public class Manager {
         formatPercent(todayTotal.getTrxBurn(), yesterdayTotal.getTrxBurn())));
     ContractStateCapsule today = css.getDayState(cycleNum, addr);
     ContractStateCapsule yesterday = css.getDayState(cycleNum - 4, addr);
-    sb.append(String.format("> USDT 燃烧: `%s` TRX, 相对昨日: `%s`, 相对基准: `%s` [占比 %.2f%%]\n\n",
+    sb.append(String.format("> USDT 燃烧: `%s` TRX, 相对昨日: `%s`, 相对基准: `%s` [占比 %.2f%%]\n",
         df.format(today.getTrxBurn() / 1_000_000L),
         formatPercent(today.getTrxBurn(), yesterday.getTrxBurn()),
         formatPercent(today.getTrxBurn(), yesterday.getTrxBurn()),
@@ -1914,18 +1914,18 @@ public class Manager {
             / (today.getEnergyUsageTotal() - today.getEnergyPenaltyTotal()) * 100,
         (double) yesterday.getEnergyPenaltyTotal()
             / (yesterday.getEnergyUsageTotal() - yesterday.getEnergyPenaltyTotal()) * 100));
-    sb.append(String.format("> USDT 交易: 共 %d 笔 / %d out_energy (%.2f%%)/ %d other fails (%.2f%%)\n",
+    sb.append(String.format("> USDT 交易: 共 `%d` 笔 / `%d` out_energy (%.2f%%)/ `%d` other fails (%.2f%%)\n",
         today.getTxTotalCount(),
         today.getTxOOECount(),
         (double) today.getTxOOECount() / today.getTxTotalCount() * 100,
         today.getTxFailedCount() - today.getTxOOECount(),
-        (double) (today.getTxFailedCount() - today.getTxOOECount() / today.getTxTotalCount() * 100)));
-    sb.append(String.format("> USDT 手续费: `%.2f$` - `%.2f$` @TRON / `%.2f$` - `%.2f$` @ETH\n\n",
+        (double) (today.getTxFailedCount() - today.getTxOOECount()) / today.getTxTotalCount() * 100));
+    sb.append(String.format("> USDT 手续费: `%.2f$` - `%.2f$` @TRON / `%.2f$` - `%.2f$` @ETH\n",
         0.85,
         1.72,
         1.07,
         1.65));
-    sb.append(String.format("> USDT 因子: 当前 `%f`", (double) css.get(addr).getEnergyFactor() / 10000));
+    sb.append(String.format("> USDT 因子: 当前 `%.4f`", (double) css.get(addr).getEnergyFactor() / 10000));
     if (sb.length() > 0) {
       logger.error(sb.toString());
       NetUtil.post(Args.getInstance().trackerSlackWebhook, String.format("{\"text\":\"%s\"}", sb));
