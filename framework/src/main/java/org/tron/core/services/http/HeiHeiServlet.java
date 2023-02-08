@@ -39,6 +39,9 @@ public class HeiHeiServlet extends RateLimiterServlet {
         List<Map.Entry<WrappedByteArray, ContractStateCapsule>> list =
             new LinkedList<>(contracts.entrySet());
         String sortedBy = request.getParameter("sorted_by");
+        if (sortedBy == null) {
+          sortedBy = "usage";
+        }
         switch (sortedBy) {
           case "totalUsage":
             list.sort((o1, o2) ->
