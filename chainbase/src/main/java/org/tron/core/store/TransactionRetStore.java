@@ -32,7 +32,7 @@ public class TransactionRetStore extends TronStoreWithRevoking<TransactionRetCap
   public void put(byte[] key, TransactionRetCapsule item) {
     if (BooleanUtils.toBoolean(CommonParameter.getInstance()
         .getStorage().getTransactionHistorySwitch())) {
-      super.put(key, item);
+//      super.put(key, item);
     }
   }
 

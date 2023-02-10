@@ -520,7 +520,7 @@ public class Manager {
     chainBaseManager.getDynamicPropertiesStore().updateDynamicStoreByConfig();
 
     // init liteFullNode
-    initLiteNode();
+    // initLiteNode();
 
     long headNum = chainBaseManager.getDynamicPropertiesStore().getLatestBlockHeaderNumber();
     logger.info("Current headNum is: {}.", headNum);
@@ -1832,9 +1832,9 @@ public class Manager {
       throw new BadBlockException("consensus apply block failed");
     }
 
-    updateTransHashCache(block);
-    updateRecentBlock(block);
-    updateRecentTransaction(block);
+//    updateTransHashCache(block);
+//    updateRecentBlock(block);
+//    updateRecentTransaction(block);
     updateDynamicProperties(block);
 
     chainBaseManager.getBalanceTraceStore().resetCurrentBlockTrace();
@@ -1847,7 +1847,7 @@ public class Manager {
     }
   }
 
-  private void doDynamicEnergyCycleStats(long cycleNum) {
+  public void doDynamicEnergyCycleStats(long cycleNum) {
     String cycleNumber = String.valueOf(cycleNum);
     ContractStateStore css = getChainBaseManager().getContractStateStore();
     Map<WrappedByteArray, ContractStateCapsule> contracts =
@@ -1882,7 +1882,7 @@ public class Manager {
     }
   }
 
-  private void doDynamicEnergyDayStats(long cycleNum) {
+  public void doDynamicEnergyDayStats(long cycleNum) {
     byte[] addr = Commons.decodeFromBase58Check("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t");
     ContractStateStore css = getChainBaseManager().getContractStateStore();
 
@@ -1892,33 +1892,36 @@ public class Manager {
     DecimalFormat df = new DecimalFormat("#,###");
     ContractStateCapsule todayTotal = css.getDayState(cycleNum, "total".getBytes());
     ContractStateCapsule yesterdayTotal = css.getDayState(cycleNum - 4, "total".getBytes());
-    sb.append(String.format("> 总能量燃烧: `%s` TRX, 相对昨日: `%s`, 相对基准: `%s`\n",
+    ContractStateCapsule monthAvgTotal = css.getMonthAvgState(cycleNum - 4, "total".getBytes());
+    sb.append(String.format("> 总能量燃烧: `%s` TRX, 相对昨日: `%s`, 相对月均: `%s`\n",
         df.format(todayTotal.getTrxBurn() / 1_000_000L),
         formatPercent(todayTotal.getTrxBurn(), yesterdayTotal.getTrxBurn()),
-        formatPercent(todayTotal.getTrxBurn(), yesterdayTotal.getTrxBurn())));
+        formatPercent(todayTotal.getTrxBurn(), monthAvgTotal.getTrxBurn())));
     ContractStateCapsule today = css.getDayState(cycleNum, addr);
     ContractStateCapsule yesterday = css.getDayState(cycleNum - 4, addr);
-    sb.append(String.format("> USDT 燃烧: `%s` TRX, 相对昨日: `%s`, 相对基准: `%s` [占比 %.2f%%]\n",
+    ContractStateCapsule monthAvg = css.getMonthAvgState(cycleNum - 4, addr);
+    sb.append(String.format("> USDT 燃烧: `%s` TRX, 相对昨日: `%s`, 相对月均: `%s` [占比 %.2f%%]\n",
         df.format(today.getTrxBurn() / 1_000_000L),
         formatPercent(today.getTrxBurn(), yesterday.getTrxBurn()),
-        formatPercent(today.getTrxBurn(), yesterday.getTrxBurn()),
+        formatPercent(today.getTrxBurn(), monthAvg.getTrxBurn()),
         (double) today.getTrxBurn() / 420 / today.getEnergyUsageTotal() * 100));
-    sb.append(String.format("> USDT 能量: `%.2f` B (%s, %s) / `%.2f` B (%s, %s) / %.2f%% (%.2f%%)\n",
+    sb.append(String.format("> USDT 能量: `%.2f` B, 相对昨日: `%s`, 相对月均: `%s`\n",
         (double) today.getEnergyUsageTotal() / 1_000_000_000L,
         formatPercent(today.getEnergyUsageTotal(), yesterday.getEnergyUsageTotal()),
-        formatPercent(today.getEnergyUsageTotal(), yesterday.getEnergyUsageTotal()),
+        formatPercent(today.getEnergyUsageTotal(), monthAvg.getEnergyUsageTotal())));
+    sb.append(String.format("> USDT 惩罚: `%.2f` TRX, 相对昨日: `%s`, 相对月均: `%s` [惩罚比例 %.2f%%, 昨日 %.2f%%]\n",
         (double) today.getEnergyPenaltyTotal() / 1_000_000_000L,
         formatPercent(today.getEnergyPenaltyTotal(), yesterday.getEnergyPenaltyTotal()),
-        formatPercent(today.getEnergyPenaltyTotal(), yesterday.getEnergyPenaltyTotal()),
+        formatPercent(today.getEnergyPenaltyTotal(), monthAvg.getEnergyPenaltyTotal()),
         (double) today.getEnergyPenaltyTotal()
             / (today.getEnergyUsageTotal() - today.getEnergyPenaltyTotal()) * 100,
         (double) yesterday.getEnergyPenaltyTotal()
             / (yesterday.getEnergyUsageTotal() - yesterday.getEnergyPenaltyTotal()) * 100));
-    sb.append(String.format("> USDT 交易: 共 `%d` 笔 / `%d` out_energy (%.2f%%)/ `%d` other fails (%.2f%%)\n",
-        today.getTxTotalCount(),
-        today.getTxOOECount(),
+    sb.append(String.format("> USDT 交易: 共 `%s` 笔 / `%s` out_energy (%.2f%%)/ `%s` other fails (%.2f%%)\n",
+        df.format(today.getTxTotalCount()),
+        df.format(today.getTxOOECount()),
         (double) today.getTxOOECount() / today.getTxTotalCount() * 100,
-        today.getTxFailedCount() - today.getTxOOECount(),
+        df.format(today.getTxFailedCount() - today.getTxOOECount()),
         (double) (today.getTxFailedCount() - today.getTxOOECount()) / today.getTxTotalCount() * 100));
     sb.append(String.format("> USDT 手续费: `%.2f$` - `%.2f$` @TRON / `%.2f$` - `%.2f$` @ETH\n",
         0.85,

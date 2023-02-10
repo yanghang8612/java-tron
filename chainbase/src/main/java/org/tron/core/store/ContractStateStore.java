@@ -72,4 +72,25 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
     }
     return total;
   }
+
+  public ContractStateCapsule getMonthAvgState(long cycleNum, byte[] addr) {
+    double trxBurn = 0;
+    double energy = 0;
+    double penalty = 0;
+    int penaltyCnt = 0;
+    for (int i = 0; i < 30; i++) {
+      ContractStateCapsule dayState = getDayState(cycleNum - i * 4, addr);
+      trxBurn += dayState.getTrxBurn();
+      energy += dayState.getEnergyUsageTotal();
+      if (dayState.getEnergyPenaltyTotal() > 0) {
+        penaltyCnt += 1;
+        penalty += dayState.getEnergyPenaltyTotal();
+      }
+    }
+    ContractStateCapsule avg = new ContractStateCapsule(0);
+    avg.addEnergyUsageTotal((long) (energy / 30));
+    avg.addEnergyPenaltyTotal((long) (penalty / penaltyCnt));
+    avg.addTrxBurn((long) (trxBurn / 30));
+    return avg;
+  }
 }

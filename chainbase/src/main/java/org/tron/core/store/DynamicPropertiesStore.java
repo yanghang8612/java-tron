@@ -2326,6 +2326,17 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
     this.put(CURRENT_CYCLE_NUMBER, new BytesCapsule(ByteArray.fromLong(number)));
   }
 
+  public long getCycleEndBlockNumber(long cycle) {
+    return Optional.ofNullable(getUnchecked(("CYCLE_END_" + cycle).getBytes()))
+        .map(BytesCapsule::getData)
+        .map(ByteArray::toLong)
+        .orElse(0L);
+  }
+
+  public void saveCycleEndBlockNumber(long cycle, long number) {
+    this.put(("CYCLE_END_" + cycle).getBytes(), new BytesCapsule(ByteArray.fromLong(number)));
+  }
+
   public void saveChangeDelegation(long number) {
     this.put(CHANGE_DELEGATION,
         new BytesCapsule(ByteArray.fromLong(number)));
