@@ -7,6 +7,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import lombok.Data;
@@ -16,7 +18,9 @@ import okhttp3.Response;
 
 public class NetUtil {
 
-  private static final OkHttpClient client = new OkHttpClient();
+  private static final OkHttpClient client = new OkHttpClient.Builder().proxy(
+      new Proxy(Proxy.Type.HTTP,new InetSocketAddress("192.168.3.174", 12348))
+  ).build();
 
   @Data
   private static class Price {
