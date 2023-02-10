@@ -1893,23 +1893,23 @@ public class Manager {
     ContractStateCapsule todayTotal = css.getDayState(cycleNum, "total".getBytes());
     ContractStateCapsule yesterdayTotal = css.getDayState(cycleNum - 4, "total".getBytes());
     ContractStateCapsule monthAvgTotal = css.getMonthAvgState(cycleNum - 4, "total".getBytes());
-    sb.append(String.format("> 总能量燃烧: `%s` TRX, 相对昨日: `%s`, 相对月均: `%s`\n",
+    sb.append(String.format("> 总能量燃烧: `%s` TRX, 相对昨日: `%s`, 相对基准: `%s`\n",
         df.format(todayTotal.getTrxBurn() / 1_000_000L),
         formatPercent(todayTotal.getTrxBurn(), yesterdayTotal.getTrxBurn()),
-        formatPercent(todayTotal.getTrxBurn(), monthAvgTotal.getTrxBurn())));
+        formatPercent(todayTotal.getTrxBurn(), 10_075_528L)));
     ContractStateCapsule today = css.getDayState(cycleNum, addr);
     ContractStateCapsule yesterday = css.getDayState(cycleNum - 4, addr);
     ContractStateCapsule monthAvg = css.getMonthAvgState(cycleNum - 4, addr);
-    sb.append(String.format("> USDT 燃烧: `%s` TRX, 相对昨日: `%s`, 相对月均: `%s` [占比 %.2f%%]\n",
+    sb.append(String.format("> USDT 燃烧: `%s` TRX, 相对昨日: `%s`, 相对基准: `%s` [占比 %.2f%%]\n",
         df.format(today.getTrxBurn() / 1_000_000L),
         formatPercent(today.getTrxBurn(), yesterday.getTrxBurn()),
-        formatPercent(today.getTrxBurn(), monthAvg.getTrxBurn()),
+        formatPercent(today.getTrxBurn(), 8_939_720L),
         (double) today.getTrxBurn() / 420 / today.getEnergyUsageTotal() * 100));
-    sb.append(String.format("> USDT 能量: `%.2f` B, 相对昨日: `%s`, 相对月均: `%s`\n",
+    sb.append(String.format("> USDT 能量: `%.2f` B, 相对昨日: `%s`, 相对基准: `%s`\n",
         (double) today.getEnergyUsageTotal() / 1_000_000_000L,
         formatPercent(today.getEnergyUsageTotal(), yesterday.getEnergyUsageTotal()),
-        formatPercent(today.getEnergyUsageTotal(), monthAvg.getEnergyUsageTotal())));
-    sb.append(String.format("> USDT 惩罚: `%.2f` TRX, 相对昨日: `%s`, 相对月均: `%s` [惩罚比例 %.2f%%, 昨日 %.2f%%]\n",
+        formatPercent(today.getEnergyUsageTotal(), 41_817_570_852L)));
+    sb.append(String.format("> USDT 惩罚: `%.2f` TRX, 相对昨日: `%s`, 相对基准: `%s` [惩罚比例 %.2f%%, 昨日 %.2f%%]\n",
         (double) today.getEnergyPenaltyTotal() / 1_000_000_000L,
         formatPercent(today.getEnergyPenaltyTotal(), yesterday.getEnergyPenaltyTotal()),
         formatPercent(today.getEnergyPenaltyTotal(), monthAvg.getEnergyPenaltyTotal()),
@@ -1923,12 +1923,17 @@ public class Manager {
         (double) today.getTxOOECount() / today.getTxTotalCount() * 100,
         df.format(today.getTxFailedCount() - today.getTxOOECount()),
         (double) (today.getTxFailedCount() - today.getTxOOECount()) / today.getTxTotalCount() * 100));
+    int gasPrice = NetUtil.getGasPrice();
+    long energyPrice = getDynamicPropertiesStore().getEnergyFee();
+    double trxPrice = NetUtil.getPrice("TRXUSDT");
+    double ethPrice = NetUtil.getPrice("ETHUSDT");
+    long factor = css.get(addr).getEnergyFactor();
     sb.append(String.format("> USDT 手续费: `%.2f$` - `%.2f$` @TRON / `%.2f$` - `%.2f$` @ETH\n",
-        0.85,
-        1.72,
-        1.07,
-        1.65));
-    sb.append(String.format("> USDT 因子: 当前 `%.4f`", (double) css.get(addr).getEnergyFactor() / 10000));
+        trxPrice * energyPrice * 14650 * (1 + factor / 10_000L) / 1e6,
+        trxPrice * energyPrice * 29650 * (1 + factor / 10_000L) / 1e6,
+        ethPrice * gasPrice * 41309 / 1e9,
+        ethPrice * gasPrice * 63209 / 1e9));
+    sb.append(String.format("> USDT 因子: 当前 `%.4f`", (double) factor / 10000));
     if (sb.length() > 0) {
       logger.error(sb.toString());
       NetUtil.post(Args.getInstance().trackerSlackWebhook, String.format("{\"text\":\"%s\"}", sb));
