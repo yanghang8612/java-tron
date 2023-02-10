@@ -33,11 +33,11 @@ public class SlackServlet extends RateLimiterServlet {
     try {
       cycle = Integer.parseInt(text);
     } catch (Exception ignored) { }
-    if ("cycle".equals(cmd)) {
+    if ("/cycle".equals(cmd)) {
       dbManage.doDynamicEnergyCycleStats(cycle);
-    } else if ("day".equals(cmd)) {
+    } else if ("/day".equals(cmd)) {
       dbManage.doDynamicEnergyDayStats(cycle);
-    } else if ("month".equals(cmd)) {
+    } else if ("/month".equals(cmd)) {
 
     }
     System.out.println(cmd);
