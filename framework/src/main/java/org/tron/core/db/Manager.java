@@ -1898,14 +1898,14 @@ public class Manager {
     sb.append(String.format("> 总能量燃烧: `%s` TRX, 相对昨日: `%s`, 相对基准: `%s`\n",
         df.format(todayTotal.getTrxBurn() / 1_000_000L),
         formatPercent(todayTotal.getTrxBurn(), yesterdayTotal.getTrxBurn()),
-        formatPercent(todayTotal.getTrxBurn(), 10_075_528L)));
+        formatPercent((long) (todayTotal.getTrxBurn() / 1e6), 10_075_528L)));
     ContractStateCapsule today = css.getDayState(cycleNum, addr);
     ContractStateCapsule yesterday = css.getDayState(cycleNum - 4, addr);
     ContractStateCapsule monthAvg = css.getMonthAvgState(cycleNum - 4, addr);
     sb.append(String.format("> USDT 燃烧: `%s` TRX, 相对昨日: `%s`, 相对基准: `%s` [占比 %.2f%%]\n",
         df.format(today.getTrxBurn() / 1_000_000L),
         formatPercent(today.getTrxBurn(), yesterday.getTrxBurn()),
-        formatPercent(today.getTrxBurn(), 8_939_720L),
+        formatPercent((long) (today.getTrxBurn() / 1e6), 8_939_720L),
         (double) today.getTrxBurn() / 420 / today.getEnergyUsageTotal() * 100));
     sb.append(String.format("> USDT 能量: `%.2f` B, 相对昨日: `%s`, 相对基准: `%s`\n",
         (double) today.getEnergyUsageTotal() / 1_000_000_000L,
