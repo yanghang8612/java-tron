@@ -1906,12 +1906,12 @@ public class Manager {
         df.format(today.getTrxBurn() / 1_000_000L),
         formatPercent(today.getTrxBurn(), yesterday.getTrxBurn()),
         formatPercent((long) (today.getTrxBurn() / 1e6), 8_939_720L),
-        (double) today.getTrxBurn() / 420 / today.getEnergyUsageTotal() * 100));
+        (double) today.getTrxBurn() / todayTotal.getTrxBurn() * 100));
     sb.append(String.format("> USDT 能量: `%.2f` B, 相对昨日: `%s`, 相对基准: `%s`\n",
         (double) today.getEnergyUsageTotal() / 1_000_000_000L,
         formatPercent(today.getEnergyUsageTotal(), yesterday.getEnergyUsageTotal()),
         formatPercent(today.getEnergyUsageTotal(), 41_817_570_852L)));
-    sb.append(String.format("> USDT 惩罚: `%.2f` TRX, 相对昨日: `%s`, 相对基准: `%s` [惩罚比例 %.2f%%, 昨日 %.2f%%]\n",
+    sb.append(String.format("> USDT 惩罚: `%.2f` B, 相对昨日: `%s`, 相对基准: `%s` [惩罚比例 %.2f%%, 昨日 %.2f%%]\n",
         (double) today.getEnergyPenaltyTotal() / 1_000_000_000L,
         formatPercent(today.getEnergyPenaltyTotal(), yesterday.getEnergyPenaltyTotal()),
         formatPercent(today.getEnergyPenaltyTotal(), monthAvg.getEnergyPenaltyTotal()),

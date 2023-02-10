@@ -29,7 +29,7 @@ public class SlackServlet extends RateLimiterServlet {
   protected void doPost(HttpServletRequest req, HttpServletResponse resp) {
     String cmd = req.getParameter("command");
     String text = req.getParameter("text");
-    long cycle = dps.getCurrentCycleNumber();
+    long cycle = dps.getCurrentCycleNumber() - 1;
     try {
       cycle = Integer.parseInt(text);
     } catch (Exception ignored) { }
