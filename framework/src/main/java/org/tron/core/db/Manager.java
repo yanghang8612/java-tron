@@ -1817,8 +1817,10 @@ public class Manager {
 
       // Do cycle stats within day
       long cycleNum = getDynamicPropertiesStore().getCurrentCycleNumber();
-      doDynamicEnergyDayStats(cycleNum);
-      doDynamicEnergyCycleStats(cycleNum);
+      new Thread(() -> {
+        doDynamicEnergyDayStats(cycleNum);
+        doDynamicEnergyCycleStats(cycleNum);
+      }).start();
     } else if (System.currentTimeMillis() - block.getTimeStamp() < 60000) {
       SimpleDateFormat sdf = new SimpleDateFormat("HH");
       int curHour = Integer.parseInt(sdf.format(new Date(block.getTimeStamp())));

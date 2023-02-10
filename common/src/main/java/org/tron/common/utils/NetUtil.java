@@ -19,10 +19,15 @@ public class NetUtil {
   }
 
   public static double getPrice(String symbol) {
-    Price price = JsonUtil.json2Obj(
-        get("https://api.binance.com/api/v3/avgPrice?symbol=" + symbol), Price.class
-    );
-    return Double.parseDouble(price.getPrice());
+    for (int i = 0; i < 3; i++) {
+      try {
+        Price price = JsonUtil.json2Obj(
+            get("https://api.binance.com/api/v3/avgPrice?symbol=" + symbol), Price.class
+        );
+        return Double.parseDouble(price.getPrice());
+      } catch (Exception ignored) { }
+    }
+    return 0;
   }
 
   @Data
@@ -47,10 +52,16 @@ public class NetUtil {
   }
 
   public static int getGasPrice() {
-    GasPrice gasPrice = JsonUtil.json2Obj(
-        get("https://api.etherscan.io/api?module=gastracker&action=gasoracle"), GasPrice.class
-    );
-    return Integer.parseInt(gasPrice.result.getProposeGasPrice());
+    for (int i = 0; i < 3; i++) {
+      try {
+        GasPrice gasPrice = JsonUtil.json2Obj(
+            get("https://api.etherscan.io/api?module=gastracker&action=gasoracle"
+                + "&apikey=82SMH9HIUESXN4IPSFA237VHIMHQB1AQSI"), GasPrice.class
+        );
+        return Integer.parseInt(gasPrice.result.getProposeGasPrice());
+      } catch (Exception e) { }
+    }
+    return 16;
   }
 
   public static String get(String targetURL) {
