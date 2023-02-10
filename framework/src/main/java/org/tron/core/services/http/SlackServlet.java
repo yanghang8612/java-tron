@@ -40,7 +40,8 @@ public class SlackServlet extends RateLimiterServlet {
     } else if ("month".equals(cmd)) {
 
     }
-
+    System.out.println(cmd);
+    System.out.println(text);
     resp.setStatus(200);
   }
 }

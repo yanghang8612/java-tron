@@ -1876,8 +1876,8 @@ public class Manager {
           .append(StringUtil.encode58Check(key)).append("\n");
       sb.append(entry.getValue().toSlackMsg());
     }
+    logger.error(sb.toString());
     if (sb.length() > 0) {
-      logger.error(sb.toString());
       NetUtil.post(Args.getInstance().defiSlackWebhook, String.format("{\"text\":\"%s\"}", sb));
     }
   }
@@ -1927,7 +1927,11 @@ public class Manager {
     long energyPrice = getDynamicPropertiesStore().getEnergyFee();
     double trxPrice = NetUtil.getPrice("TRXUSDT");
     double ethPrice = NetUtil.getPrice("ETHUSDT");
-    long factor = css.get(addr).getEnergyFactor();
+    long factor = 0;
+    ContractStateCapsule csc = css.get(addr);
+    if (csc != null) {
+      factor = csc.getEnergyFactor();
+    }
     sb.append(String.format("> USDT 手续费: `%.2f$` - `%.2f$` @TRON / `%.2f$` - `%.2f$` @ETH\n",
         trxPrice * energyPrice * 14650 * (1 + factor / 10_000L) / 1e6,
         trxPrice * energyPrice * 29650 * (1 + factor / 10_000L) / 1e6,
