@@ -36,7 +36,10 @@ public class SlackServlet extends RateLimiterServlet {
     if ("/cycle".equals(cmd)) {
       dbManage.doDynamicEnergyCycleStats(cycle);
     } else if ("/day".equals(cmd)) {
-      dbManage.doDynamicEnergyDayStats(cycle);
+      long finalCycle = cycle;
+      new Thread(() -> {
+        dbManage.doDynamicEnergyDayStats(finalCycle);
+      }).start();
     } else if ("/month".equals(cmd)) {
 
     }
