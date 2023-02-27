@@ -408,6 +408,13 @@ public class AccountChangeRecord {
       info.setFrozenSupplyBalance(account.getFrozenSupplyBalance());
       info.setAcquiredDelegatedFrozenBalanceForEnergy(account.getAcquiredDelegatedFrozenBalanceForEnergy());
       info.setAcquiredDelegatedFrozenBalanceForBandwidth(account.getAcquiredDelegatedFrozenBalanceForBandwidth());
+
+
+      info.setFrozenBalanceForBandwidthV2(account.getFrozenBalanceForBandwidthV2());
+      info.setFrozenBalanceForEnergyV2(account.getFrozenBalanceForEnergyV2());
+      info.setFrozenForTronPowerV2(account.getFrozenForTronPowerV2());
+      info.setDelegatedFrozenV2BalanceForBandwidth(account.getDelegatedFrozenV2BalanceForBandwidth());
+      info.setDelegatedFrozenV2BalanceForEnergy(account.getDelegatedFrozenV2BalanceForEnergy());
     }
   }
 
