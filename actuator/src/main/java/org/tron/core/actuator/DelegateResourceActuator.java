@@ -260,13 +260,13 @@ public class DelegateResourceActuator extends AbstractActuator {
       final long expireTimeForBandwidth = delegatedResourceCapsule.getExpireTimeForBandwidth();
       delegatedResourceCapsule.addFrozenBalanceForBandwidth(balance, expireTime);
       StakeChangeRecord.recordResource(ownerAddress, receiverAddress, Common.ResourceCode.BANDWIDTH,
-              frozenBalanceForBandwidth + balance, 0L, frozenBalanceForBandwidth, expireTimeForBandwidth, lock);
+              frozenBalanceForBandwidth + balance, expireTime, frozenBalanceForBandwidth, expireTimeForBandwidth, lock);
     } else {
       final long frozenBalanceForEnergy = delegatedResourceCapsule.getFrozenBalanceForEnergy();
       final long expireTimeForEnergy = delegatedResourceCapsule.getExpireTimeForEnergy();
       delegatedResourceCapsule.addFrozenBalanceForEnergy(balance, expireTime);
       StakeChangeRecord.recordResource(ownerAddress, receiverAddress, Common.ResourceCode.ENERGY,
-              frozenBalanceForEnergy + balance, 0L, frozenBalanceForEnergy, expireTimeForEnergy, lock);
+              frozenBalanceForEnergy + balance, expireTime, frozenBalanceForEnergy, expireTimeForEnergy, lock);
     }
     delegatedResourceStore.put(key, delegatedResourceCapsule);
 
