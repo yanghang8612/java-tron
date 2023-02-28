@@ -34,17 +34,15 @@ public class SlackServlet extends RateLimiterServlet {
       cycle = Integer.parseInt(text);
     } catch (Exception ignored) { }
     if ("/cycle".equals(cmd)) {
-      dbManage.doDynamicEnergyCycleStats(cycle);
+      dbManage.doDynamicEnergyCycleStats(cycle, true);
     } else if ("/day".equals(cmd)) {
       long finalCycle = cycle;
       new Thread(() -> {
-        dbManage.doDynamicEnergyDayStats(finalCycle);
+        dbManage.doDynamicEnergyDayStats(finalCycle, true);
       }).start();
     } else if ("/month".equals(cmd)) {
-
+      // TODO
     }
-    System.out.println(cmd);
-    System.out.println(text);
     resp.setStatus(200);
   }
 }

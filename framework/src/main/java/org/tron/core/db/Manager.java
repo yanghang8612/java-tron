@@ -1821,8 +1821,8 @@ public class Manager {
       // Do cycle stats within day
       long cycleNum = getDynamicPropertiesStore().getCurrentCycleNumber();
       new Thread(() -> {
-        doDynamicEnergyDayStats(cycleNum);
-        doDynamicEnergyCycleStats(cycleNum);
+        doDynamicEnergyDayStats(cycleNum, false);
+        doDynamicEnergyCycleStats(cycleNum, false);
       }).start();
     } else if (System.currentTimeMillis() - block.getTimeStamp() < 60000) {
       SimpleDateFormat sdf = new SimpleDateFormat("HH");
@@ -1852,7 +1852,7 @@ public class Manager {
     }
   }
 
-  public void doDynamicEnergyCycleStats(long cycleNum) {
+  public void doDynamicEnergyCycleStats(long cycleNum, boolean forcedReport) {
     String cycleNumber = String.valueOf(cycleNum);
     ContractStateStore css = getChainBaseManager().getContractStateStore();
     Map<WrappedByteArray, ContractStateCapsule> contracts =
@@ -1882,13 +1882,13 @@ public class Manager {
       sb.append(entry.getValue().toSlackMsg());
     }
     logger.error(sb.toString());
-    if (sb.length() > 0 && System.currentTimeMillis()
-        - getDynamicPropertiesStore().getLatestBlockHeaderTimestamp() < 60_000L) {
+    if (sb.length() > 0 && (forcedReport || System.currentTimeMillis()
+        - getDynamicPropertiesStore().getLatestBlockHeaderTimestamp() < 60_000L)) {
       NetUtil.post(Args.getInstance().defiSlackWebhook, String.format("{\"text\":\"%s\"}", sb));
     }
   }
 
-  public void doDynamicEnergyDayStats(long cycleNum) {
+  public void doDynamicEnergyDayStats(long cycleNum, boolean forcedReport) {
     byte[] addr = Commons.decodeFromBase58Check("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t");
     ContractStateStore css = getChainBaseManager().getContractStateStore();
 
@@ -1944,8 +1944,8 @@ public class Manager {
         ethPrice * gasPrice * 41309 / 1e9,
         ethPrice * gasPrice * 63209 / 1e9));
     sb.append(String.format("> USDT 因子: 当前 `%.4f`", (double) factor / 10000));
-    if (sb.length() > 0 && System.currentTimeMillis()
-        - getDynamicPropertiesStore().getLatestBlockHeaderTimestamp() < 60_000L) {
+    if (sb.length() > 0 && (forcedReport || System.currentTimeMillis()
+        - getDynamicPropertiesStore().getLatestBlockHeaderTimestamp() < 60_000L)) {
       logger.error(sb.toString());
       NetUtil.post(Args.getInstance().trackerSlackWebhook, String.format("{\"text\":\"%s\"}", sb));
     }
