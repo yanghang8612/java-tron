@@ -90,13 +90,15 @@ public class DelegatedResourceStore extends TronStoreWithRevoking<DelegatedResou
           lockResource.getFrozenBalanceForEnergy(), 0);
       lockResource.setFrozenBalanceForEnergy(0, 0);
 
-      StakeChangeRecord.recordResource(from, to, Common.ResourceCode.ENERGY,
-              unLockFrozenBalanceForEnergy + lockFrozenBalanceForEnergy, 0L,
-              unLockFrozenBalanceForEnergy, unlockExpireTimeForEnergy, false);
+      if (lockFrozenBalanceForEnergy > 0 || lockExpireTimeForEnergy > 0) {
+        StakeChangeRecord.recordResource(from, to, Common.ResourceCode.ENERGY,
+                unLockFrozenBalanceForEnergy + lockFrozenBalanceForEnergy, 0L,
+                unLockFrozenBalanceForEnergy, unlockExpireTimeForEnergy, false);
 
-      StakeChangeRecord.recordResource(from, to, Common.ResourceCode.ENERGY,
-              0L, 0L,
-              lockFrozenBalanceForEnergy, lockExpireTimeForEnergy, true);
+        StakeChangeRecord.recordResource(from, to, Common.ResourceCode.ENERGY,
+                0L, 0L,
+                lockFrozenBalanceForEnergy, lockExpireTimeForEnergy, true);
+      }
     }
     if (lockResource.getExpireTimeForBandwidth() < now) {
       final long unLockFrozenBalanceForBandwidth = unlockResource.getFrozenBalanceForBandwidth();
@@ -107,13 +109,15 @@ public class DelegatedResourceStore extends TronStoreWithRevoking<DelegatedResou
           lockResource.getFrozenBalanceForBandwidth(), 0);
       lockResource.setFrozenBalanceForBandwidth(0, 0);
 
-      StakeChangeRecord.recordResource(from, to, Common.ResourceCode.BANDWIDTH,
-              unLockFrozenBalanceForBandwidth + lockFrozenBalanceForBandwidth, 0L,
-              unLockFrozenBalanceForBandwidth, unlockExpireTimeForBandwidth, false);
+      if (lockFrozenBalanceForBandwidth > 0  || lockExpireTimeForBandwidth > 0) {
+        StakeChangeRecord.recordResource(from, to, Common.ResourceCode.BANDWIDTH,
+                unLockFrozenBalanceForBandwidth + lockFrozenBalanceForBandwidth, 0L,
+                unLockFrozenBalanceForBandwidth, unlockExpireTimeForBandwidth, false);
 
-      StakeChangeRecord.recordResource(from, to, Common.ResourceCode.BANDWIDTH,
-              0L, 0L,
-              lockFrozenBalanceForBandwidth, lockExpireTimeForBandwidth, true);
+        StakeChangeRecord.recordResource(from, to, Common.ResourceCode.BANDWIDTH,
+                0L, 0L,
+                lockFrozenBalanceForBandwidth, lockExpireTimeForBandwidth, true);
+      }
     }
     if (lockResource.getFrozenBalanceForBandwidth() == 0
         && lockResource.getFrozenBalanceForEnergy() == 0) {
