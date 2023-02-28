@@ -1882,7 +1882,8 @@ public class Manager {
       sb.append(entry.getValue().toSlackMsg());
     }
     logger.error(sb.toString());
-    if (sb.length() > 0) {
+    if (sb.length() > 0 && System.currentTimeMillis()
+        - getDynamicPropertiesStore().getLatestBlockHeaderTimestamp() < 60_000L) {
       NetUtil.post(Args.getInstance().defiSlackWebhook, String.format("{\"text\":\"%s\"}", sb));
     }
   }
@@ -1943,7 +1944,8 @@ public class Manager {
         ethPrice * gasPrice * 41309 / 1e9,
         ethPrice * gasPrice * 63209 / 1e9));
     sb.append(String.format("> USDT 因子: 当前 `%.4f`", (double) factor / 10000));
-    if (sb.length() > 0) {
+    if (sb.length() > 0 && System.currentTimeMillis()
+        - getDynamicPropertiesStore().getLatestBlockHeaderTimestamp() < 60_000L) {
       logger.error(sb.toString());
       NetUtil.post(Args.getInstance().trackerSlackWebhook, String.format("{\"text\":\"%s\"}", sb));
     }
