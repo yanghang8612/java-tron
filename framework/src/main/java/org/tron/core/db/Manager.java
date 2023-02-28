@@ -1931,8 +1931,8 @@ public class Manager {
         (double) (today.getTxFailedCount() - today.getTxOOECount()) / today.getTxTotalCount() * 100));
     int gasPrice = NetUtil.getGasPrice();
     long energyPrice = getDynamicPropertiesStore().getEnergyFee();
-    double trxPrice = NetUtil.getPrice("TRXUSDT");
-    double ethPrice = NetUtil.getPrice("ETHUSDT");
+    double trxPrice = NetUtil.getPrice("TRX");
+    double ethPrice = NetUtil.getPrice("ETH");
     long factor = 0;
     ContractStateCapsule csc = css.get(addr);
     if (csc != null) {

@@ -57,8 +57,8 @@ public class FullNode {
     CommonParameter parameter = Args.getInstance();
     NetUtil.post(parameter.defiSlackWebhook, "{\"text\":\"TrackBot is running\"}");
     System.out.println(NetUtil.getGasPrice());
-    System.out.println(NetUtil.getPrice("TRXUSDT"));
-    System.out.println(NetUtil.getPrice("ETHUSDT"));
+    System.out.println(NetUtil.getPrice("TRX"));
+    System.out.println(NetUtil.getPrice("ETH"));
 
     load(parameter.getLogbackPath());
 
