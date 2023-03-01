@@ -2134,6 +2134,7 @@ public class Manager {
       StakeTrackerCapsule stakeTrackerCapsule = new StakeTrackerCapsule(blockCapsule, stakeChangeRecord.getStakeInfos());
       if (stakeTrackerCapsule.getStakeBalanceTrigger() != null) {
         stakeTrackerCapsule.processTrigger();
+        stakeChangeRecord.clear();
       }
     }
 
