@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.tron.common.utils.StringUtil;
 import org.tron.core.capsule.DelegatedResourceCapsule;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -39,6 +40,11 @@ public class FreezeChangeRecord {
     }
 
     if (oldResource == null && newResource == null) {
+      return;
+    }
+
+    if (key.length % 2 != 0) {
+      logger.info(" >>>> is stake2.0, not freeze. key:{}", Arrays.toString(key));
       return;
     }
 
