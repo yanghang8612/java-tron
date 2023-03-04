@@ -253,14 +253,18 @@ public class UnfreezeBalanceV2Actuator extends AbstractActuator {
     List<UnFreezeV2> unFrozenV2List = Lists.newArrayList();
     unFrozenV2List.addAll(accountCapsule.getUnfrozenV2List());
     Iterator<UnFreezeV2> iterator = unFrozenV2List.iterator();
+    List<UnFreezeV2> expireList = Lists.newArrayList();
 
     while (iterator.hasNext()) {
       UnFreezeV2 next = iterator.next();
       if (next.getUnfreezeExpireTime() <= now) {
+        expireList.add(next);
         unfreezeBalance += next.getUnfreezeAmount();
         iterator.remove();
       }
     }
+
+    StakeChangeRecord.withdrawUnfreeze(accountCapsule.getAddress().toByteArray(), expireList);
 
     accountCapsule.setInstance(
         accountCapsule.getInstance().toBuilder()

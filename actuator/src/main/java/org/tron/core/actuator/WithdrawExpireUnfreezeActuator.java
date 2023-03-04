@@ -58,7 +58,9 @@ public class WithdrawExpireUnfreezeActuator extends AbstractActuator {
     accountCapsule.setInstance(accountCapsule.getInstance().toBuilder()
         .setBalance(accountCapsule.getBalance() + totalWithdrawUnfreeze)
         .build());
+
     StakeChangeRecord.withdrawUnfreeze(accountCapsule.getAddress().toByteArray(), totalWithdrawList);
+
     List<UnFreezeV2> newUnFreezeList = getRemainWithdrawList(unfrozenV2List, now);
     accountCapsule.clearUnfrozenV2();
     accountCapsule.addAllUnfrozenV2(newUnFreezeList);

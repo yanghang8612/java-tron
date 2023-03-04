@@ -155,14 +155,18 @@ public class UnfreezeBalanceV2Processor {
     List<Protocol.Account.UnFreezeV2> unFrozenV2List = Lists.newArrayList();
     unFrozenV2List.addAll(accountCapsule.getUnfrozenV2List());
     Iterator<Protocol.Account.UnFreezeV2> iterator = unFrozenV2List.iterator();
+    List<Protocol.Account.UnFreezeV2> expireList = Lists.newArrayList();
 
     while (iterator.hasNext()) {
       Protocol.Account.UnFreezeV2 next = iterator.next();
       if (next.getUnfreezeExpireTime() <= now) {
+        expireList.add(next);
         unfreezeBalance += next.getUnfreezeAmount();
         iterator.remove();
       }
     }
+
+    StakeChangeRecord.withdrawUnfreeze(accountCapsule.getAddress().toByteArray(), expireList);
 
     accountCapsule.setInstance(
         accountCapsule.getInstance().toBuilder()

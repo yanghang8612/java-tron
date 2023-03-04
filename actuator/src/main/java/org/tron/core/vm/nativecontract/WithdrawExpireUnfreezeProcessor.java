@@ -80,7 +80,9 @@ public class WithdrawExpireUnfreezeProcessor {
     ownerCapsule.setInstance(ownerCapsule.getInstance().toBuilder()
         .setBalance(ownerCapsule.getBalance() + totalWithdrawUnfreeze)
         .build());
+
     StakeChangeRecord.withdrawUnfreeze(ownerAddress, totalWithdrawList);
+
     List<Protocol.Account.UnFreezeV2> newUnFreezeList = getRemainWithdrawList(unfrozenV2List, now);
     ownerCapsule.clearUnfrozenV2();
     ownerCapsule.addAllUnfrozenV2(newUnFreezeList);
