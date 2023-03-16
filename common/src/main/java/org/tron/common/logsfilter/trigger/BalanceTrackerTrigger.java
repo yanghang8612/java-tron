@@ -53,6 +53,20 @@ public class BalanceTrackerTrigger extends Trigger {
     private String incrementFrozenSupplyBalance;
     private String incrementAcquiredDelegatedFrozenBalanceForEnergy;
     private String incrementAcquiredDelegatedFrozenBalanceForBandwidth;
+
+    // for stake2.0
+    private String frozenBalanceForBandwidthV2;
+    private String frozenBalanceForEnergyV2;
+    private String frozenForTronPowerV2;
+    private String delegatedFrozenV2BalanceForBandwidth;
+    private String delegatedFrozenV2BalanceForEnergy;
+
+    private String incrementFrozenBalanceForBandwidthV2;
+    private String incrementFrozenBalanceForEnergyV2;
+    private String incrementFrozenForTronPowerV2;
+    private String incrementDelegatedFrozenV2BalanceForBandwidth;
+    private String incrementDelegatedFrozenV2BalanceForEnergy;
+
   }
 
   @Data

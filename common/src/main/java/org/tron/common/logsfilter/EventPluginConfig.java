@@ -17,6 +17,7 @@ public class EventPluginConfig {
 
   public static final String BALANCE_TRACKER = "balanceTracker";
   public static final String FREEZE_BALANCE_TRACKER = "freezeBalanceTracker";
+  public static final String STAKE_BALANCE_TRACKER = "stakeBalanceTracker";
   public static final String TRC20TRACKER_SOLIDITY_TRIGGER_NAME = "trc20SolidityTracker";
   public static final String BLOCK_ERASE_TRIGGER_NAME = "blockErased";
   public static final String SHIELDED_TRC20_SOLIDITY_TRACKER = "shieldedTRC20SolidityTracker";

@@ -21,6 +21,7 @@ import org.tron.common.utils.StringUtil;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.TransactionResultCapsule;
 import org.tron.core.capsule.VotesCapsule;
+import org.tron.core.db.accountchange.StakeChangeRecord;
 import org.tron.core.exception.ContractExeException;
 import org.tron.core.exception.ContractValidateException;
 import org.tron.core.service.MortgageService;
@@ -82,6 +83,7 @@ public class UnfreezeBalanceV2Actuator extends AbstractActuator {
 
     long expireTime = this.calcUnfreezeExpireTime(now);
     accountCapsule.addUnfrozenV2List(freezeType, unfreezeBalance, expireTime);
+    StakeChangeRecord.recordUnfreeze(ownerAddress, freezeType, unfreezeBalance, expireTime);
 
     this.updateTotalResourceWeight(accountCapsule, unfreezeBalanceV2Contract, unfreezeBalance);
     this.updateVote(accountCapsule, unfreezeBalanceV2Contract, ownerAddress);
@@ -251,14 +253,18 @@ public class UnfreezeBalanceV2Actuator extends AbstractActuator {
     List<UnFreezeV2> unFrozenV2List = Lists.newArrayList();
     unFrozenV2List.addAll(accountCapsule.getUnfrozenV2List());
     Iterator<UnFreezeV2> iterator = unFrozenV2List.iterator();
+    List<UnFreezeV2> expireList = Lists.newArrayList();
 
     while (iterator.hasNext()) {
       UnFreezeV2 next = iterator.next();
       if (next.getUnfreezeExpireTime() <= now) {
+        expireList.add(next);
         unfreezeBalance += next.getUnfreezeAmount();
         iterator.remove();
       }
     }
+
+    StakeChangeRecord.withdrawUnfreeze(accountCapsule.getAddress().toByteArray(), expireList);
 
     accountCapsule.setInstance(
         accountCapsule.getInstance().toBuilder()

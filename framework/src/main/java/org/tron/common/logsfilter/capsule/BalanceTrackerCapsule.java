@@ -94,6 +94,18 @@ public class BalanceTrackerCapsule extends TriggerCapsule {
     trx.setIncrementAcquiredDelegatedFrozenBalanceForEnergy(String.valueOf(info.getIncrementAcquiredDelegatedFrozenBalanceForEnergy()));
     trx.setIncrementAcquiredDelegatedFrozenBalanceForBandwidth(String.valueOf(info.getIncrementAcquiredDelegatedFrozenBalanceForBandwidth()));
 
+    trx.setFrozenBalanceForBandwidthV2(String.valueOf(info.getFrozenBalanceForBandwidthV2()));
+    trx.setFrozenBalanceForEnergyV2(String.valueOf(info.getFrozenBalanceForEnergyV2()));
+    trx.setFrozenForTronPowerV2(String.valueOf(info.getFrozenForTronPowerV2()));
+    trx.setDelegatedFrozenV2BalanceForBandwidth(String.valueOf(info.getDelegatedFrozenV2BalanceForBandwidth()));
+    trx.setDelegatedFrozenV2BalanceForEnergy(String.valueOf(info.getDelegatedFrozenV2BalanceForEnergy()));
+
+    trx.setIncrementFrozenBalanceForBandwidthV2(String.valueOf(info.getIncrementFrozenBalanceForBandwidthV2()));
+    trx.setIncrementFrozenBalanceForEnergyV2(String.valueOf(info.getIncrementFrozenBalanceForEnergyV2()));
+    trx.setIncrementFrozenForTronPowerV2(String.valueOf(info.getIncrementFrozenForTronPowerV2()));
+    trx.setIncrementDelegatedFrozenV2BalanceForBandwidth(String.valueOf(info.getIncrementDelegatedFrozenV2BalanceForBandwidth()));
+    trx.setIncrementDelegatedFrozenV2BalanceForEnergy(String.valueOf(info.getIncrementDelegatedFrozenV2BalanceForEnergy()));
+
     return trx;
   }
 

@@ -230,9 +230,15 @@ public class AccountChangeRecord {
     inMapInfo.setIncrementEnergyFrozenBalance(inMapInfo.getIncrementEnergyFrozenBalance() + addInfo.getIncrementEnergyFrozenBalance());
     inMapInfo.setIncrementDelegatedFrozenBalanceForEnergy(inMapInfo.getIncrementDelegatedFrozenBalanceForEnergy() + addInfo.getIncrementDelegatedFrozenBalanceForEnergy());
     inMapInfo.setIncrementDelegatedFrozenBalanceForBandwidth(inMapInfo.getIncrementDelegatedFrozenBalanceForBandwidth() + addInfo.getIncrementDelegatedFrozenBalanceForBandwidth());
-    inMapInfo.setIncrementFrozenSupplyBalance(inMapInfo.getFrozenSupplyBalance() + addInfo.getFrozenSupplyBalance());
-    inMapInfo.setIncrementAcquiredDelegatedFrozenBalanceForEnergy(inMapInfo.getAcquiredDelegatedFrozenBalanceForEnergy() + addInfo.getAcquiredDelegatedFrozenBalanceForEnergy());
-    inMapInfo.setIncrementAcquiredDelegatedFrozenBalanceForBandwidth(inMapInfo.getAcquiredDelegatedFrozenBalanceForBandwidth() + addInfo.getAcquiredDelegatedFrozenBalanceForBandwidth());
+    inMapInfo.setIncrementFrozenSupplyBalance(inMapInfo.getIncrementFrozenSupplyBalance() + addInfo.getIncrementFrozenSupplyBalance());
+    inMapInfo.setIncrementAcquiredDelegatedFrozenBalanceForEnergy(inMapInfo.getIncrementAcquiredDelegatedFrozenBalanceForEnergy() + addInfo.getIncrementAcquiredDelegatedFrozenBalanceForEnergy());
+    inMapInfo.setIncrementAcquiredDelegatedFrozenBalanceForBandwidth(inMapInfo.getIncrementAcquiredDelegatedFrozenBalanceForBandwidth() + addInfo.getIncrementAcquiredDelegatedFrozenBalanceForBandwidth());
+
+    inMapInfo.setIncrementFrozenBalanceForBandwidthV2(inMapInfo.getIncrementFrozenBalanceForBandwidthV2() + addInfo.getIncrementFrozenBalanceForBandwidthV2());
+    inMapInfo.setIncrementFrozenBalanceForEnergyV2(inMapInfo.getIncrementFrozenBalanceForEnergyV2() + addInfo.getIncrementFrozenBalanceForEnergyV2());
+    inMapInfo.setIncrementFrozenForTronPowerV2(inMapInfo.getIncrementFrozenForTronPowerV2() + addInfo.getIncrementFrozenForTronPowerV2());
+    inMapInfo.setIncrementDelegatedFrozenV2BalanceForBandwidth(inMapInfo.getIncrementDelegatedFrozenV2BalanceForBandwidth() + addInfo.getIncrementDelegatedFrozenV2BalanceForBandwidth());
+    inMapInfo.setIncrementDelegatedFrozenV2BalanceForEnergy(inMapInfo.getIncrementDelegatedFrozenV2BalanceForEnergy() + addInfo.getIncrementDelegatedFrozenV2BalanceForEnergy());
 
     Map<String, Trc10Info> trc10Map = inMapInfo.getTrc10Map();
     Map<String, Trc10Info> addMap = addInfo.getTrc10Map();
@@ -288,6 +294,20 @@ public class AccountChangeRecord {
     private long incrementAcquiredDelegatedFrozenBalanceForEnergy;
     private long incrementAcquiredDelegatedFrozenBalanceForBandwidth;
 
+    // for stake2.0
+    private long frozenBalanceForBandwidthV2;
+    private long frozenBalanceForEnergyV2;
+    private long frozenForTronPowerV2;
+    private long delegatedFrozenV2BalanceForBandwidth;
+    private long delegatedFrozenV2BalanceForEnergy;
+
+    private long incrementFrozenBalanceForBandwidthV2;
+    private long incrementFrozenBalanceForEnergyV2;
+    private long incrementFrozenForTronPowerV2;
+    private long incrementDelegatedFrozenV2BalanceForBandwidth;
+    private long incrementDelegatedFrozenV2BalanceForEnergy;
+
+
     private Map<String, Trc10Info> trc10Map;
 
     public static AccountInfo of(AccountCapsule account) {
@@ -305,6 +325,12 @@ public class AccountChangeRecord {
       info.setIncrementFrozenSupplyBalance(account.getFrozenSupplyBalance());
       info.setIncrementAcquiredDelegatedFrozenBalanceForEnergy(account.getAcquiredDelegatedFrozenBalanceForEnergy());
       info.setIncrementAcquiredDelegatedFrozenBalanceForBandwidth(account.getAcquiredDelegatedFrozenBalanceForBandwidth());
+
+      info.setIncrementFrozenBalanceForBandwidthV2(account.getFrozenV2BalanceForBandwidth());
+      info.setIncrementFrozenBalanceForEnergyV2(account.getFrozenV2BalanceForEnergy());
+      info.setIncrementFrozenForTronPowerV2(account.getTronPowerFrozenV2Balance());
+      info.setIncrementDelegatedFrozenV2BalanceForBandwidth(account.getDelegatedFrozenV2BalanceForBandwidth());
+      info.setIncrementDelegatedFrozenV2BalanceForEnergy(account.getDelegatedFrozenV2BalanceForEnergy());
 
       info.setTrc10Map(Trc10Info.of(account.getAssetMapV2(), true));
       return info;
@@ -327,6 +353,12 @@ public class AccountChangeRecord {
       info.setIncrementAcquiredDelegatedFrozenBalanceForEnergy(newAccount.getAcquiredDelegatedFrozenBalanceForEnergy() - oldAccount.getAcquiredDelegatedFrozenBalanceForEnergy());
       info.setIncrementAcquiredDelegatedFrozenBalanceForBandwidth(newAccount.getAcquiredDelegatedFrozenBalanceForBandwidth() - oldAccount.getAcquiredDelegatedFrozenBalanceForBandwidth());
 
+      info.setIncrementFrozenBalanceForBandwidthV2(newAccount.getFrozenV2BalanceForBandwidth() - oldAccount.getFrozenV2BalanceForBandwidth());
+      info.setIncrementFrozenBalanceForEnergyV2(newAccount.getFrozenV2BalanceForEnergy() - oldAccount.getFrozenV2BalanceForEnergy());
+      info.setIncrementFrozenForTronPowerV2(newAccount.getTronPowerFrozenV2Balance() - oldAccount.getTronPowerFrozenV2Balance());
+      info.setIncrementDelegatedFrozenV2BalanceForBandwidth(newAccount.getDelegatedFrozenV2BalanceForBandwidth() - oldAccount.getDelegatedFrozenV2BalanceForBandwidth());
+      info.setIncrementDelegatedFrozenV2BalanceForEnergy(newAccount.getDelegatedFrozenV2BalanceForEnergy() - oldAccount.getDelegatedFrozenV2BalanceForEnergy());
+
       info.setTrc10Map(Trc10Info.of(oldAccount.getAssetMapV2(), newAccount.getAssetMapV2()));
 
       // 检查余额是否有变动，没有变动 return null.
@@ -338,6 +370,11 @@ public class AccountChangeRecord {
               && info.getIncrementFrozenSupplyBalance() == 0
               && info.getIncrementAcquiredDelegatedFrozenBalanceForEnergy() == 0
               && info.getIncrementAcquiredDelegatedFrozenBalanceForBandwidth() == 0
+              && info.getIncrementFrozenBalanceForBandwidthV2() == 0
+              && info.getIncrementFrozenBalanceForEnergyV2() == 0
+              && info.getIncrementFrozenForTronPowerV2() == 0
+              && info.getIncrementDelegatedFrozenV2BalanceForBandwidth() == 0
+              && info.getIncrementDelegatedFrozenV2BalanceForEnergy() == 0
               && info.getTrc10Map() == null) {
         return null;
       }
@@ -354,6 +391,12 @@ public class AccountChangeRecord {
       info.setFrozenSupplyBalance(account.getFrozenSupplyBalance());
       info.setAcquiredDelegatedFrozenBalanceForEnergy(account.getAcquiredDelegatedFrozenBalanceForEnergy());
       info.setAcquiredDelegatedFrozenBalanceForBandwidth(account.getAcquiredDelegatedFrozenBalanceForBandwidth());
+
+      info.setFrozenBalanceForBandwidthV2(account.getFrozenV2BalanceForBandwidth());
+      info.setFrozenBalanceForEnergyV2(account.getFrozenV2BalanceForEnergy());
+      info.setFrozenForTronPowerV2(account.getTronPowerFrozenV2Balance());
+      info.setDelegatedFrozenV2BalanceForBandwidth(account.getDelegatedFrozenV2BalanceForBandwidth());
+      info.setDelegatedFrozenV2BalanceForEnergy(account.getDelegatedFrozenV2BalanceForEnergy());
     }
 
     public static void setBalance(AccountInfo info, AccountInfo account) {
@@ -365,6 +408,13 @@ public class AccountChangeRecord {
       info.setFrozenSupplyBalance(account.getFrozenSupplyBalance());
       info.setAcquiredDelegatedFrozenBalanceForEnergy(account.getAcquiredDelegatedFrozenBalanceForEnergy());
       info.setAcquiredDelegatedFrozenBalanceForBandwidth(account.getAcquiredDelegatedFrozenBalanceForBandwidth());
+
+
+      info.setFrozenBalanceForBandwidthV2(account.getFrozenBalanceForBandwidthV2());
+      info.setFrozenBalanceForEnergyV2(account.getFrozenBalanceForEnergyV2());
+      info.setFrozenForTronPowerV2(account.getFrozenForTronPowerV2());
+      info.setDelegatedFrozenV2BalanceForBandwidth(account.getDelegatedFrozenV2BalanceForBandwidth());
+      info.setDelegatedFrozenV2BalanceForEnergy(account.getDelegatedFrozenV2BalanceForEnergy());
     }
   }
 
