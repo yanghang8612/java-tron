@@ -1440,6 +1440,9 @@ public class Manager {
     consumeMultiSignFee(trxCap, trace);
     consumeMemoFee(trxCap, trace);
 
+    if (blockCap == null) {
+      getDynamicPropertiesStore().saveUnfreezeDelayDays(1);
+    }
     trace.init(blockCap, eventPluginLoaded);
     trace.checkIsConstant();
     trace.exec();
@@ -1460,6 +1463,9 @@ public class Manager {
     }
 
     trace.finalization();
+    if (blockCap == null) {
+      getDynamicPropertiesStore().saveUnfreezeDelayDays(0);
+    }
     if (getDynamicPropertiesStore().supportVM()) {
       trxCap.setResult(trace.getTransactionContext());
       // Record something for smart contract
