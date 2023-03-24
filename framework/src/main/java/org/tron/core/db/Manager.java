@@ -874,6 +874,10 @@ public class Manager {
             Metrics.gaugeInc(MetricKeys.Gauge.MANAGER_QUEUE, 1,
                     MetricLabels.Gauge.QUEUE_PENDING);
             tmpSession.merge();
+          } catch (Throwable t) {
+            t.printStackTrace();
+            System.out.printf("Drop tx - %s, cause - %s%n",
+                trx.getTransactionId().toString(), t.getMessage());
           }
           if (isShieldedTransaction(trx.getInstance())) {
             shieldedTransInPendingCounts.incrementAndGet();
