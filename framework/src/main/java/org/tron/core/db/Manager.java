@@ -1831,7 +1831,7 @@ public class Manager {
       // Do cycle stats within day
       long cycleNum = getDynamicPropertiesStore().getCurrentCycleNumber();
       new Thread(() -> {
-        doDynamicEnergyDayStats(cycleNum, false);
+        doDynamicEnergyDayStats(cycleNum, true);
         doDynamicEnergyCycleStats(cycleNum, false);
       }).start();
     } else if (System.currentTimeMillis() - block.getTimeStamp() < 60000) {
