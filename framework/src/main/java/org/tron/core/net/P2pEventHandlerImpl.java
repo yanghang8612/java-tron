@@ -153,7 +153,7 @@ public class P2pEventHandlerImpl extends P2pEventHandler {
                   .nodeDisconnectedRemote(((DisconnectMessage)msg).getReason());
           break;
         case SYNC_BLOCK_CHAIN:
-          syncBlockChainMsgHandler.processMessage(peer, msg);
+//          syncBlockChainMsgHandler.processMessage(peer, msg);
           break;
         case BLOCK_CHAIN_INVENTORY:
           chainInventoryMsgHandler.processMessage(peer, msg);
