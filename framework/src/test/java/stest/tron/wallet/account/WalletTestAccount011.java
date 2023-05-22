@@ -47,22 +47,15 @@ public class WalletTestAccount011 {
   public void beforeClass() {
     PublicMethed.printAddress(account011Key);
     channelFull = ManagedChannelBuilder.forTarget(fullnode)
-        .usePlaintext(true)
+        .usePlaintext()
         .build();
     blockingStubFull = WalletGrpc.newBlockingStub(channelFull);
 
     channelSolidity = ManagedChannelBuilder.forTarget(soliditynode)
-        .usePlaintext(true)
+        .usePlaintext()
         .build();
     blockingStubSolidity = WalletSolidityGrpc.newBlockingStub(channelSolidity);
 
-  }
-
-  @Test(enabled = true)
-  public void testgenerateAddress() {
-    EmptyMessage.Builder builder = EmptyMessage.newBuilder();
-    blockingStubFull.generateAddress(builder.build());
-    blockingStubSolidity.generateAddress(builder.build());
   }
 
   /**

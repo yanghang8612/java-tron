@@ -46,9 +46,11 @@ import org.tron.common.crypto.SignUtils;
 import org.tron.common.overlay.message.Message;
 import org.tron.common.parameter.CommonParameter;
 import org.tron.common.utils.ByteArray;
+import org.tron.common.utils.ForkController;
 import org.tron.common.utils.ReflectUtils;
 import org.tron.common.utils.Sha256Hash;
 import org.tron.core.actuator.TransactionFactory;
+import org.tron.core.config.Parameter;
 import org.tron.core.db.TransactionContext;
 import org.tron.core.db.TransactionTrace;
 import org.tron.core.exception.BadItemException;
@@ -213,6 +215,11 @@ public class TransactionCapsule implements ProtoCapsule<Transaction> {
     return 0;
   }
 
+  /**
+   *  make sure ForkController.init(ChainBaseManager) is invoked before invoke this method.
+   *
+   *  @see ForkController#init(org.tron.core.ChainBaseManager)
+   */
   public static long checkWeight(Permission permission, List<ByteString> sigs, byte[] hash,
       List<ByteString> approveList)
       throws SignatureException, PermissionException, SignatureFormatException {
@@ -236,6 +243,9 @@ public class TransactionCapsule implements ProtoCapsule<Transaction> {
         throw new PermissionException(
             ByteArray.toHexString(sig.toByteArray()) + " is signed by " + encode58Check(address)
                 + " but it is not contained of permission.");
+      }
+      if (ForkController.instance().pass(Parameter.ForkBlockVersionEnum.VERSION_4_7_1)) {
+        base64 = encode58Check(address);
       }
       if (addMap.containsKey(base64)) {
         throw new PermissionException(encode58Check(address) + " has signed twice!");
@@ -323,13 +333,13 @@ public class TransactionCapsule implements ProtoCapsule<Transaction> {
           Class<? extends GeneratedMessageV3> clazz = TransactionFactory
               .getContract(contract.getType());
           if (clazz == null) {
-            logger.error("not exist {}", contract.getType());
+            logger.warn("not exist {}", contract.getType());
             return new byte[0];
           }
           GeneratedMessageV3 generatedMessageV3 = contractParameter.unpack(clazz);
           owner = ReflectUtils.getFieldValue(generatedMessageV3, OWNER_ADDRESS);
           if (owner == null) {
-            logger.error("not exist [{}] field,{}", OWNER_ADDRESS, clazz);
+            logger.warn("not exist [{}] field,{}", OWNER_ADDRESS, clazz);
             return new byte[0];
           }
           break;
