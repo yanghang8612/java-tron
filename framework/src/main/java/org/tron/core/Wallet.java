@@ -18,37 +18,10 @@
 
 package org.tron.core;
 
-import static org.tron.common.utils.Commons.getAssetIssueStoreFinal;
-import static org.tron.common.utils.Commons.getExchangeStoreFinal;
-import static org.tron.common.utils.WalletUtil.isConstant;
-import static org.tron.core.config.Parameter.ChainConstant.BLOCK_PRODUCED_INTERVAL;
-import static org.tron.core.config.Parameter.ChainConstant.TRX_PRECISION;
-import static org.tron.core.config.Parameter.DatabaseConstants.EXCHANGE_COUNT_LIMIT_MAX;
-import static org.tron.core.config.Parameter.DatabaseConstants.MARKET_COUNT_LIMIT_MAX;
-import static org.tron.core.config.Parameter.DatabaseConstants.PROPOSAL_COUNT_LIMIT_MAX;
-import static org.tron.core.services.jsonrpc.JsonRpcApiUtil.parseEnergyFee;
-import static org.tron.core.services.jsonrpc.TronJsonRpcImpl.EARLIEST_STR;
-import static org.tron.protos.contract.Common.ResourceCode;
-
-import com.google.common.collect.ContiguousSet;
-import com.google.common.collect.DiscreteDomain;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Range;
+import com.google.common.collect.*;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.ProtocolStringList;
-import java.math.BigInteger;
-import java.security.SignatureException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Objects;
-import java.util.Optional;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
@@ -60,59 +33,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.tron.api.GrpcAPI;
-import org.tron.api.GrpcAPI.AccountNetMessage;
-import org.tron.api.GrpcAPI.AccountResourceMessage;
-import org.tron.api.GrpcAPI.Address;
-import org.tron.api.GrpcAPI.AssetIssueList;
-import org.tron.api.GrpcAPI.BlockList;
-import org.tron.api.GrpcAPI.BytesMessage;
-import org.tron.api.GrpcAPI.DecryptNotes;
+import org.tron.api.GrpcAPI.*;
 import org.tron.api.GrpcAPI.DecryptNotes.NoteTx;
-import org.tron.api.GrpcAPI.DecryptNotesTRC20;
-import org.tron.api.GrpcAPI.DelegatedResourceList;
-import org.tron.api.GrpcAPI.DiversifierMessage;
-import org.tron.api.GrpcAPI.ExchangeList;
-import org.tron.api.GrpcAPI.ExpandedSpendingKeyMessage;
-import org.tron.api.GrpcAPI.IncomingViewingKeyMessage;
-import org.tron.api.GrpcAPI.NfParameters;
-import org.tron.api.GrpcAPI.NfTRC20Parameters;
-import org.tron.api.GrpcAPI.Node;
-import org.tron.api.GrpcAPI.NodeList;
-import org.tron.api.GrpcAPI.NoteParameters;
-import org.tron.api.GrpcAPI.NumberMessage;
-import org.tron.api.GrpcAPI.PaymentAddressMessage;
-import org.tron.api.GrpcAPI.PrivateParameters;
-import org.tron.api.GrpcAPI.PrivateParametersWithoutAsk;
-import org.tron.api.GrpcAPI.PrivateShieldedTRC20Parameters;
-import org.tron.api.GrpcAPI.PrivateShieldedTRC20ParametersWithoutAsk;
-import org.tron.api.GrpcAPI.ProposalList;
-import org.tron.api.GrpcAPI.ReceiveNote;
-import org.tron.api.GrpcAPI.Return;
 import org.tron.api.GrpcAPI.Return.response_code;
-import org.tron.api.GrpcAPI.ShieldedAddressInfo;
-import org.tron.api.GrpcAPI.ShieldedTRC20Parameters;
-import org.tron.api.GrpcAPI.ShieldedTRC20TriggerContractParameters;
-import org.tron.api.GrpcAPI.SpendAuthSigParameters;
-import org.tron.api.GrpcAPI.SpendNote;
-import org.tron.api.GrpcAPI.SpendResult;
-import org.tron.api.GrpcAPI.TransactionApprovedList;
-import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.api.GrpcAPI.TransactionExtention.Builder;
-import org.tron.api.GrpcAPI.TransactionInfoList;
-import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.SignInterface;
 import org.tron.common.crypto.SignUtils;
 import org.tron.common.parameter.CommonParameter;
 import org.tron.common.runtime.ProgramResult;
 import org.tron.common.runtime.vm.LogInfo;
-import org.tron.common.utils.ByteArray;
-import org.tron.common.utils.ByteUtil;
-import org.tron.common.utils.DecodeUtil;
-import org.tron.common.utils.Sha256Hash;
-import org.tron.common.utils.StringUtil;
-import org.tron.common.utils.Utils;
-import org.tron.common.utils.WalletUtil;
+import org.tron.common.utils.*;
 import org.tron.common.zksnark.IncrementalMerkleTreeContainer;
 import org.tron.common.zksnark.IncrementalMerkleVoucherContainer;
 import org.tron.common.zksnark.JLibrustzcash;
@@ -121,124 +52,60 @@ import org.tron.common.zksnark.LibrustzcashParam.CrhIvkParams;
 import org.tron.common.zksnark.LibrustzcashParam.IvkToPkdParams;
 import org.tron.common.zksnark.LibrustzcashParam.SpendSigParams;
 import org.tron.consensus.ConsensusDelegate;
-import org.tron.core.actuator.Actuator;
-import org.tron.core.actuator.ActuatorConstant;
-import org.tron.core.actuator.ActuatorFactory;
-import org.tron.core.actuator.UnfreezeBalanceV2Actuator;
-import org.tron.core.actuator.VMActuator;
-import org.tron.core.capsule.AbiCapsule;
-import org.tron.core.capsule.AccountCapsule;
-import org.tron.core.capsule.AssetIssueCapsule;
-import org.tron.core.capsule.BlockBalanceTraceCapsule;
-import org.tron.core.capsule.BlockCapsule;
+import org.tron.core.actuator.*;
+import org.tron.core.capsule.*;
 import org.tron.core.capsule.BlockCapsule.BlockId;
-import org.tron.core.capsule.BytesCapsule;
-import org.tron.core.capsule.CodeCapsule;
-import org.tron.core.capsule.ContractCapsule;
-import org.tron.core.capsule.ContractStateCapsule;
-import org.tron.core.capsule.DelegatedResourceAccountIndexCapsule;
-import org.tron.core.capsule.DelegatedResourceCapsule;
-import org.tron.core.capsule.ExchangeCapsule;
-import org.tron.core.capsule.IncrementalMerkleTreeCapsule;
-import org.tron.core.capsule.IncrementalMerkleVoucherCapsule;
-import org.tron.core.capsule.MarketAccountOrderCapsule;
-import org.tron.core.capsule.MarketOrderCapsule;
-import org.tron.core.capsule.MarketOrderIdListCapsule;
-import org.tron.core.capsule.PedersenHashCapsule;
-import org.tron.core.capsule.ProposalCapsule;
-import org.tron.core.capsule.TransactionCapsule;
-import org.tron.core.capsule.TransactionInfoCapsule;
-import org.tron.core.capsule.TransactionResultCapsule;
-import org.tron.core.capsule.TransactionRetCapsule;
-import org.tron.core.capsule.WitnessCapsule;
 import org.tron.core.capsule.utils.MarketUtils;
 import org.tron.core.capsule.utils.TransactionUtil;
 import org.tron.core.config.args.Args;
-import org.tron.core.db.BandwidthProcessor;
-import org.tron.core.db.BlockIndexStore;
-import org.tron.core.db.EnergyProcessor;
-import org.tron.core.db.Manager;
-import org.tron.core.db.TransactionContext;
+import org.tron.core.db.*;
 import org.tron.core.db2.core.Chainbase;
-import org.tron.core.exception.AccountResourceInsufficientException;
-import org.tron.core.exception.BadItemException;
-import org.tron.core.exception.ContractExeException;
-import org.tron.core.exception.ContractValidateException;
-import org.tron.core.exception.DupTransactionException;
-import org.tron.core.exception.HeaderNotFound;
-import org.tron.core.exception.ItemNotFoundException;
-import org.tron.core.exception.JsonRpcInvalidParamsException;
-import org.tron.core.exception.NonUniqueObjectException;
-import org.tron.core.exception.PermissionException;
-import org.tron.core.exception.SignatureFormatException;
-import org.tron.core.exception.StoreException;
-import org.tron.core.exception.TaposException;
-import org.tron.core.exception.TooBigTransactionException;
-import org.tron.core.exception.TransactionExpirationException;
-import org.tron.core.exception.VMIllegalException;
-import org.tron.core.exception.ValidateSignatureException;
-import org.tron.core.exception.ZksnarkException;
+import org.tron.core.exception.*;
 import org.tron.core.net.TronNetDelegate;
 import org.tron.core.net.TronNetService;
 import org.tron.core.net.message.adv.TransactionMessage;
-import org.tron.core.store.AccountIdIndexStore;
-import org.tron.core.store.AccountStore;
-import org.tron.core.store.AccountTraceStore;
-import org.tron.core.store.BalanceTraceStore;
-import org.tron.core.store.ContractStore;
-import org.tron.core.store.DynamicPropertiesStore;
-import org.tron.core.store.MarketOrderStore;
-import org.tron.core.store.MarketPairPriceToOrderStore;
-import org.tron.core.store.MarketPairToPriceStore;
-import org.tron.core.store.StoreFactory;
+import org.tron.core.store.*;
 import org.tron.core.vm.program.Program;
 import org.tron.core.zen.ShieldedTRC20ParametersBuilder;
 import org.tron.core.zen.ShieldedTRC20ParametersBuilder.ShieldedTRC20ParametersType;
 import org.tron.core.zen.ZenTransactionBuilder;
-import org.tron.core.zen.address.DiversifierT;
-import org.tron.core.zen.address.ExpandedSpendingKey;
-import org.tron.core.zen.address.IncomingViewingKey;
-import org.tron.core.zen.address.KeyIo;
-import org.tron.core.zen.address.PaymentAddress;
-import org.tron.core.zen.address.SpendingKey;
+import org.tron.core.zen.address.*;
 import org.tron.core.zen.note.Note;
 import org.tron.core.zen.note.NoteEncryption;
 import org.tron.core.zen.note.NoteEncryption.Encryption;
 import org.tron.core.zen.note.OutgoingPlaintext;
 import org.tron.protos.Protocol;
-import org.tron.protos.Protocol.Account;
+import org.tron.protos.Protocol.*;
 import org.tron.protos.Protocol.Account.FreezeV2;
 import org.tron.protos.Protocol.Account.UnFreezeV2;
-import org.tron.protos.Protocol.Block;
-import org.tron.protos.Protocol.DelegatedResourceAccountIndex;
-import org.tron.protos.Protocol.Exchange;
-import org.tron.protos.Protocol.MarketOrder;
-import org.tron.protos.Protocol.MarketOrderList;
-import org.tron.protos.Protocol.MarketOrderPairList;
-import org.tron.protos.Protocol.MarketPrice;
-import org.tron.protos.Protocol.MarketPriceList;
-import org.tron.protos.Protocol.Proposal;
-import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract;
 import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 import org.tron.protos.Protocol.Transaction.Result.code;
-import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.contract.AssetIssueContractOuterClass.AssetIssueContract;
 import org.tron.protos.contract.BalanceContract;
 import org.tron.protos.contract.BalanceContract.BlockBalanceTrace;
 import org.tron.protos.contract.BalanceContract.TransferContract;
 import org.tron.protos.contract.Common;
-import org.tron.protos.contract.ShieldContract.IncrementalMerkleTree;
-import org.tron.protos.contract.ShieldContract.IncrementalMerkleVoucherInfo;
-import org.tron.protos.contract.ShieldContract.OutputPoint;
-import org.tron.protos.contract.ShieldContract.OutputPointInfo;
-import org.tron.protos.contract.ShieldContract.PedersenHash;
-import org.tron.protos.contract.ShieldContract.ReceiveDescription;
-import org.tron.protos.contract.ShieldContract.ShieldedTransferContract;
+import org.tron.protos.contract.ShieldContract.*;
 import org.tron.protos.contract.SmartContractOuterClass.CreateSmartContract;
 import org.tron.protos.contract.SmartContractOuterClass.SmartContract;
 import org.tron.protos.contract.SmartContractOuterClass.SmartContractDataWrapper;
 import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
+
+import java.math.BigInteger;
+import java.security.SignatureException;
+import java.util.*;
+import java.util.Map.Entry;
+
+import static org.tron.common.utils.Commons.getAssetIssueStoreFinal;
+import static org.tron.common.utils.Commons.getExchangeStoreFinal;
+import static org.tron.common.utils.WalletUtil.isConstant;
+import static org.tron.core.config.Parameter.ChainConstant.BLOCK_PRODUCED_INTERVAL;
+import static org.tron.core.config.Parameter.ChainConstant.TRX_PRECISION;
+import static org.tron.core.config.Parameter.DatabaseConstants.*;
+import static org.tron.core.services.jsonrpc.JsonRpcApiUtil.parseEnergyFee;
+import static org.tron.core.services.jsonrpc.TronJsonRpcImpl.EARLIEST_STR;
+import static org.tron.protos.contract.Common.ResourceCode;
 
 @Slf4j
 @Component
@@ -2645,15 +2512,15 @@ public class Wallet {
   public NodeList listNodes() {
     NodeList.Builder nodeListBuilder = NodeList.newBuilder();
     if (!Args.getInstance().p2pDisable) {
-      TronNetService.getP2pService().getConnectableNodes().forEach(node -> {
-        nodeListBuilder.addNodes(Node.newBuilder().setAddress(
-            Address.newBuilder()
-                .setHost(ByteString
-                    .copyFrom(ByteArray.fromString(
-                        node.getPreferInetSocketAddress().getAddress().getHostAddress())))
-                .setPort(node.getPort())));
-      });
-      TronNetService.getPeers().forEach(peer ->
+//      TronNetService.getP2pService().getConnectableNodes().forEach(node -> {
+//        nodeListBuilder.addNodes(Node.newBuilder().setAddress(
+//            Address.newBuilder()
+//                .setHost(ByteString
+//                    .copyFrom(ByteArray.fromString(
+//                        node.getPreferInetSocketAddress().getAddress().getHostAddress())))
+//                .setPort(node.getPort())));
+//      });
+      tronNetDelegate.getActivePeer().forEach(peer ->
           nodeListBuilder.addNodes(Node.newBuilder().setAddress(
               Address.newBuilder().setHost(peer.getAddress()))));
     }
