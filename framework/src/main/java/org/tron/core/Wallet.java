@@ -2520,9 +2520,10 @@ public class Wallet {
 //                        node.getPreferInetSocketAddress().getAddress().getHostAddress())))
 //                .setPort(node.getPort())));
 //      });
-      tronNetDelegate.getActivePeer().forEach(peer ->
-          nodeListBuilder.addNodes(Node.newBuilder().setAddress(
-              Address.newBuilder().setHost(peer.getAddress()))));
+      tronNetDelegate.getActivePeer().stream()
+              .filter(peer -> !ByteArray.isEmpty(peer.getAddress().toByteArray()))
+              .forEach(peer -> nodeListBuilder.addNodes(Node.newBuilder().setAddress(
+                      Address.newBuilder().setHost(peer.getAddress()))));
     }
     return nodeListBuilder.build();
   }
