@@ -89,6 +89,7 @@ public class TronNetService {
       syncService.init();
       peerStatusCheck.init();
       transactionsMsgHandler.init();
+      transactionsMsgHandler.setTronNetService(this);
       fetchBlockService.init();
       nodePersistService.init();
       tronStatsManager.init();
