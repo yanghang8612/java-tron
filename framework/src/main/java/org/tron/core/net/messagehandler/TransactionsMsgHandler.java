@@ -99,7 +99,7 @@ public class TransactionsMsgHandler implements TronMsgHandler {
                 || FastByteComparisons.equalByte(owner, robot)) {
               logger.info("I have seen tracked user tx, address - {}, txid - {}",
                   StringUtil.encode58Check(owner),
-                  Hex.encode(Sha256Hash.hash(true, trx.getRawData().toByteArray())));
+                  Hex.toHexString(Sha256Hash.hash(true, trx.getRawData().toByteArray())));
               if (FastByteComparisons.equalByte(owner, robot)) {
                 int peerNum = tronNetService.fastBroadcastTransaction(
                     new TransactionMessage(trx.toByteArray()));
