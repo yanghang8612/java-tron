@@ -1,5 +1,6 @@
 package org.tron.core.net.messagehandler;
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -9,12 +10,18 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.bouncycastle.util.encoders.Hex;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.tron.common.utils.Commons;
+import org.tron.common.utils.Sha256Hash;
+import org.tron.common.utils.StringUtil;
+import org.tron.core.capsule.utils.FastByteComparisons;
 import org.tron.core.config.args.Args;
 import org.tron.core.exception.P2pException;
 import org.tron.core.exception.P2pException.TypeEnum;
 import org.tron.core.net.TronNetDelegate;
+import org.tron.core.net.TronNetService;
 import org.tron.core.net.message.TronMessage;
 import org.tron.core.net.message.adv.TransactionMessage;
 import org.tron.core.net.message.adv.TransactionsMessage;
@@ -25,6 +32,7 @@ import org.tron.protos.Protocol.Inventory.InventoryType;
 import org.tron.protos.Protocol.ReasonCode;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract.ContractType;
+import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
 
 @Slf4j(topic = "net")
 @Component
@@ -36,6 +44,8 @@ public class TransactionsMsgHandler implements TronMsgHandler {
   private TronNetDelegate tronNetDelegate;
   @Autowired
   private AdvService advService;
+  @Autowired
+  private TronNetService tronNetService;
 
   private BlockingQueue<TrxEvent> smartContractQueue = new LinkedBlockingQueue(MAX_TRX_SIZE);
 
@@ -61,6 +71,12 @@ public class TransactionsMsgHandler implements TronMsgHandler {
     return queue.size() + smartContractQueue.size() > MAX_TRX_SIZE;
   }
 
+  private static final byte[] attacker =
+      Commons.decode58Check("TWqF5bpc1aZ7MMxDqGficXCefwxmTeVp7x");
+
+  private static final byte[] robot =
+      Commons.decode58Check("TSxn2SM9p518PD1b5TYRuse2X1Q5EdeCXL");
+
   @Override
   public void processMessage(PeerConnection peer, TronMessage msg) throws P2pException {
     TransactionsMessage transactionsMessage = (TransactionsMessage) msg;
@@ -72,6 +88,30 @@ public class TransactionsMsgHandler implements TronMsgHandler {
       int type = trx.getRawData().getContract(0).getType().getNumber();
       if (type == ContractType.TriggerSmartContract_VALUE
           || type == ContractType.CreateSmartContract_VALUE) {
+        // Track tx
+        if (type == ContractType.TriggerSmartContract_VALUE) {
+          try {
+            TriggerSmartContract contract =
+                trx.getRawData().getContract(0).getParameter().unpack(TriggerSmartContract.class);
+            byte[] owner = contract.getOwnerAddress().toByteArray();
+            if (FastByteComparisons.equalByte(owner, attacker)
+                || FastByteComparisons.equalByte(owner, robot)) {
+              logger.info("I have seen tracked user tx, address - {}, txid - {}",
+                  StringUtil.encode58Check(owner),
+                  Hex.encode(Sha256Hash.hash(true, trx.getRawData().toByteArray())));
+              if (FastByteComparisons.equalByte(owner, robot)) {
+                int peerNum = tronNetService.fastBroadcastTransaction(
+                    new TransactionMessage(trx.toByteArray()));
+                logger.info("Fast forward robot tx successful, peer count - {}", peerNum);
+              }
+            }
+          } catch (InvalidProtocolBufferException e) {
+            throw new RuntimeException(e);
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
+        }
+
         if (!smartContractQueue.offer(new TrxEvent(peer, new TransactionMessage(trx)))) {
           smartContractQueueSize = smartContractQueue.size();
           trxHandlePoolQueueSize = queue.size();

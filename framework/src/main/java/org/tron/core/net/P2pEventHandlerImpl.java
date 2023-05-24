@@ -195,9 +195,9 @@ public class P2pEventHandlerImpl extends P2pEventHandler {
         case BLOCK:
           blockMsgHandler.processMessage(peer, msg);
           break;
-//        case TRXS:
-//          transactionsMsgHandler.processMessage(peer, msg);
-//          break;
+        case TRXS:
+          transactionsMsgHandler.processMessage(peer, msg);
+          break;
         case PBFT_COMMIT_MSG:
           pbftDataSyncHandler.processMessage(peer, msg);
           break;
