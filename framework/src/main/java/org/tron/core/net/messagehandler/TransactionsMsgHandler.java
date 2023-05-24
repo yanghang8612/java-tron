@@ -113,14 +113,15 @@ public class TransactionsMsgHandler implements TronMsgHandler {
           }
         }
 
-        if (!smartContractQueue.offer(new TrxEvent(peer, new TransactionMessage(trx)))) {
-          smartContractQueueSize = smartContractQueue.size();
-          trxHandlePoolQueueSize = queue.size();
-          dropSmartContractCount++;
-        }
-      } else {
-        trxHandlePool.submit(() -> handleTransaction(peer, new TransactionMessage(trx)));
+//        if (!smartContractQueue.offer(new TrxEvent(peer, new TransactionMessage(trx)))) {
+//          smartContractQueueSize = smartContractQueue.size();
+//          trxHandlePoolQueueSize = queue.size();
+//          dropSmartContractCount++;
+//        }
       }
+//      else {
+//        trxHandlePool.submit(() -> handleTransaction(peer, new TransactionMessage(trx)));
+//      }
     }
 
     if (dropSmartContractCount > 0) {
