@@ -1868,6 +1868,9 @@ public class Manager {
   }
 
   public void doDynamicEnergyCycleStats(long cycleNum, boolean forcedReport) {
+    if (Args.getInstance().defiSlackWebhook.isEmpty()) {
+      return;
+    }
     String cycleNumber = String.valueOf(cycleNum);
     ContractStateStore css = getChainBaseManager().getContractStateStore();
     Map<WrappedByteArray, ContractStateCapsule> contracts =
@@ -1904,6 +1907,9 @@ public class Manager {
   }
 
   public void doDynamicEnergyDayStats(long cycleNum, boolean forcedReport) {
+    if (Args.getInstance().trackerSlackWebhook.isEmpty()) {
+      return;
+    }
     byte[] addr = Commons.decodeFromBase58Check("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t");
     ContractStateStore css = getChainBaseManager().getContractStateStore();
 

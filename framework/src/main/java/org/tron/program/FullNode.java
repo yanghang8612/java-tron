@@ -12,7 +12,6 @@ import org.tron.common.application.ApplicationFactory;
 import org.tron.common.application.TronApplicationContext;
 import org.tron.common.parameter.CommonParameter;
 import org.tron.common.prometheus.Metrics;
-import org.tron.common.utils.NetUtil;
 import org.tron.core.Constant;
 import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
@@ -55,9 +54,6 @@ public class FullNode {
     logger.info("Full node running.");
     Args.setParam(args, Constant.TESTNET_CONF);
     CommonParameter parameter = Args.getInstance();
-    System.out.println(NetUtil.getGasPrice());
-    System.out.println(NetUtil.getPrice("TRX"));
-    System.out.println(NetUtil.getPrice("ETH"));
 
     load(parameter.getLogbackPath());
 

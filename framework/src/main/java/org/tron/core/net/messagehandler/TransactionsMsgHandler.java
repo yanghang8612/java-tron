@@ -1,6 +1,5 @@
 package org.tron.core.net.messagehandler;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -87,41 +86,28 @@ public class TransactionsMsgHandler implements TronMsgHandler {
     int dropSmartContractCount = 0;
     for (Transaction trx : transactionsMessage.getTransactions().getTransactionsList()) {
       int type = trx.getRawData().getContract(0).getType().getNumber();
-      if (type == ContractType.TriggerSmartContract_VALUE
-          || type == ContractType.CreateSmartContract_VALUE) {
-        // Track tx
-        if (type == ContractType.TriggerSmartContract_VALUE) {
-          try {
-            TriggerSmartContract contract =
-                trx.getRawData().getContract(0).getParameter().unpack(TriggerSmartContract.class);
-            byte[] owner = contract.getOwnerAddress().toByteArray();
-            if (FastByteComparisons.equalByte(owner, attacker)
-                || FastByteComparisons.equalByte(owner, robot)) {
-              logger.info("I have seen tracked user tx, address - {}, txid - {}",
-                  StringUtil.encode58Check(owner),
-                  Hex.toHexString(Sha256Hash.hash(true, trx.getRawData().toByteArray())));
-              if (FastByteComparisons.equalByte(owner, robot)) {
-                int peerNum = tronNetService.fastBroadcastTransaction(
-                    new TransactionMessage(trx.toByteArray()));
-                logger.info("Fast forward robot tx successful, peer count - {}", peerNum);
-              }
-            }
-          } catch (InvalidProtocolBufferException e) {
-            throw new RuntimeException(e);
-          } catch (Exception e) {
-            throw new RuntimeException(e);
-          }
-        }
 
-//        if (!smartContractQueue.offer(new TrxEvent(peer, new TransactionMessage(trx)))) {
-//          smartContractQueueSize = smartContractQueue.size();
-//          trxHandlePoolQueueSize = queue.size();
-//          dropSmartContractCount++;
-//        }
+      // Track tx
+      if (type == ContractType.TriggerSmartContract_VALUE) {
+        try {
+          TriggerSmartContract contract =
+              trx.getRawData().getContract(0).getParameter().unpack(TriggerSmartContract.class);
+          byte[] owner = contract.getOwnerAddress().toByteArray();
+          if (FastByteComparisons.equalByte(owner, attacker)
+              || FastByteComparisons.equalByte(owner, robot)) {
+            logger.info("I have seen tracked user tx, address - {}, txid - {}",
+                StringUtil.encode58Check(owner),
+                Hex.toHexString(Sha256Hash.hash(true, trx.getRawData().toByteArray())));
+            if (FastByteComparisons.equalByte(owner, robot)) {
+              int peerNum = tronNetService.fastBroadcastTransaction(
+                  new TransactionMessage(trx.toByteArray()));
+              logger.info("Fast forward robot tx successful, peer count - {}", peerNum);
+            }
+          }
+        } catch (Exception e) {
+          logger.error("Process tx from p2p error: {}", e.getMessage());
+        }
       }
-//      else {
-//        trxHandlePool.submit(() -> handleTransaction(peer, new TransactionMessage(trx)));
-//      }
     }
 
     if (dropSmartContractCount > 0) {
