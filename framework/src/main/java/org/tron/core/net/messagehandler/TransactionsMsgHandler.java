@@ -95,7 +95,8 @@ public class TransactionsMsgHandler implements TronMsgHandler {
           byte[] owner = contract.getOwnerAddress().toByteArray();
           if (FastByteComparisons.equalByte(owner, attacker)
               || FastByteComparisons.equalByte(owner, robot)) {
-            logger.info("I have seen tracked user tx, address - {}, txid - {}",
+            logger.info("I have seen tracked user tx from peer - {}, address - {}, txid - {}",
+                peer.getChannel().getInetAddress().toString(),
                 StringUtil.encode58Check(owner),
                 Hex.toHexString(Sha256Hash.hash(true, trx.getRawData().toByteArray())));
             if (FastByteComparisons.equalByte(owner, robot)) {

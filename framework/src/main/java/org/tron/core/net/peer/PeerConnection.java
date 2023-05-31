@@ -33,8 +33,6 @@ import org.tron.core.config.args.Args;
 import org.tron.core.metrics.MetricsKey;
 import org.tron.core.metrics.MetricsUtil;
 import org.tron.core.net.TronNetDelegate;
-import org.tron.core.net.message.adv.InventoryMessage;
-import org.tron.core.net.message.adv.TransactionsMessage;
 import org.tron.core.net.message.base.DisconnectMessage;
 import org.tron.core.net.message.handshake.HelloMessage;
 import org.tron.core.net.message.keepalive.PingMessage;
@@ -280,15 +278,15 @@ public class PeerConnection {
   public static boolean needToLog(Message msg) {
     if (msg instanceof PingMessage
             || msg instanceof PongMessage
-            || msg instanceof TransactionsMessage
+//            || msg instanceof TransactionsMessage
             || msg instanceof PbftBaseMessage) {
       return false;
     }
 
-    if (msg instanceof InventoryMessage && ((InventoryMessage) msg)
-            .getInventoryType().equals(Protocol.Inventory.InventoryType.TRX)) {
-      return false;
-    }
+//    if (msg instanceof InventoryMessage && ((InventoryMessage) msg)
+//            .getInventoryType().equals(Protocol.Inventory.InventoryType.TRX)) {
+//      return false;
+//    }
 
     return true;
   }
