@@ -169,7 +169,8 @@ public class SyncService {
     if (beginBlockId.getNum() == 0) {
       highNoFork = high = tronNetDelegate.getHeadBlockId().getNum();
     } else {
-      if (tronNetDelegate.containBlockInMainChain(beginBlockId)) {
+      if (tronNetDelegate.getKhaosDbHeadBlockId().equals(beginBlockId)
+          || tronNetDelegate.containBlockInMainChain(beginBlockId)) {
         highNoFork = high = beginBlockId.getNum();
       } else {
         forkList = tronNetDelegate.getBlockChainHashesOnFork(beginBlockId);
@@ -225,7 +226,8 @@ public class SyncService {
             send.put(peer, new LinkedList<>());
           }
           for (BlockId blockId : peer.getSyncBlockToFetch()) {
-            if (requestBlockIds.getIfPresent(blockId) == null) {
+            if (requestBlockIds.getIfPresent(blockId) == null
+                && !peer.getSyncBlockInProcess().contains(blockId)) {
               requestBlockIds.put(blockId, peer);
               peer.getSyncBlockRequested().put(blockId, System.currentTimeMillis());
               send.get(peer).add(blockId);
@@ -266,6 +268,7 @@ public class SyncService {
           }
           if (msg.getBlockId().getNum() <= solidNum) {
             blockWaitToProcess.remove(msg);
+            peerConnection.getSyncBlockInProcess().remove(msg.getBlockId());
             return;
           }
           final boolean[] isFound = {false};
@@ -278,6 +281,7 @@ public class SyncService {
             blockWaitToProcess.remove(msg);
             isProcessed[0] = true;
             processSyncBlock(msg.getBlockCapsule(), peerConnection);
+            peerConnection.getSyncBlockInProcess().remove(msg.getBlockId());
           }
         }
       });

@@ -1192,6 +1192,16 @@ public class Wallet {
         .setValue(dbManager.getDynamicPropertiesStore().getAllowTvmShangHai())
         .build());
 
+    builder.addChainParameter(Protocol.ChainParameters.ChainParameter.newBuilder()
+        .setKey("getAllowCancelAllUnfreezeV2")
+        .setValue(dbManager.getDynamicPropertiesStore().getAllowCancelAllUnfreezeV2())
+        .build());
+
+    builder.addChainParameter(Protocol.ChainParameters.ChainParameter.newBuilder()
+        .setKey("getMaxDelegateLockPeriod")
+        .setValue(dbManager.getDynamicPropertiesStore().getMaxDelegateLockPeriod())
+        .build());
+
     return builder.build();
   }
 

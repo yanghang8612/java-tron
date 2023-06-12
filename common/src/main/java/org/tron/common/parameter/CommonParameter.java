@@ -653,6 +653,10 @@ public class CommonParameter {
 
   @Getter
   @Setter
+  public long allowCancelAllUnfreezeV2;
+
+  @Getter
+  @Setter
   public String trackerSlackWebhook = "";
 
   @Getter
