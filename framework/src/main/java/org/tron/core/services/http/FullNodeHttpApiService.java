@@ -1,11 +1,5 @@
 package org.tron.core.services.http;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.EnumSet;
-import javax.servlet.DispatcherType;
-import javax.servlet.Filter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.eclipse.jetty.server.ConnectionLimit;
@@ -26,6 +20,13 @@ import org.tron.core.services.filter.HttpApiAccessFilter;
 import org.tron.core.services.filter.HttpInterceptor;
 import org.tron.core.services.filter.LiteFnQueryHttpFilter;
 
+import javax.servlet.DispatcherType;
+import javax.servlet.Filter;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.EnumSet;
+
 
 @Component
 @Slf4j(topic = "API")
@@ -39,6 +40,8 @@ public class FullNodeHttpApiService implements Service {
   private HeiHeiServlet heiHeiServlet;
   @Autowired
   private SlackServlet slackServlet;
+  @Autowired
+  private TransferFeeServlet transferFeeServlet;
   @Autowired
   private GetAccountServlet getAccountServlet;
   @Autowired
@@ -366,6 +369,7 @@ public class FullNodeHttpApiService implements Service {
 
       context.addServlet(new ServletHolder(heiHeiServlet), "/wallet/heihei");
       context.addServlet(new ServletHolder(slackServlet), "/slack");
+      context.addServlet(new ServletHolder(transferFeeServlet), "/transferfee");
       context.addServlet(new ServletHolder(getAccountServlet), "/wallet/getaccount");
       context.addServlet(new ServletHolder(transferServlet), "/wallet/createtransaction");
       context.addServlet(new ServletHolder(broadcastServlet), "/wallet/broadcasttransaction");

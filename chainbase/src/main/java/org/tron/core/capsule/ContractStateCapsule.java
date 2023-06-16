@@ -1,14 +1,15 @@
 package org.tron.core.capsule;
 
-import static org.tron.core.Constant.DYNAMIC_ENERGY_DECREASE_DIVISION;
-import static org.tron.core.Constant.DYNAMIC_ENERGY_FACTOR_DECIMAL;
-
 import com.google.protobuf.InvalidProtocolBufferException;
-import java.text.DecimalFormat;
 import lombok.extern.slf4j.Slf4j;
 import org.tron.core.store.DynamicPropertiesStore;
 import org.tron.protos.contract.SmartContractOuterClass;
 import org.tron.protos.contract.SmartContractOuterClass.ContractState;
+
+import java.text.DecimalFormat;
+
+import static org.tron.core.Constant.DYNAMIC_ENERGY_DECREASE_DIVISION;
+import static org.tron.core.Constant.DYNAMIC_ENERGY_FACTOR_DECIMAL;
 
 @Slf4j(topic = "capsule")
 public class ContractStateCapsule implements ProtoCapsule<ContractState> {
@@ -179,6 +180,22 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
     this.contractState = this.contractState.toBuilder()
         .setTxOoeCount(this.contractState.getTxOoeCount() + toAdd)
         .build();
+  }
+
+  public long getEnergyPrice() {
+    return this.getInstance().getUsdPerEnergy();
+  }
+
+  public void setEnergyPrice(long value) {
+    this.contractState = this.contractState.toBuilder().setUsdPerEnergy(value).build();
+  }
+
+  public long getGasPrice() {
+    return this.getInstance().getUsdPerGas();
+  }
+
+  public void setGasPrice(long value) {
+    this.contractState = this.contractState.toBuilder().setUsdPerGas(value).build();
   }
 
   public boolean catchUpToCycle(DynamicPropertiesStore dps) {

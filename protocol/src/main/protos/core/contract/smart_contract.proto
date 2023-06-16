@@ -71,6 +71,8 @@ message ContractState {
   int64 tx_total_count = 10;
   int64 tx_failed_count = 11;
   int64 tx_ooe_count = 12;
+  int64 usd_per_energy = 13;
+  int64 usd_per_gas = 14;
 }
 
 message CreateSmartContract {
