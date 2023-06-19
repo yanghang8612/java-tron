@@ -1,14 +1,13 @@
 package org.tron.core.services.http;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.capsule.ContractStateCapsule;
 import org.tron.core.store.ContractStateStore;
 import org.tron.core.store.DynamicPropertiesStore;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
 @Component
 @Slf4j(topic = "API")
@@ -29,6 +28,9 @@ public class TransferFeeServlet extends RateLimiterServlet {
       for (int i = 0; i < 4 * 30; i++) {
         long cycle = Long.parseLong(cycleNumber) - i;
         ContractStateCapsule csc = css.getByCycle("total".getBytes(), cycle);
+        if (csc == null) {
+          break;
+        }
         response.getWriter().printf("#%d %.2f %.2f %.2f %.2f%n",
                 cycle,
                 (double) csc.getEnergyPrice() * 14650 / 1e6,
