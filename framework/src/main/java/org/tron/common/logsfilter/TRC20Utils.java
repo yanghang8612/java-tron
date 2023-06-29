@@ -418,10 +418,7 @@ public class TRC20Utils {
     }
 
     CommonParameter.getInstance().setDebug(false);
-    logger.debug("trc20IncrementMap: {}", trc20IncrementMap);
-    logger.debug("trc20ShareIncrementMap: {}", trc20ShareIncrementMap);
-    logger.debug("balanceMap: {}", balanceMap);
-    logger.debug("decimalsMap: {}", decimalMap);
+    logger.info("trc20ShareIncrementMap: {}", trc20ShareIncrementMap);
 
     List<AssetStatusPojo> result = new LinkedList<>();
     for (String keys : trc20IncrementMap.keySet()) {
