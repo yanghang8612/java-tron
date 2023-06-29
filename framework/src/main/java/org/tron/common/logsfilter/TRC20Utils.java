@@ -154,6 +154,28 @@ public class TRC20Utils {
     return null;
   }
 
+  public static BigInteger getTRC20ShareBalance(String ownerAddress, String contractAddress,
+      BlockCapsule baseBlockCap) {
+    // f5eb42dc sharesOf(address)
+    // 000000000000000000000041DDB2CC247E543F1462711989FCC89379F943B623
+    final byte[] bytes = Commons.decodeFromBase58Check(ownerAddress);
+    bytes[0] = 0;
+    byte[] data = Bytes.concat(Hex.decode("f5eb42dc0000000000000000000000"), bytes);
+    ProgramResult result = triggerFromVM(contractAddress, data, baseBlockCap);
+    if (Objects.isNull(result.getException()) &&
+        !result.isRevert() && StringUtils.isEmpty(result.getRuntimeError())
+        && result.getHReturn() != null) {
+      try {
+        BigInteger ret = toBigInteger(result.getHReturn());
+        return ret;
+      } catch (Exception e) {
+      }
+    }
+
+    logger.error(" >>>>> getTRC20ShareBalance get error, {}, ownerAddress:{}", contractAddress, ownerAddress);
+    return null;
+  }
+
   public static BigInteger getTRC1155Balance(String ownerAddress, String contractAddress, String assetId,
       BlockCapsule baseBlockCap) {
     // 00fdd58e balanceOf(address,uint256)
@@ -192,17 +214,21 @@ public class TRC20Utils {
 
   public static Map<String, Object> parseTrc20AssetStatusPojo(BlockCapsule block, List<LogInfo> logInfos) {
     Set<String> trc20Tokens = new HashSet<>();
+    Set<String> trc20ShareTokens = new HashSet<>();
     Map<String, BigInteger> trc20IncrementMap = new LinkedHashMap<>();
-    Map<String, BigInteger> balanceMap = new LinkedHashMap<>();
-    Map<String, BigInteger> decimalMap = new LinkedHashMap<>();
+    Map<String, BigInteger> trc20ShareIncrementMap = new LinkedHashMap<>();
     Map<String, Map<String, List<BalanceTrackerTrigger.Trc721Info>>> trc721InfoMap = new HashMap<>();
     Map<String, BalanceTrackerTrigger.Trc1155Info> trc1155InfoMap = new HashMap<>();
-    handlerLogs(trc20IncrementMap, logInfos, trc20Tokens, trc721InfoMap, trc1155InfoMap);
+    handlerLogs(trc20IncrementMap, trc20ShareIncrementMap,
+            logInfos, trc20Tokens, trc20ShareTokens, trc721InfoMap, trc1155InfoMap);
     if (!CollectionUtils.isEmpty(trc721InfoMap)) {
       logger.info(" >>>> trc721InfoMap:{}", trc721InfoMap);
     }
 
-    final List<AssetStatusPojo> trc20AssetList = handlerTrc20Asset(block, trc20IncrementMap, balanceMap, decimalMap, trc20Tokens);
+    Map<String, BigInteger> balanceMap = new LinkedHashMap<>();
+    Map<String, BigInteger> decimalMap = new LinkedHashMap<>();
+    final List<AssetStatusPojo> trc20AssetList = handlerTrc20Asset(block, trc20IncrementMap, trc20IncrementMap,
+            balanceMap, decimalMap, trc20Tokens, trc20ShareTokens);
     final List<BalanceTrackerTrigger.Trc721Info> trc721Infos = handlerTrc721(trc721InfoMap, block);
     final List<BalanceTrackerTrigger.Trc1155Info> trc1155Infos = handlerTrc1155(trc1155InfoMap, block);
 
@@ -351,13 +377,34 @@ public class TRC20Utils {
   }
 
 
-  private static List<AssetStatusPojo> handlerTrc20Asset(BlockCapsule block, Map<String, BigInteger> trc20IncrementMap,
-                                                         Map<String, BigInteger> balanceMap, Map<String, BigInteger> decimalMap,
-                                                         Set<String> trc20Tokens) {
+  private static List<AssetStatusPojo> handlerTrc20Asset(BlockCapsule block,
+                                                         Map<String, BigInteger> trc20IncrementMap,
+                                                         Map<String, BigInteger> trc20ShareIncrementMap,
+                                                         Map<String, BigInteger> balanceMap,
+                                                         Map<String, BigInteger> decimalMap,
+                                                         Set<String> trc20Tokens,
+                                                         Set<String> trc20ShareTokens) {
     for (String keys : trc20IncrementMap.keySet()) {
       // foreach address try to get it's balance.
       String[] key = keys.split(",");
-      BigInteger balance = TRC20Utils.getTRC20Balance(key[0], key[1], block);
+
+      String tokenAddress = key[1];
+      if (trc20ShareTokens.contains(tokenAddress)) {
+        continue;
+      }
+
+      BigInteger balance = TRC20Utils.getTRC20Balance(key[0], tokenAddress, block);
+      if (balance != null) {
+        balanceMap.put(keys, balance);
+      }
+    }
+
+    for (String keys : trc20ShareIncrementMap.keySet()) {
+      // foreach address try to get it's balance.
+      String[] key = keys.split(",");
+
+      String tokenAddress = key[1];
+      BigInteger balance = TRC20Utils.getTRC20ShareBalance(key[0], tokenAddress, block);
       if (balance != null) {
         balanceMap.put(keys, balance);
       }
@@ -372,6 +419,7 @@ public class TRC20Utils {
 
     CommonParameter.getInstance().setDebug(false);
     logger.debug("trc20IncrementMap: {}", trc20IncrementMap);
+    logger.debug("trc20ShareIncrementMap: {}", trc20ShareIncrementMap);
     logger.debug("balanceMap: {}", balanceMap);
     logger.debug("decimalsMap: {}", decimalMap);
 
@@ -387,13 +435,27 @@ public class TRC20Utils {
       result.add(assetStatusPojo);
     }
 
+    for (String keys : trc20ShareIncrementMap.keySet()) {
+      String[] key = keys.split(",");
+      AssetStatusPojo assetStatusPojo = new AssetStatusPojo();
+      assetStatusPojo.setAccountAddress(key[0]);
+      assetStatusPojo.setTokenAddress(key[1]);
+      assetStatusPojo.setIncrementBalance(bigIntegertoString(trc20IncrementMap.get(keys)));
+      assetStatusPojo.setBalance(bigIntegertoString(balanceMap.get(keys)));
+      assetStatusPojo.setDecimals(bigIntegertoString(decimalMap.get(key[1])));
+      result.add(assetStatusPojo);
+    }
+
     return result;
   }
 
   private static final Set<String> fixedTrc721List = Sets.newHashSet("THmGFax8tqkWcnmGcRb8ipyL9bzdAA8Svv");
 
-  private static void handlerLogs(Map<String, BigInteger> incrementMap, List<LogInfo> logInfos,
+  private static void handlerLogs(Map<String, BigInteger> incrementMap,
+                                  Map<String, BigInteger> trc20ShareIncrementMap,
+                                  List<LogInfo> logInfos,
                                   Set<String> trc20Tokens,
+                                  Set<String> trc20ShareTokens,
                                   Map<String, Map<String, List<BalanceTrackerTrigger.Trc721Info>>> trc721InfoMap,
                                   Map<String, BalanceTrackerTrigger.Trc1155Info> trc1155InfoMap) {
     for (LogInfo logInfo : logInfos) {
@@ -411,6 +473,13 @@ public class TRC20Utils {
           }
 
           caseTransfer(logInfo, tokenAddress, trc721InfoMap, topics, incrementMap, trc20Tokens);
+          break;
+        case TRANSFER_SHARES:
+          if (topics.size() < 3) {
+            continue;
+          }
+
+          caseTransferShares(logInfo, tokenAddress, topics, trc20ShareIncrementMap, trc20ShareTokens);
           break;
         case Deposit:
           caseDeposit(logInfo, tokenAddress, topics, incrementMap, trc20Tokens);
@@ -611,7 +680,27 @@ public class TRC20Utils {
       logger.info(" transfer: {} , {}, {}, {}", tokenAddress, senderAddr, recAddr, assetId);
       handlerTrc721(assetId, tokenAddress, senderAddr, recAddr, trc721InfoMap);
     }
+  }
 
+  private static void caseTransferShares(LogInfo logInfo,
+                                         String tokenAddress,
+                                         List<String> topics,
+                                         Map<String, BigInteger> incrementMap,
+                                         Set<String> trc20SharesTokens) {
+    String senderAddr = convertAddress(logInfo.getTopics().get(1).getLast20Bytes());
+    String recAddr = convertAddress(logInfo.getTopics().get(2).getLast20Bytes());
+
+    if (topics.size() == 3) {
+      // 是trc20
+      BigInteger increment = hexStrToBigInteger(logInfo.getHexData());
+      if (increment == null) {
+        return;
+      }
+
+      adjustIncrement(incrementMap, senderAddr, tokenAddress, increment.negate());
+      adjustIncrement(incrementMap, recAddr, tokenAddress, increment);
+      trc20SharesTokens.add(tokenAddress);
+    }
   }
 
   private static void caseDeposit(LogInfo logInfo, String tokenAddress, List<String> topics,

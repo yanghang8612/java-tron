@@ -110,6 +110,8 @@ public class BalanceTrackerTrigger extends Trigger {
     public enum ConcernTopics {
     TRANSFER("Transfer(address,address,uint256)",
         "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
+    TRANSFER_SHARES("TransferShares(address,address,uint256)",
+        "9d9c909296d9c674451c0c24f02cb64981eb3b727f99865939192f880a755dcb"),
     Withdrawal("Withdrawal(address,uint256)",
         "7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65"),
     TransferSingle("TransferSingle(address,address,address,uint256,uint256)",
