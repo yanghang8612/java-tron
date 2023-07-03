@@ -227,7 +227,7 @@ public class TRC20Utils {
 
     Map<String, BigInteger> balanceMap = new LinkedHashMap<>();
     Map<String, BigInteger> decimalMap = new LinkedHashMap<>();
-    final List<AssetStatusPojo> trc20AssetList = handlerTrc20Asset(block, trc20IncrementMap, trc20IncrementMap,
+    final List<AssetStatusPojo> trc20AssetList = handlerTrc20Asset(block, trc20IncrementMap, trc20ShareIncrementMap,
             balanceMap, decimalMap, trc20Tokens, trc20ShareTokens);
     final List<BalanceTrackerTrigger.Trc721Info> trc721Infos = handlerTrc721(trc721InfoMap, block);
     final List<BalanceTrackerTrigger.Trc1155Info> trc1155Infos = handlerTrc1155(trc1155InfoMap, block);
