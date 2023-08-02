@@ -1866,8 +1866,8 @@ public class Manager {
     long usdPerGas = (long) (ethPrice * gasPrice);
     css.recordEnergyAndGasPrice(usdPerEnergy, usdPerGas);
     sb.append(String.format("> USDT 手续费: `%.2f$` - `%.2f$` @TRON / `%.2f$` - `%.2f$` @ETH\n",
-        trxPrice * energyPrice * 14650 * (1 + factor / 10_000L) / 1e6,
-        trxPrice * energyPrice * 29650 * (1 + factor / 10_000L) / 1e6,
+        trxPrice * energyPrice * 14650 * (1 + factor / 10000.0) / 1e6,
+        trxPrice * energyPrice * 29650 * (1 + factor / 10000.0) / 1e6,
         ethPrice * gasPrice * 41309 / 1e9,
         ethPrice * gasPrice * 63209 / 1e9));
     sb.append(String.format("> USDT 因子: 当前 `%.4f`", (double) factor / 10000));
