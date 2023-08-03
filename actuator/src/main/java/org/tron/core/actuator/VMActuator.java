@@ -1,16 +1,6 @@
 package org.tron.core.actuator;
 
-import static java.lang.Math.max;
-import static java.lang.Math.min;
-import static org.apache.commons.lang3.ArrayUtils.getLength;
-import static org.apache.commons.lang3.ArrayUtils.isNotEmpty;
-import static org.tron.protos.contract.Common.ResourceCode.ENERGY;
-
 import com.google.protobuf.ByteString;
-import java.math.BigInteger;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -36,12 +26,7 @@ import org.tron.core.db.TransactionContext;
 import org.tron.core.exception.ContractExeException;
 import org.tron.core.exception.ContractValidateException;
 import org.tron.core.utils.TransactionUtil;
-import org.tron.core.vm.EnergyCost;
-import org.tron.core.vm.LogInfoTriggerParser;
-import org.tron.core.vm.OperationRegistry;
-import org.tron.core.vm.VM;
-import org.tron.core.vm.VMConstant;
-import org.tron.core.vm.VMUtils;
+import org.tron.core.vm.*;
 import org.tron.core.vm.config.ConfigLoader;
 import org.tron.core.vm.config.VMConfig;
 import org.tron.core.vm.program.Program;
@@ -62,6 +47,17 @@ import org.tron.protos.Protocol.Transaction.Result.contractResult;
 import org.tron.protos.contract.SmartContractOuterClass.CreateSmartContract;
 import org.tron.protos.contract.SmartContractOuterClass.SmartContract;
 import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
+
+import java.math.BigInteger;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+
+import static java.lang.Math.max;
+import static java.lang.Math.min;
+import static org.apache.commons.lang3.ArrayUtils.getLength;
+import static org.apache.commons.lang3.ArrayUtils.isNotEmpty;
+import static org.tron.protos.contract.Common.ResourceCode.ENERGY;
 
 @Slf4j(topic = "VM")
 public class VMActuator implements Actuator2 {
@@ -671,7 +667,7 @@ public class VMActuator implements Actuator2 {
       }
     } else {
       // self witness or other witness or fullnode receives tx
-      cpuLimitRatio = CommonParameter.getInstance().getMinTimeRatio();
+      cpuLimitRatio = CommonParameter.getInstance().getMaxTimeRatio();
     }
 
     return cpuLimitRatio;
