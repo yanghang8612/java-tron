@@ -671,7 +671,7 @@ public class VMActuator implements Actuator2 {
       }
     } else {
       // self witness or other witness or fullnode receives tx
-      cpuLimitRatio = 1.0;
+      cpuLimitRatio = CommonParameter.getInstance().getMinTimeRatio();
     }
 
     return cpuLimitRatio;
