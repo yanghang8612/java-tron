@@ -198,6 +198,79 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
     this.contractState = this.contractState.toBuilder().setUsdPerGas(value).build();
   }
 
+  public long getTxCount() {
+    return this.getInstance().getTxCount();
+  }
+
+  public void addTxCount() {
+    this.contractState = this.contractState.toBuilder()
+            .setTxCount(this.contractState.getTxCount() + 1)
+            .build();
+  }
+
+  public long getTxTrxCount() {
+    return this.getInstance().getTxTrxCount();
+  }
+
+  public void addTxTrxCount() {
+      this.contractState = this.contractState.toBuilder()
+              .setTxTrxCount(this.contractState.getTxTrxCount() + 1)
+              .build();
+  }
+
+  public long getTxTrc10Count() {
+      return this.getInstance().getTxTrc10Count();
+  }
+
+  public void addTxTrc10Count() {
+      this.contractState = this.contractState.toBuilder()
+              .setTxTrc10Count(this.contractState.getTxTrc10Count() + 1)
+              .build();
+  }
+
+  public long getTxTrc20Count() {
+      return this.getInstance().getTxTrc20Count();
+  }
+
+  public void addTxTrc20Count() {
+      this.contractState = this.contractState.toBuilder()
+              .setTxTrc20Count(this.contractState.getTxTrc20Count() + 1)
+              .build();
+  }
+
+  public long getBandwidthStake() {
+    return this.getInstance().getBandwidthStake();
+  }
+
+  public void setBandwidthStake(long value) {
+    this.contractState = this.contractState.toBuilder().setBandwidthStake(value).build();
+  }
+
+  public long getEnergyStake() {
+    return this.getInstance().getEnergyStake();
+  }
+
+  public void setEnergyStake(long value) {
+      this.contractState = this.contractState.toBuilder().setEnergyStake(value).build();
+  }
+
+  public long getBandwidthStake2() {
+    return this.getInstance().getBandwidthStake2();
+  }
+
+  public void setBandwidthStake2(long value) {
+      this.contractState = this.contractState.toBuilder().setBandwidthStake2(value).build();
+  }
+
+  public long getEnergyStake2() {
+      return this.getInstance().getEnergyStake2();
+  }
+
+  public void setEnergyStake2(long value) {
+      this.contractState = this.contractState.toBuilder().setEnergyStake2(value).build();
+  }
+
+
   public boolean catchUpToCycle(DynamicPropertiesStore dps) {
     return catchUpToCycle(
         dps.getCurrentCycleNumber(),

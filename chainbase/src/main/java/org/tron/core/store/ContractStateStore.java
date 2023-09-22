@@ -1,6 +1,5 @@
 package org.tron.core.store;
 
-import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -8,6 +7,8 @@ import org.springframework.stereotype.Component;
 import org.tron.common.utils.ByteUtil;
 import org.tron.core.capsule.ContractStateCapsule;
 import org.tron.core.db.TronStoreWithRevoking;
+
+import java.util.Objects;
 
 @Slf4j(topic = "DB")
 @Component
@@ -46,6 +47,22 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
 
   public void setTotalRecord(ContractStateCapsule item) {
     revokingDB.put(addPrefix(dps.getCurrentCycleNumber(), "total".getBytes()), item.getData());
+  }
+
+  public ContractStateCapsule getSmallUSDTRecord() {
+    return getUnchecked(addPrefix(dps.getCurrentCycleNumber(), "small".getBytes()));
+  }
+
+  public void setSmallUSDTRecord(ContractStateCapsule item) {
+    revokingDB.put(addPrefix(dps.getCurrentCycleNumber(), "small".getBytes()), item.getData());
+  }
+
+  public ContractStateCapsule getBigUSDTRecord() {
+      return getUnchecked(addPrefix(dps.getCurrentCycleNumber(), "big".getBytes()));
+  }
+
+  public void setBigUSDTRecord(ContractStateCapsule item) {
+      revokingDB.put(addPrefix(dps.getCurrentCycleNumber(), "big".getBytes()), item.getData());
   }
 
   public void recordEnergyAndGasPrice(long energyPrice, long gasPrice) {

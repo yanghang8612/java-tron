@@ -73,6 +73,14 @@ message ContractState {
   int64 tx_ooe_count = 12;
   int64 usd_per_energy = 13;
   int64 usd_per_gas = 14;
+  int64 tx_count = 15;
+  int64 tx_trx_count = 16;
+  int64 tx_trc10_count = 17;
+  int64 tx_trc20_count = 18;
+  int64 bandwidth_stake = 19;
+  int64 energy_stake = 20;
+  int64 bandwidth_stake2 = 21;
+  int64 energy_stake2 = 22;
 }
 
 message CreateSmartContract {

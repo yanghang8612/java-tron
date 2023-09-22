@@ -1,19 +1,7 @@
 package org.tron.core.actuator;
 
-import static org.tron.core.actuator.ActuatorConstant.ACCOUNT_EXCEPTION_STR;
-import static org.tron.core.actuator.ActuatorConstant.NOT_EXIST_STR;
-import static org.tron.core.config.Parameter.ChainConstant.TRX_PRECISION;
-import static org.tron.protos.contract.Common.ResourceCode.BANDWIDTH;
-import static org.tron.protos.contract.Common.ResourceCode.ENERGY;
-import static org.tron.protos.contract.Common.ResourceCode.TRON_POWER;
-
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
@@ -29,6 +17,17 @@ import org.tron.protos.Protocol.Account.UnFreezeV2;
 import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 import org.tron.protos.Protocol.Transaction.Result.code;
 import org.tron.protos.contract.BalanceContract.CancelAllUnfreezeV2Contract;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicLong;
+
+import static org.tron.core.actuator.ActuatorConstant.ACCOUNT_EXCEPTION_STR;
+import static org.tron.core.actuator.ActuatorConstant.NOT_EXIST_STR;
+import static org.tron.core.config.Parameter.ChainConstant.TRX_PRECISION;
+import static org.tron.protos.contract.Common.ResourceCode.*;
 
 @Slf4j(topic = "actuator")
 public class CancelAllUnfreezeV2Actuator extends AbstractActuator {
@@ -90,7 +89,9 @@ public class CancelAllUnfreezeV2Actuator extends AbstractActuator {
           Pair<AtomicLong, AtomicLong>,
           Pair<AtomicLong, AtomicLong>> triple) {
     dynamicStore.addTotalNetWeight(triple.getLeft().getLeft().get());
+    dynamicStore.addTotalNetWeight2(triple.getLeft().getLeft().get());
     dynamicStore.addTotalEnergyWeight(triple.getMiddle().getLeft().get());
+    dynamicStore.addTotalEnergyWeight2(triple.getMiddle().getLeft().get());
     dynamicStore.addTotalTronPowerWeight(triple.getRight().getLeft().get());
   }
 

@@ -1,11 +1,5 @@
 package org.tron.core.services.http;
 
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.tron.common.utils.Commons;
@@ -15,6 +9,13 @@ import org.tron.core.capsule.ContractStateCapsule;
 import org.tron.core.db2.common.WrappedByteArray;
 import org.tron.core.store.ContractStateStore;
 import org.tron.core.store.DynamicPropertiesStore;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 
 @Component
 @Slf4j(topic = "API")
@@ -65,6 +66,10 @@ public class HeiHeiServlet extends RateLimiterServlet {
         }
         response.getWriter().println("Total" + " = "
             + css.getByCycle("total".getBytes(), Long.parseLong(cycleNumber)));
+        response.getWriter().println("Big" + " = "
+                + css.getByCycle("big".getBytes(), Long.parseLong(cycleNumber)));
+        response.getWriter().println("Small" + " = "
+                + css.getByCycle("small".getBytes(), Long.parseLong(cycleNumber)));
         response.getWriter().println("\nTop 10 contracts (sorted by " + sortedBy + "):\n");
         for (int i = 0; i < 11 && i < list.size(); i++) {
           Map.Entry<WrappedByteArray, ContractStateCapsule> e = list.get(i);

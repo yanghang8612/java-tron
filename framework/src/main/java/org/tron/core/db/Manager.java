@@ -5,6 +5,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import io.prometheus.client.Histogram;
 import lombok.Getter;
 import lombok.Setter;
@@ -68,8 +69,10 @@ import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.contract.BalanceContract;
+import org.tron.protos.contract.SmartContractOuterClass;
 
 import javax.annotation.PostConstruct;
+import java.math.BigInteger;
 import java.text.DecimalFormat;
 import java.util.*;
 import java.util.concurrent.*;
@@ -1440,6 +1443,66 @@ public class Manager {
         // Save to db
         chainBaseManager.getContractStateStore().setTotalRecord(totalCap);
         chainBaseManager.getContractStateStore().put(addr, csc);
+
+        // Deal with USDT
+        byte[] usdtAddr = Hex.decode("41a614f803B6FD780986A42c78Ec9c7f77e6DeD13C");
+
+        if (trace.getRuntimeResult().getResultCode() == SUCCESS && Arrays.equals(usdtAddr, addr)) {
+          try {
+            String calldata = Hex.toHexString(trxCap.getInstance().getRawData().getContract(0).getParameter()
+                    .unpack(SmartContractOuterClass.TriggerSmartContract.class).getData().toByteArray());
+            if (calldata.startsWith("a9059cbb") || calldata.startsWith("23b872dd")) {
+              BigInteger amount;
+              if (calldata.startsWith("a9059cbb")) {
+                amount = new BigInteger(calldata.substring(36, 36 + 64), 16);
+              } else {
+                amount = new BigInteger(calldata.substring(68, 68 + 64), 16);
+              }
+
+              if (amount.compareTo(BigInteger.valueOf(500000L)) > 0) {
+                ContractStateCapsule bigCap = chainBaseManager.getContractStateStore().getBigUSDTRecord();
+                if (bigCap == null) {
+                  bigCap = new ContractStateCapsule(0);
+                }
+                bigCap.addEnergyUsageTotal(trace.getReceipt().getEnergyUsageTotal());
+                bigCap.addEnergyPenaltyTotal(trace.getReceipt().getEnergyPenaltyTotal());
+                bigCap.addEnergyUsage(trace.getReceipt().getEnergyUsage());
+                bigCap.addTxTotalCount();
+                chainBaseManager.getContractStateStore().setBigUSDTRecord(bigCap);
+              } else {
+                ContractStateCapsule smallCap = chainBaseManager.getContractStateStore().getSmallUSDTRecord();
+                if (smallCap == null) {
+                  smallCap = new ContractStateCapsule(0);
+                }
+                smallCap.addEnergyUsageTotal(trace.getReceipt().getEnergyUsageTotal());
+                smallCap.addEnergyPenaltyTotal(trace.getReceipt().getEnergyPenaltyTotal());
+                smallCap.addEnergyUsage(trace.getReceipt().getEnergyUsage());
+                smallCap.addTxTotalCount();
+                chainBaseManager.getContractStateStore().setSmallUSDTRecord(smallCap);
+              }
+            }
+          } catch (InvalidProtocolBufferException e) {
+            throw new RuntimeException(e);
+          }
+        }
+      } else {
+        // Record tx count for non-contract tx
+        ContractStateCapsule totalCap = chainBaseManager.getContractStateStore().getTotalRecord();
+        if (totalCap == null) {
+          totalCap = new ContractStateCapsule(0);
+        }
+        totalCap.addTxTotalCount();
+
+        switch (trxCap.getInstance().getRawData().getContract(0).getType()) {
+          case TransferContract:
+            totalCap.addTxTrxCount();
+            break;
+          case TransferAssetContract:
+            totalCap.addTxTrc10Count();
+            break;
+        }
+
+        chainBaseManager.getContractStateStore().setTotalRecord(totalCap);
       }
     }
     chainBaseManager.getTransactionStore().put(trxCap.getTransactionId().getBytes(), trxCap);
@@ -1810,6 +1873,14 @@ public class Manager {
   }
 
   public void doDynamicEnergyDayStats(long cycleNum, boolean forcedReport) {
+    // Save total stake info
+    ContractStateCapsule totalCap = chainBaseManager.getContractStateStore().getTotalRecord();
+    totalCap.setBandwidthStake(getDynamicPropertiesStore().getTotalNetWeight());
+    totalCap.setEnergyStake(getDynamicPropertiesStore().getTotalEnergyWeight());
+    totalCap.setBandwidthStake2(getDynamicPropertiesStore().getTotalNetWeight2());
+    totalCap.setEnergyStake2(getDynamicPropertiesStore().getTotalEnergyWeight2());
+    chainBaseManager.getContractStateStore().setTotalRecord(totalCap);
+
     if (Args.getInstance().trackerSlackWebhook.isEmpty()) {
       return;
     }
