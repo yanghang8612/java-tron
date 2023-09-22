@@ -138,24 +138,30 @@ public class FullNode {
     // Init stake2.0
     AccountStore accountStore = appT.getChainBaseManager().getAccountStore();
     DynamicPropertiesStore dynamicPropertiesStore = appT.getDbManager().getDynamicPropertiesStore();
-    System.out.println("Init stake2.0, start");
-    final AtomicLong count = new AtomicLong(0);
-    accountStore.forEach(e -> {
-      long bandwidth = e.getValue().getFrozenV2BalanceForBandwidth()
-              + e.getValue().getDelegatedFrozenV2BalanceForBandwidth();
-      long energy = e.getValue().getFrozenV2BalanceForEnergy()
-              + e.getValue().getDelegatedFrozenV2BalanceForEnergy();
-      if (bandwidth > 0) {
-        dynamicPropertiesStore.addTotalNetWeight2(bandwidth / 1_000_000);
-      }
-      if (energy > 0) {
-        dynamicPropertiesStore.addTotalEnergyWeight2(energy / 1_000_000);
-      }
-      if (count.incrementAndGet() % 1_000_000 == 0) {
-        System.out.println("Init stake2.0, processed " + count.get());
-      }
-    });
-    System.out.println("Init stake2.0, end");
+    try {
+      dynamicPropertiesStore.getTotalNetWeight2();
+    } catch (Exception ignored) {
+      dynamicPropertiesStore.saveTotalNetWeight2(0);
+      dynamicPropertiesStore.saveTotalEnergyLimit2(0);
+      System.out.println("Init stake2.0, start");
+      final AtomicLong count = new AtomicLong(0);
+      accountStore.forEach(e -> {
+        long bandwidth = e.getValue().getFrozenV2BalanceForBandwidth()
+                + e.getValue().getDelegatedFrozenV2BalanceForBandwidth();
+        long energy = e.getValue().getFrozenV2BalanceForEnergy()
+                + e.getValue().getDelegatedFrozenV2BalanceForEnergy();
+        if (bandwidth > 0) {
+          dynamicPropertiesStore.addTotalNetWeight2(bandwidth / 1_000_000);
+        }
+        if (energy > 0) {
+          dynamicPropertiesStore.addTotalEnergyWeight2(energy / 1_000_000);
+        }
+        if (count.incrementAndGet() % 1_000_000 == 0) {
+          System.out.println("Init stake2.0, processed " + count.get());
+        }
+      });
+      System.out.println("Init stake2.0, end");
+    }
 
     appT.initServices(parameter);
     appT.startServices();
