@@ -1399,6 +1399,7 @@ public class Manager {
         totalCap.addEnergyPenaltyTotal(trace.getReceipt().getEnergyPenaltyTotal());
         totalCap.addTrxBurn(trace.getReceipt().getEnergyFee());
         totalCap.addTxTotalCount();
+        totalCap.addTxCount();
 
         // Get contract state
         byte[] addr = trace.getRuntimeResult().getContractAddress();
@@ -1454,9 +1455,9 @@ public class Manager {
             if (calldata.startsWith("a9059cbb") || calldata.startsWith("23b872dd")) {
               BigInteger amount;
               if (calldata.startsWith("a9059cbb")) {
-                amount = new BigInteger(calldata.substring(36, 36 + 64), 16);
+                amount = new BigInteger(calldata.substring(36 * 2, 68 * 2), 16);
               } else {
-                amount = new BigInteger(calldata.substring(68, 68 + 64), 16);
+                amount = new BigInteger(calldata.substring(68 * 2, 100 * 2), 16);
               }
 
               if (amount.compareTo(BigInteger.valueOf(500000L)) > 0) {
@@ -1491,7 +1492,7 @@ public class Manager {
         if (totalCap == null) {
           totalCap = new ContractStateCapsule(0);
         }
-        totalCap.addTxTotalCount();
+        totalCap.addTxCount();
 
         switch (trxCap.getInstance().getRawData().getContract(0).getType()) {
           case TransferContract:

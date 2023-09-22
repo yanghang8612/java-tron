@@ -161,6 +161,8 @@ public class FullNode {
         }
       });
       System.out.println("Init stake2.0, end");
+      System.out.println("Stake for bandwidth: " + dynamicPropertiesStore.getTotalNetWeight2());
+      System.out.println("Stake for energy: " + dynamicPropertiesStore.getTotalEnergyWeight2());
     }
 
     appT.initServices(parameter);

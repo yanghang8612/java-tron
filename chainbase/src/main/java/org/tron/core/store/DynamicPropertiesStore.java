@@ -1291,7 +1291,7 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
             .map(BytesCapsule::getData)
             .map(ByteArray::toLong)
             .orElseThrow(
-                    () -> new IllegalArgumentException("not found TOTAL_ENERGY_WEIGHT"));
+                    () -> new IllegalArgumentException("not found TOTAL_ENERGY_WEIGHT2"));
   }
 
   public void saveTotalTronPowerWeight(long totalEnergyWeight) {

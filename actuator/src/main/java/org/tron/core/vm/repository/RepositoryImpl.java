@@ -922,12 +922,16 @@ public class RepositoryImpl implements Repository {
         if (deposit != null) {
           deposit.putDynamicProperty(key, value);
         } else {
-          getDynamicPropertiesStore().put(key.getData(), new BytesCapsule(value.getValue()));
           if (Arrays.equals(key.getData(), TOTAL_NET_WEIGHT)) {
-            getDynamicPropertiesStore().saveTotalNetWeight2(ByteArray.toLong(value.getValue()));
+            long delta = ByteArray.toLong(value.getValue())
+                    - getDynamicPropertiesStore().getTotalNetWeight();
+            getDynamicPropertiesStore().addTotalNetWeight2(delta);
           } else if (Arrays.equals(key.getData(), TOTAL_ENERGY_WEIGHT)) {
-            getDynamicPropertiesStore().saveTotalEnergyWeight2(ByteArray.toLong(value.getValue()));
+            long delta = ByteArray.toLong(value.getValue())
+                    - getDynamicPropertiesStore().getTotalEnergyWeight();
+            getDynamicPropertiesStore().addTotalEnergyWeight2(delta);
           }
+          getDynamicPropertiesStore().put(key.getData(), new BytesCapsule(value.getValue()));
         }
       }
     }));

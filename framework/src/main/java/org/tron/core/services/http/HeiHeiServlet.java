@@ -65,11 +65,11 @@ public class HeiHeiServlet extends RateLimiterServlet {
                 Long.compare(o2.getValue().getEnergyUsage(), o1.getValue().getEnergyUsage()));
         }
         response.getWriter().println("Total" + " = "
-            + css.getByCycle("total".getBytes(), Long.parseLong(cycleNumber)));
+                + css.getDayState(Long.parseLong(cycleNumber), "total".getBytes()));
         response.getWriter().println("Big" + " = "
-                + css.getByCycle("big".getBytes(), Long.parseLong(cycleNumber)));
+                + css.getDayState(Long.parseLong(cycleNumber), "big".getBytes()));
         response.getWriter().println("Small" + " = "
-                + css.getByCycle("small".getBytes(), Long.parseLong(cycleNumber)));
+                + css.getDayState(Long.parseLong(cycleNumber), "small".getBytes()));
         response.getWriter().println("\nTop 10 contracts (sorted by " + sortedBy + "):\n");
         for (int i = 0; i < 11 && i < list.size(); i++) {
           Map.Entry<WrappedByteArray, ContractStateCapsule> e = list.get(i);

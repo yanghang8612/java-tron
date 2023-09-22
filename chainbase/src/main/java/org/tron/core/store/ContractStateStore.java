@@ -80,8 +80,11 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
   }
 
   public ContractStateCapsule getDayState(long cycleNum, byte[] addr) {
-    ContractStateCapsule total = new ContractStateCapsule(0);
-    for (int i = 0; i < 4; i++) {
+    ContractStateCapsule total = get(addPrefix(cycleNum, addr));
+    if (total == null) {
+      return new ContractStateCapsule(0);
+    }
+    for (int i = 1; i < 4; i++) {
       ContractStateCapsule csc = get(addPrefix(cycleNum - i, addr));
       if (csc == null) {
         break;
@@ -96,6 +99,10 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
       total.addTxTotalCount(csc.getTxTotalCount());
       total.addTxFailedCount(csc.getTxFailedCount());
       total.addTxOOECount(csc.getTxOOECount());
+      total.addTxCount(csc.getTxCount());
+      total.addTxTrxCount(csc.getTxTrxCount());
+      total.addTxTrc10Count(csc.getTxTrc10Count());
+      total.addTxTrc20Count(csc.getTxTrc20Count());
     }
     return total;
   }
