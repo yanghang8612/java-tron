@@ -136,8 +136,9 @@ public class FullNode {
     }
 
     // Init stake2.0
-    AccountStore accountStore = context.getBean(AccountStore.class);
-    DynamicPropertiesStore dynamicPropertiesStore = context.getBean(DynamicPropertiesStore.class);
+    AccountStore accountStore = appT.getChainBaseManager().getAccountStore();
+    DynamicPropertiesStore dynamicPropertiesStore = appT.getDbManager().getDynamicPropertiesStore();
+    System.out.println("Init stake2.0, start");
     final AtomicLong count = new AtomicLong(0);
     accountStore.forEach(e -> {
       long bandwidth = e.getValue().getFrozenV2BalanceForBandwidth()
@@ -154,6 +155,7 @@ public class FullNode {
         System.out.println("Init stake2.0, processed " + count.get());
       }
     });
+    System.out.println("Init stake2.0, end");
 
     appT.initServices(parameter);
     appT.startServices();
