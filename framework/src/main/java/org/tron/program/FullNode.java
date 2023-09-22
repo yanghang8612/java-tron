@@ -142,7 +142,7 @@ public class FullNode {
       dynamicPropertiesStore.getTotalNetWeight2();
     } catch (Exception ignored) {
       dynamicPropertiesStore.saveTotalNetWeight2(0);
-      dynamicPropertiesStore.saveTotalEnergyLimit2(0);
+      dynamicPropertiesStore.saveTotalEnergyWeight2(0);
       System.out.println("Init stake2.0, start");
       final AtomicLong count = new AtomicLong(0);
       accountStore.forEach(e -> {
