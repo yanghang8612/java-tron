@@ -64,15 +64,55 @@ public class HeiHeiServlet extends RateLimiterServlet {
             list.sort((o1, o2) ->
                 Long.compare(o2.getValue().getEnergyUsage(), o1.getValue().getEnergyUsage()));
         }
-        response.getWriter().println("Total" + " = "
-                + css.getDayState(Long.parseLong(cycleNumber), "total".getBytes()));
-        response.getWriter().println("Big" + " = "
-                + css.getDayState(Long.parseLong(cycleNumber), "big".getBytes()));
-        response.getWriter().println("Small" + " = "
-                + css.getDayState(Long.parseLong(cycleNumber), "small".getBytes()));
+        ContractStateCapsule total = css.getDayState(Long.parseLong(cycleNumber), "total".getBytes());
+        ContractStateCapsule big = css.getDayState(Long.parseLong(cycleNumber), "big".getBytes());
+        ContractStateCapsule small = css.getDayState(Long.parseLong(cycleNumber), "small".getBytes());
         byte[] addr = Commons.decodeFromBase58Check("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t");
-        response.getWriter().println("USDT" + " = "
-                + css.getDayState(Long.parseLong(cycleNumber), addr));
+        ContractStateCapsule usdt = css.getDayState(Long.parseLong(cycleNumber), addr);
+
+        response.getWriter().println(String.format("%d %d %d %d %d %.2f %d %d %d %d %d %d",
+                total.getTxTotalCount(),
+                small.getTxTotalCount() + big.getTxTotalCount(),
+                total.getTxTotalCount() - small.getTxTotalCount() - big.getTxTotalCount(),
+                total.getTrxBurn() / 1000000,
+                total.getBandwidthStake() + total.getEnergyStake(),
+                100.0 * total.getEnergyStake() / (total.getBandwidthStake() + total.getEnergyStake()),
+                total.getEnergyStake(),
+                total.getEnergyUsage(),
+                total.getEnergyUsage() - total.getTrxBurn() / 420,
+                total.getTrxBurn() / 420,
+                small.getTxTotalCount(),
+                big.getTxTotalCount()));
+
+        response.getWriter().println(String.format("%d %d %d",
+                total.getBandwidthStake() + total.getEnergyStake(),
+                total.getBandwidthStake() + total.getEnergyStake() - total.getBandwidthStake2() - total.getEnergyStake2(),
+                total.getBandwidthStake2() + total.getEnergyStake2()));
+
+        response.getWriter().println(String.format("%d %d %d %d %d %d %d %d %d %d",
+                usdt.getTxTotalCount(),
+                usdt.getTrxBurn() / 1000000,
+                usdt.getEnergyUsageTotal(),
+                usdt.getEnergyPenaltyTotal(),
+                small.getTxTotalCount(),
+                small.getEnergyUsageTotal() - small.getEnergyUsage(),
+                small.getEnergyUsage(),
+                big.getTxTotalCount(),
+                big.getEnergyUsageTotal() - big.getEnergyUsage(),
+                big.getEnergyUsage()));
+
+        response.getWriter().println(String.format("%d %d %d %d %d %d",
+                total.getTxTrxCount(),
+                total.getTxTrc10Count(),
+                usdt.getTxTotalCount(),
+                total.getTxTotalCount() - usdt.getTxTotalCount(),
+                total.getTxCount() - total.getTxTrxCount() - total.getTxTrc10Count() - total.getTxTotalCount(),
+                total.getTxCount()));
+
+        response.getWriter().println("Total" + " = " + total);
+        response.getWriter().println("Big" + " = " + big);
+        response.getWriter().println("Small" + " = " + small);
+        response.getWriter().println("USDT" + " = " + usdt);
         response.getWriter().println("\nTop 10 contracts (sorted by " + sortedBy + "):\n");
         for (int i = 0; i < 11 && i < list.size(); i++) {
           Map.Entry<WrappedByteArray, ContractStateCapsule> e = list.get(i);
