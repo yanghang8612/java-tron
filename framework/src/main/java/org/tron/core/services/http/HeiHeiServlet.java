@@ -70,6 +70,9 @@ public class HeiHeiServlet extends RateLimiterServlet {
                 + css.getDayState(Long.parseLong(cycleNumber), "big".getBytes()));
         response.getWriter().println("Small" + " = "
                 + css.getDayState(Long.parseLong(cycleNumber), "small".getBytes()));
+        byte[] addr = Commons.decodeFromBase58Check("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t");
+        response.getWriter().println("USDT" + " = "
+                + css.getDayState(Long.parseLong(cycleNumber), addr));
         response.getWriter().println("\nTop 10 contracts (sorted by " + sortedBy + "):\n");
         for (int i = 0; i < 11 && i < list.size(); i++) {
           Map.Entry<WrappedByteArray, ContractStateCapsule> e = list.get(i);
