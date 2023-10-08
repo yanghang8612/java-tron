@@ -367,7 +367,7 @@ public class FullNodeHttpApiService implements Service {
       context.setContextPath("/");
       server.setHandler(context);
 
-      context.addServlet(new ServletHolder(heiHeiServlet), "/wallet/heihei");
+      context.addServlet(new ServletHolder(heiHeiServlet), "/stats");
       context.addServlet(new ServletHolder(slackServlet), "/slack");
       context.addServlet(new ServletHolder(transferFeeServlet), "/transferfee");
       context.addServlet(new ServletHolder(getAccountServlet), "/wallet/getaccount");

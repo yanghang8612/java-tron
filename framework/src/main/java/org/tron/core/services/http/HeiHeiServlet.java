@@ -3,7 +3,6 @@ package org.tron.core.services.http;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.tron.common.utils.Commons;
-import org.tron.common.utils.StringUtil;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.capsule.ContractStateCapsule;
 import org.tron.core.db2.common.WrappedByteArray;
@@ -12,7 +11,6 @@ import org.tron.core.store.DynamicPropertiesStore;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -109,18 +107,18 @@ public class HeiHeiServlet extends RateLimiterServlet {
                 total.getTxCount() - total.getTxTrxCount() - total.getTxTrc10Count() - total.getTxTotalCount(),
                 total.getTxCount()));
 
-        response.getWriter().println("Total" + " = " + total);
-        response.getWriter().println("Big" + " = " + big);
-        response.getWriter().println("Small" + " = " + small);
-        response.getWriter().println("USDT" + " = " + usdt);
-        response.getWriter().println("\nTop 10 contracts (sorted by " + sortedBy + "):\n");
-        for (int i = 0; i < 11 && i < list.size(); i++) {
-          Map.Entry<WrappedByteArray, ContractStateCapsule> e = list.get(i);
-          byte[] key = Arrays.copyOfRange(e.getKey().getBytes(), 5, 26);
-          if (key[0] == 0x41) {
-            response.getWriter().println(StringUtil.encode58Check(key) + " = " + e.getValue());
-          }
-        }
+//        response.getWriter().println("Total" + " = " + total);
+//        response.getWriter().println("Big" + " = " + big);
+//        response.getWriter().println("Small" + " = " + small);
+//        response.getWriter().println("USDT" + " = " + usdt);
+//        response.getWriter().println("\nTop 10 contracts (sorted by " + sortedBy + "):\n");
+//        for (int i = 0; i < 11 && i < list.size(); i++) {
+//          Map.Entry<WrappedByteArray, ContractStateCapsule> e = list.get(i);
+//          byte[] key = Arrays.copyOfRange(e.getKey().getBytes(), 5, 26);
+//          if (key[0] == 0x41) {
+//            response.getWriter().println(StringUtil.encode58Check(key) + " = " + e.getValue());
+//          }
+//        }
       } else {
         response.getWriter().println("Total" + " = "
             + css.getDayState(Long.parseLong(cycleNumber), "total".getBytes()));
