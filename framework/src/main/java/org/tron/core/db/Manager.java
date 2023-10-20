@@ -1390,6 +1390,17 @@ public class Manager {
       trxCap.setResult(trace.getTransactionContext());
       // Record something for smart contract
       if (trxCap.isContractType()) {
+        // Record personal trx burn
+        byte[] owner = trxCap.getOwnerAddress();
+        ContractStateCapsule personalCap = chainBaseManager.getContractStateStore().getPersonalRecord(owner);
+        if (personalCap == null) {
+          personalCap = new ContractStateCapsule(0);
+        }
+        personalCap.addEnergyUsage(trace.getReceipt().getEnergyUsageTotal());
+        personalCap.addEnergyPenaltyTotal(trace.getReceipt().getEnergyPenaltyTotal());
+        personalCap.addTrxBurn(trace.getReceipt().getEnergyFee());
+        personalCap.addTxTotalCount();
+
         // Record total energy consumption
         ContractStateCapsule totalCap = chainBaseManager.getContractStateStore().getTotalRecord();
         if (totalCap == null) {
@@ -1442,6 +1453,7 @@ public class Manager {
         csc.addTrxPenalty(energyByTrxBurned * getDynamicPropertiesStore().getEnergyFee());
 
         // Save to db
+        chainBaseManager.getContractStateStore().setPersonalRecord(owner, personalCap);
         chainBaseManager.getContractStateStore().setTotalRecord(totalCap);
         chainBaseManager.getContractStateStore().put(addr, csc);
 

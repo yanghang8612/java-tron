@@ -65,6 +65,14 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
       revokingDB.put(addPrefix(dps.getCurrentCycleNumber(), "big".getBytes()), item.getData());
   }
 
+  public ContractStateCapsule getPersonalRecord(byte[] addr) {
+    return getUnchecked(addPrefix(dps.getCurrentCycleNumber(), addr));
+  }
+
+  public void setPersonalRecord(byte[] addr, ContractStateCapsule item) {
+    revokingDB.put(addPrefix(dps.getCurrentCycleNumber(), addr), item.getData());
+  }
+
   public void recordEnergyAndGasPrice(long energyPrice, long gasPrice) {
     ContractStateCapsule total = getTotalRecord();
     if (total == null) {
@@ -80,12 +88,21 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
   }
 
   public ContractStateCapsule getDayState(long cycleNum, byte[] addr) {
-    ContractStateCapsule total = get(addPrefix(cycleNum, addr));
+    return getIntervalData(cycleNum, 4, addr);
+  }
+
+  public ContractStateCapsule getWeekState(long cycleNum, byte[] addr) {
+    return getIntervalData(cycleNum, 4 * 7, addr);
+  }
+
+  private ContractStateCapsule getIntervalData(long startCycleNum, long cycleCount, byte[] addr) {
+    ContractStateCapsule total = get(addPrefix(startCycleNum, addr));
     if (total == null) {
       return new ContractStateCapsule(0);
     }
-    for (int i = 1; i < 4; i++) {
-      ContractStateCapsule csc = get(addPrefix(cycleNum - i, addr));
+
+    for (int i = 1; i < cycleCount; i++) {
+      ContractStateCapsule csc = get(addPrefix(startCycleNum - i, addr));
       if (csc == null) {
         break;
       }
