@@ -36,26 +36,25 @@ public class HaHaServlet extends RateLimiterServlet {
 
       if (!isCounting) {
         isCounting = true;
-        String finalCycleNumber = cycleNumber;
-        new Thread(() -> {
-          try {
-            System.out.println("Counting thread started.");
-            Stream<String> lines = Files.lines(Paths.get("/data/week.txt"));
-            AtomicLong totalBurn = new AtomicLong();
-            AtomicInteger count = new AtomicInteger();
-            lines.forEach(l -> {
-              totalBurn.getAndAdd(css.getWeekState(Long.parseLong(finalCycleNumber), Commons.decodeFromBase58Check(l)).getTrxBurn());
+        try {
+          System.out.println("Counting thread started.");
+          Stream<String> lines = Files.lines(Paths.get("/data/week.txt"));
+          AtomicLong totalBurn = new AtomicLong();
+          AtomicInteger count = new AtomicInteger();
+          String finalCycleNumber = cycleNumber;
+          lines.forEach(l -> {
+            totalBurn.getAndAdd(css.getWeekState(Long.parseLong(finalCycleNumber), Commons.decodeFromBase58Check(l)).getTrxBurn());
 
-              if (count.getAndIncrement() % 1000 == 0) {
-                System.out.printf("%d counted, total burn %d%n", count.get(), totalBurn.get());
-              }
-            });
-            isCounting = false;
-            System.out.println("Counting thread ended.");
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
-        }).start();
+            if (count.getAndIncrement() % 1000 == 0) {
+              System.out.printf("%d counted, total burn %d%n", count.get(), totalBurn.get());
+            }
+          });
+          isCounting = false;
+          System.out.println("Counting thread ended.");
+          response.getWriter().printf("%d counted, total burn %d%n", count.get(), totalBurn.get());
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
       }
     } catch (Exception e) {
       Util.processError(e, response);
