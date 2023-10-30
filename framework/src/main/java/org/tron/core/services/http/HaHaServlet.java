@@ -24,10 +24,12 @@ public class HaHaServlet extends RateLimiterServlet {
       if (cycleNumber == null) {
         cycleNumber = String.valueOf(dps.getCurrentCycleNumber());
       }
-      response.getWriter().println("Current cycle number: " + dps.getCurrentCycleNumber());
-      response.getWriter().println("Query cycle number: " + cycleNumber + "\n");
+//      response.getWriter().println("Current cycle number: " + dps.getCurrentCycleNumber());
+//      response.getWriter().println("Query cycle number: " + cycleNumber + "\n");
 
-      response.getWriter().println(css.getWeekState(Long.parseLong(cycleNumber), Commons.decodeFromBase58Check(address)));
+      response.getWriter().println(JsonFormat.printToString(
+              css.getWeekState(Long.parseLong(cycleNumber), Commons.decodeFromBase58Check(address)).getInstance(),
+              true));
     } catch (Exception e) {
       Util.processError(e, response);
     }
