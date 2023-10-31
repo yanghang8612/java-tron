@@ -8,6 +8,7 @@ import org.tron.core.ChainBaseManager;
 import org.tron.core.capsule.ContractStateCapsule;
 import org.tron.core.db2.common.WrappedByteArray;
 import org.tron.core.store.ContractStateStore;
+import org.tron.core.store.ContractStore;
 import org.tron.core.store.DynamicPropertiesStore;
 
 import javax.servlet.http.HttpServletRequest;
@@ -21,6 +22,7 @@ public class HeHeServlet extends RateLimiterServlet {
   protected void doGet(HttpServletRequest request, HttpServletResponse response) {
     try {
       DynamicPropertiesStore dps = ChainBaseManager.getInstance().getDynamicPropertiesStore();
+      ContractStore cs = ChainBaseManager.getInstance().getContractStore();
       ContractStateStore css = ChainBaseManager.getInstance().getContractStateStore();
 
       String address = request.getParameter("address");
@@ -45,7 +47,7 @@ public class HeHeServlet extends RateLimiterServlet {
 
           contracts.forEach((k, v) -> {
             byte[] key = Arrays.copyOfRange(k.getBytes(), 5, 26);
-            if (key[0] == 0x41) {
+            if (key[0] == 0x41 && cs.has(key)) {
               String addr = StringUtil.encode58Check(key);
               if (result.containsKey(addr)) {
                 result.get(addr).merge(v);
