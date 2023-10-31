@@ -367,6 +367,23 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
         .build();
   }
 
+  public void merge(ContractStateCapsule other) {
+    this.addEnergyUsage(other.getEnergyUsage());
+    this.addEnergyUsageTotal(other.getEnergyUsageTotal());
+    this.addEnergyUsageFailed(other.getEnergyUsageFailed());
+    this.addEnergyPenaltyTotal(other.getEnergyPenaltyTotal());
+    this.addEnergyPenaltyFailed(other.getEnergyPenaltyFailed());
+    this.addTrxBurn(other.getTrxBurn());
+    this.addTrxPenalty(other.getTrxPenalty());
+    this.addTxTotalCount(other.getTxTotalCount());
+    this.addTxFailedCount(other.getTxFailedCount());
+    this.addTxOOECount(other.getTxOOECount());
+    this.addTxCount(other.getTxCount());
+    this.addTxTrxCount(other.getTxTrxCount());
+    this.addTxTrc10Count(other.getTxTrc10Count());
+    this.addTxTrc20Count(other.getTxTrc20Count());
+  }
+
   @Override
   public String toString() {
     return "{\n" + contractState.toString() + '}';

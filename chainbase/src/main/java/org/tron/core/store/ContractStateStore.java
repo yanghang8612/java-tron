@@ -106,20 +106,7 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
       if (csc == null) {
         break;
       }
-      total.addEnergyUsage(csc.getEnergyUsage());
-      total.addEnergyUsageTotal(csc.getEnergyUsageTotal());
-      total.addEnergyUsageFailed(csc.getEnergyUsageFailed());
-      total.addEnergyPenaltyTotal(csc.getEnergyPenaltyTotal());
-      total.addEnergyPenaltyFailed(csc.getEnergyPenaltyFailed());
-      total.addTrxBurn(csc.getTrxBurn());
-      total.addTrxPenalty(csc.getTrxPenalty());
-      total.addTxTotalCount(csc.getTxTotalCount());
-      total.addTxFailedCount(csc.getTxFailedCount());
-      total.addTxOOECount(csc.getTxOOECount());
-      total.addTxCount(csc.getTxCount());
-      total.addTxTrxCount(csc.getTxTrxCount());
-      total.addTxTrc10Count(csc.getTxTrc10Count());
-      total.addTxTrc20Count(csc.getTxTrc20Count());
+      total.merge(csc);
     }
     return total;
   }
