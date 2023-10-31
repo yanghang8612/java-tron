@@ -45,11 +45,13 @@ public class HeHeServlet extends RateLimiterServlet {
 
           contracts.forEach((k, v) -> {
             byte[] key = Arrays.copyOfRange(k.getBytes(), 5, 26);
-            String addr = StringUtil.encode58Check(key);
-            if (result.containsKey(addr)) {
-              result.get(addr).merge(v);
-            } else {
-              result.put(addr, v);
+            if (key[0] == 0x41) {
+              String addr = StringUtil.encode58Check(key);
+              if (result.containsKey(addr)) {
+                result.get(addr).merge(v);
+              } else {
+                result.put(addr, v);
+              }
             }
           });
 
