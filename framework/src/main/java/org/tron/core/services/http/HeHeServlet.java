@@ -88,7 +88,8 @@ public class HeHeServlet extends RateLimiterServlet {
             list.sort((o1, o2) ->
                 Long.compare(o2.getValue().getEnergyUsage(), o1.getValue().getEnergyUsage()));
         }
-        ContractStateCapsule total = css.getDayState(Long.parseLong(cycleNumberStr), "total".getBytes());
+        ContractStateCapsule total = css.getIntervalData(Long.parseLong(cycleNumberStr),
+                Long.parseLong(cycleCountStr), "total".getBytes());
         response.getWriter().println("Total" + " = " + total);
         response.getWriter().println("\nTop 100 contracts (sorted by " + sortedBy + "):\n");
         for (int i = 0; i < 100 && i < list.size(); i++) {
