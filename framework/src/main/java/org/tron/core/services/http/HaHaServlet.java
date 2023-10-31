@@ -43,7 +43,9 @@ public class HaHaServlet extends RateLimiterServlet {
           AtomicInteger count = new AtomicInteger();
           String finalCycleNumber = cycleNumber;
           lines.forEach(l -> {
-            totalBurn.getAndAdd(css.getWeekState(Long.parseLong(finalCycleNumber), Commons.decodeFromBase58Check(l)).getTrxBurn());
+            byte[] addr = Commons.decodeFromBase58Check(l);
+            addr[0] = (byte) 0x42;
+            totalBurn.getAndAdd(css.getWeekState(Long.parseLong(finalCycleNumber), addr).getTrxBurn());
 
             if (count.getAndIncrement() % 1000 == 0) {
               System.out.printf("%d counted, total burn %d%n", count.get(), totalBurn.get());

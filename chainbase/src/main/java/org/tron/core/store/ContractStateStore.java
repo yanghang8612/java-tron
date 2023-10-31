@@ -34,7 +34,6 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
     }
 
     revokingDB.put(key, item.getData());
-    revokingDB.put(addPrefix(dps.getCurrentCycleNumber(), key), item.getData());
   }
 
   public ContractStateCapsule getByCycle(byte[] key, long cycleNumber) {
@@ -65,11 +64,21 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
       revokingDB.put(addPrefix(dps.getCurrentCycleNumber(), "big".getBytes()), item.getData());
   }
 
-  public ContractStateCapsule getPersonalRecord(byte[] addr) {
+  public ContractStateCapsule getAccountRecord(byte[] addr) {
+    addr[0] = (byte) 0x42;
     return getUnchecked(addPrefix(dps.getCurrentCycleNumber(), addr));
   }
 
-  public void setPersonalRecord(byte[] addr, ContractStateCapsule item) {
+  public void setAccountRecord(byte[] addr, ContractStateCapsule item) {
+    addr[0] = (byte) 0x42;
+    revokingDB.put(addPrefix(dps.getCurrentCycleNumber(), addr), item.getData());
+  }
+
+  public ContractStateCapsule getContractRecord(byte[] addr) {
+    return getUnchecked(addPrefix(dps.getCurrentCycleNumber(), addr));
+  }
+
+  public void setContractRecord(byte[] addr, ContractStateCapsule item) {
     revokingDB.put(addPrefix(dps.getCurrentCycleNumber(), addr), item.getData());
   }
 

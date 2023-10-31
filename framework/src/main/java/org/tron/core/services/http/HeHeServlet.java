@@ -42,18 +42,19 @@ public class HeHeServlet extends RateLimiterServlet {
         Map<String, ContractStateCapsule> result = new HashMap<>();
         long cycleNumber = Long.parseLong(cycleNumberStr);
         for (int i = 0; i < Long.parseLong(cycleCountStr); i++) {
-          Map<WrappedByteArray, ContractStateCapsule> contracts =
-                  css.prefixQuery(Long.toString(cycleNumber).getBytes());
+          byte[] cycleBytes = (cycleNumber + "-").getBytes();
+          byte[] key = new byte[cycleBytes.length + 1];
+          System.arraycopy(cycleBytes, 0, key, 0, cycleBytes.length);
+          key[key.length - 1] = 0x41;
+          Map<WrappedByteArray, ContractStateCapsule> contracts = css.prefixQuery(key);
 
           contracts.forEach((k, v) -> {
-            byte[] key = Arrays.copyOfRange(k.getBytes(), 5, 26);
-            if (key[0] == 0x41 && cs.has(key)) {
-              String addr = StringUtil.encode58Check(key);
-              if (result.containsKey(addr)) {
-                result.get(addr).merge(v);
-              } else {
-                result.put(addr, v);
-              }
+            byte[] addrBytes = Arrays.copyOfRange(k.getBytes(), 5, 26);
+            String addr = StringUtil.encode58Check(addrBytes);
+            if (result.containsKey(addr)) {
+              result.get(addr).merge(v);
+            } else {
+              result.put(addr, v);
             }
           });
 

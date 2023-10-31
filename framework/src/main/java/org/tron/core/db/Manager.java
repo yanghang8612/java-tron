@@ -1392,7 +1392,7 @@ public class Manager {
       if (trxCap.isContractType()) {
         // Record personal trx burn
         byte[] owner = trxCap.getOwnerAddress();
-        ContractStateCapsule personalCap = chainBaseManager.getContractStateStore().getPersonalRecord(owner);
+        ContractStateCapsule personalCap = chainBaseManager.getContractStateStore().getAccountRecord(owner);
         if (personalCap == null) {
           personalCap = new ContractStateCapsule(0);
         }
@@ -1414,7 +1414,7 @@ public class Manager {
 
         // Get contract state
         byte[] addr = trace.getRuntimeResult().getContractAddress();
-        ContractStateCapsule csc = getChainBaseManager().getContractStateStore().get(addr);
+        ContractStateCapsule csc = getChainBaseManager().getContractStateStore().getContractRecord(addr);
         if (csc == null) {
           csc = new ContractStateCapsule(getDynamicPropertiesStore().getCurrentCycleNumber());
         }
@@ -1453,9 +1453,9 @@ public class Manager {
         csc.addTrxPenalty(energyByTrxBurned * getDynamicPropertiesStore().getEnergyFee());
 
         // Save to db
-        chainBaseManager.getContractStateStore().setPersonalRecord(owner, personalCap);
+        chainBaseManager.getContractStateStore().setAccountRecord(owner, personalCap);
         chainBaseManager.getContractStateStore().setTotalRecord(totalCap);
-        chainBaseManager.getContractStateStore().put(addr, csc);
+        chainBaseManager.getContractStateStore().setContractRecord(addr, csc);
 
         // Deal with USDT
         byte[] usdtAddr = Hex.decode("41a614f803B6FD780986A42c78Ec9c7f77e6DeD13C");
