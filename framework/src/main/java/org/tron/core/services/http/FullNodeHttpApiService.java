@@ -40,6 +40,7 @@ public class FullNodeHttpApiService implements Service {
   private HaHaServlet hahaServlet;
   @Autowired
   private HeHeServlet heheServlet;
+  @Autowired
   private HeiHeiServlet heiheiServlet;
   @Autowired
   private SlackServlet slackServlet;
