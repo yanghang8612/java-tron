@@ -39,6 +39,7 @@ public class FullNodeHttpApiService implements Service {
   @Autowired
   private HaHaServlet hahaServlet;
   @Autowired
+  private HeHeServlet heheServlet;
   private HeiHeiServlet heiheiServlet;
   @Autowired
   private SlackServlet slackServlet;
@@ -370,6 +371,7 @@ public class FullNodeHttpApiService implements Service {
       server.setHandler(context);
 
       context.addServlet(new ServletHolder(hahaServlet), "/user_stats");
+      context.addServlet(new ServletHolder(heheServlet), "/hehe");
       context.addServlet(new ServletHolder(heiheiServlet), "/stats");
       context.addServlet(new ServletHolder(slackServlet), "/slack");
       context.addServlet(new ServletHolder(transferFeeServlet), "/transferfee");
