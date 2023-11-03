@@ -6,6 +6,7 @@ import org.tron.common.utils.Commons;
 import org.tron.common.utils.StringUtil;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.capsule.ContractStateCapsule;
+import org.tron.core.db.BlockStore;
 import org.tron.core.db2.common.WrappedByteArray;
 import org.tron.core.store.ContractStateStore;
 import org.tron.core.store.ContractStore;
@@ -13,6 +14,7 @@ import org.tron.core.store.DynamicPropertiesStore;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 @Component
@@ -24,6 +26,7 @@ public class HeHeServlet extends RateLimiterServlet {
       DynamicPropertiesStore dps = ChainBaseManager.getInstance().getDynamicPropertiesStore();
       ContractStore cs = ChainBaseManager.getInstance().getContractStore();
       ContractStateStore css = ChainBaseManager.getInstance().getContractStateStore();
+      BlockStore bs = ChainBaseManager.getInstance().getBlockStore();
 
       String address = request.getParameter("address");
       String cycleNumberStr = request.getParameter("cycle_number");
@@ -34,8 +37,15 @@ public class HeHeServlet extends RateLimiterServlet {
       if (cycleCountStr == null) {
         cycleCountStr = "1";
       }
-      response.getWriter().println("Current cycle number: " + dps.getCurrentCycleNumber());
-      response.getWriter().println("Query cycle number: " + cycleNumberStr + "\n");
+      long currentCycleNumber = dps.getCurrentCycleNumber();
+      long currentCycleEndTime = ChainBaseManager.getInstance()
+              .getBlockByNum(dps.getCycleEndBlockNumber(currentCycleNumber)).getTimeStamp();
+      SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+      response.getWriter().println("Current cycle number: " + currentCycleNumber + ", end time: "
+              + sdf.format(new Date(currentCycleEndTime)));
+      long queryCycleEndTime = ChainBaseManager.getInstance()
+              .getBlockByNum(dps.getCycleEndBlockNumber(Long.parseLong(cycleNumberStr))).getTimeStamp();
+      response.getWriter().println("Query cycle number: " + cycleNumberStr + ", end time: " + sdf.format(new Date(queryCycleEndTime)));
       response.getWriter().println("Query cycle count: " + cycleCountStr + "\n");
 
       if (address == null) {
@@ -89,13 +99,16 @@ public class HeHeServlet extends RateLimiterServlet {
             list.sort((o1, o2) ->
                 Long.compare(o2.getValue().getEnergyUsage(), o1.getValue().getEnergyUsage()));
         }
+        for (Map.Entry<String, ContractStateCapsule> e : list) {
+          response.getWriter().println(e.getKey() + "," + e.getValue().getTxTotalCount());
+        }
+
         ContractStateCapsule total = css.getIntervalData(Long.parseLong(cycleNumberStr),
                 Long.parseLong(cycleCountStr), "total".getBytes());
         response.getWriter().println("Total" + " = " + total);
-        response.getWriter().println("\nTop 100 contracts (sorted by " + sortedBy + "):\n");
-        for (int i = 0; i < 100 && i < list.size(); i++) {
-          Map.Entry<String, ContractStateCapsule> e = list.get(i);
-          response.getWriter().println(e.getKey() + " = " + e.getValue());
+        response.getWriter().println("\nTop contracts (sorted by " + sortedBy + "):\n");
+        for (Map.Entry<String, ContractStateCapsule> e : list) {
+            response.getWriter().println(e.getKey() + " = " + e.getValue());
         }
       } else {
         response.getWriter().println("Total" + " = "
