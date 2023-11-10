@@ -28,22 +28,24 @@ public class HeHeServlet extends RateLimiterServlet {
 
       long cycleNumber = request.getParameter("cycle_number") == null ?
               dps.getCurrentCycleNumber() : Long.parseLong(request.getParameter("cycle_number"));
+      cycleNumber = Math.min(cycleNumber, dps.getCurrentCycleNumber());
       long cycleCount = request.getParameter("cycle_count") == null ?
               1 : Long.parseLong(request.getParameter("cycle_count"));
 
       long currentCycleNumber = dps.getCurrentCycleNumber();
-      long currentCycleEndTime = ChainBaseManager.getInstance()
+      long currentCycleStartTime = ChainBaseManager.getInstance()
               .getBlockByNum(dps.getCycleEndBlockNumber(currentCycleNumber - 1)).getTimeStamp();
       SimpleDateFormat sdf = new SimpleDateFormat("MM-dd HH:mm");
-      response.getWriter().println("Current cycle number: " + currentCycleNumber + ", time scale: "
-              + sdf.format(new Date(currentCycleEndTime - 6 * 60 * 60 * 1000 * (cycleCount - 1))) + " ~ "
-              + sdf.format(new Date(currentCycleEndTime + 6 * 60 * 60 * 1000 )));
-      long queryCycleEndTime = ChainBaseManager.getInstance()
-              .getBlockByNum(dps.getCycleEndBlockNumber(cycleNumber)).getTimeStamp();
-      response.getWriter().println("Query cycle number: " + cycleNumber + ", start: "
-              + sdf.format(new Date(queryCycleEndTime - 6 * 60 * 60 * 1000 * cycleCount)) + ", end: "
-              + sdf.format(new Date(queryCycleEndTime)));
-      response.getWriter().println("Query cycle count: " + cycleCount + "\n");
+      response.getWriter().println("Current cycle number: " + currentCycleNumber + ", start: "
+              + sdf.format(new Date(currentCycleStartTime)) + ", end: "
+              + sdf.format(new Date(currentCycleStartTime + 6 * 60 * 60 * 1000)));
+      long queryCycleStartTime = ChainBaseManager.getInstance()
+              .getBlockByNum(dps.getCycleEndBlockNumber(cycleNumber - cycleCount)).getTimeStamp();
+      response.getWriter().println("Query cycle number: " + cycleNumber);
+      response.getWriter().println("Query cycle count: " + cycleCount);
+      response.getWriter().println("Query start time: " + sdf.format(new Date(queryCycleStartTime)));
+      response.getWriter().println("Query end time: "
+              + sdf.format(new Date(queryCycleStartTime + 6 * 60 * 60 * 1000 * cycleCount)));
 
       if (request.getParameter("address") == null) {
         Map<String, ContractStateCapsule> result = new HashMap<>();
