@@ -69,6 +69,10 @@ public class PeerConnection {
   @Getter
   private volatile boolean fetchAble;
 
+  @Setter
+  @Getter
+  private volatile boolean isBadPeer;
+
   @Getter
   @Setter
   private ByteString address;
