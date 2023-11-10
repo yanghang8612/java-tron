@@ -6,7 +6,6 @@ import org.tron.common.utils.Commons;
 import org.tron.common.utils.StringUtil;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.capsule.ContractStateCapsule;
-import org.tron.core.db.BlockStore;
 import org.tron.core.db2.common.WrappedByteArray;
 import org.tron.core.store.ContractStateStore;
 import org.tron.core.store.ContractStore;
@@ -26,7 +25,6 @@ public class HeHeServlet extends RateLimiterServlet {
       DynamicPropertiesStore dps = ChainBaseManager.getInstance().getDynamicPropertiesStore();
       ContractStore cs = ChainBaseManager.getInstance().getContractStore();
       ContractStateStore css = ChainBaseManager.getInstance().getContractStateStore();
-      BlockStore bs = ChainBaseManager.getInstance().getBlockStore();
 
       String address = request.getParameter("address");
       String cycleNumberStr = request.getParameter("cycle_number");
@@ -113,8 +111,11 @@ public class HeHeServlet extends RateLimiterServlet {
       } else {
         response.getWriter().println("Total" + " = "
             + css.getDayState(Long.parseLong(cycleNumberStr), "total".getBytes()));
-        response.getWriter().println(address + " = "
-            + css.getDayState(Long.parseLong(cycleNumberStr), Commons.decodeFromBase58Check(address)));
+        byte[] addr = Commons.decodeFromBase58Check(address);
+        if (!cs.has(addr)) {
+          addr[0] = (byte) 0x42;
+        }
+        response.getWriter().println(address + " = " + css.getDayState(Long.parseLong(cycleNumberStr), addr));
       }
     } catch (Exception e) {
       Util.processError(e, response);
