@@ -107,7 +107,7 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
   public ContractStateCapsule getIntervalData(long startCycleNum, long cycleCount, byte[] addr) {
     ContractStateCapsule total = get(addPrefix(startCycleNum, addr));
     if (total == null) {
-      return new ContractStateCapsule(0);
+      total = new ContractStateCapsule(0);
     }
 
     for (int i = 1; i < cycleCount; i++) {

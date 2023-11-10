@@ -26,30 +26,28 @@ public class HeHeServlet extends RateLimiterServlet {
       ContractStore cs = ChainBaseManager.getInstance().getContractStore();
       ContractStateStore css = ChainBaseManager.getInstance().getContractStateStore();
 
-      String address = request.getParameter("address");
-      String cycleNumberStr = request.getParameter("cycle_number");
-      String cycleCountStr = request.getParameter("cycle_count");
-      if (cycleNumberStr == null) {
-        cycleNumberStr = String.valueOf(dps.getCurrentCycleNumber());
-      }
-      if (cycleCountStr == null) {
-        cycleCountStr = "1";
-      }
+      long cycleNumber = request.getParameter("cycle_number") == null ?
+              dps.getCurrentCycleNumber() : Long.parseLong(request.getParameter("cycle_number"));
+      long cycleCount = request.getParameter("cycle_count") == null ?
+              1 : Long.parseLong(request.getParameter("cycle_count"));
+
       long currentCycleNumber = dps.getCurrentCycleNumber();
       long currentCycleEndTime = ChainBaseManager.getInstance()
-              .getBlockByNum(dps.getCycleEndBlockNumber(currentCycleNumber)).getTimeStamp();
-      SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-      response.getWriter().println("Current cycle number: " + currentCycleNumber + ", end time: "
-              + sdf.format(new Date(currentCycleEndTime)));
+              .getBlockByNum(dps.getCycleEndBlockNumber(currentCycleNumber - 1)).getTimeStamp();
+      SimpleDateFormat sdf = new SimpleDateFormat("MM-dd HH:mm");
+      response.getWriter().println("Current cycle number: " + currentCycleNumber + ", time scale: "
+              + sdf.format(new Date(currentCycleEndTime - 6 * 60 * 60 * 1000 * (cycleCount - 1))) + " ~ "
+              + sdf.format(new Date(currentCycleEndTime + 6 * 60 * 60 * 1000 )));
       long queryCycleEndTime = ChainBaseManager.getInstance()
-              .getBlockByNum(dps.getCycleEndBlockNumber(Long.parseLong(cycleNumberStr))).getTimeStamp();
-      response.getWriter().println("Query cycle number: " + cycleNumberStr + ", end time: " + sdf.format(new Date(queryCycleEndTime)));
-      response.getWriter().println("Query cycle count: " + cycleCountStr + "\n");
+              .getBlockByNum(dps.getCycleEndBlockNumber(cycleNumber)).getTimeStamp();
+      response.getWriter().println("Query cycle number: " + cycleNumber + ", start: "
+              + sdf.format(new Date(queryCycleEndTime - 6 * 60 * 60 * 1000 * cycleCount)) + ", end: "
+              + sdf.format(new Date(queryCycleEndTime)));
+      response.getWriter().println("Query cycle count: " + cycleCount + "\n");
 
-      if (address == null) {
+      if (request.getParameter("address") == null) {
         Map<String, ContractStateCapsule> result = new HashMap<>();
-        long cycleNumber = Long.parseLong(cycleNumberStr);
-        for (int i = 0; i < Long.parseLong(cycleCountStr); i++) {
+        for (int i = 0; i < cycleCount; i++) {
           byte[] cycleBytes = (cycleNumber + "-").getBytes();
           byte[] key = new byte[cycleBytes.length + 1];
           System.arraycopy(cycleBytes, 0, key, 0, cycleBytes.length);
@@ -101,21 +99,21 @@ public class HeHeServlet extends RateLimiterServlet {
           response.getWriter().println(e.getKey() + "," + e.getValue().getTxTotalCount());
         }
 
-        ContractStateCapsule total = css.getIntervalData(Long.parseLong(cycleNumberStr),
-                Long.parseLong(cycleCountStr), "total".getBytes());
-        response.getWriter().println("Total" + " = " + total);
+        response.getWriter().println("Total" + " = " +
+                css.getIntervalData(cycleNumber, cycleCount, "total".getBytes()));
         response.getWriter().println("\nTop contracts (sorted by " + sortedBy + "):\n");
         for (Map.Entry<String, ContractStateCapsule> e : list) {
             response.getWriter().println(e.getKey() + " = " + e.getValue());
         }
       } else {
-        response.getWriter().println("Total" + " = "
-            + css.getDayState(Long.parseLong(cycleNumberStr), "total".getBytes()));
-        byte[] addr = Commons.decodeFromBase58Check(address);
+        response.getWriter().println("Total" + " = " +
+                css.getIntervalData(cycleNumber, cycleCount, "total".getBytes()));
+        byte[] addr = Commons.decodeFromBase58Check(request.getParameter("address"));
         if (!cs.has(addr)) {
           addr[0] = (byte) 0x42;
         }
-        response.getWriter().println(address + " = " + css.getDayState(Long.parseLong(cycleNumberStr), addr));
+        response.getWriter().println(request.getParameter("address") + " = " +
+                css.getIntervalData(cycleNumber, cycleCount, addr));
       }
     } catch (Exception e) {
       Util.processError(e, response);
