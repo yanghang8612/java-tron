@@ -81,6 +81,11 @@ message ContractState {
   int64 energy_stake = 20;
   int64 bandwidth_stake2 = 21;
   int64 energy_stake2 = 22;
+  int64 stake2 = 23;
+  int64 unstake = 24;
+  int64 unstake2 = 25;
+  int64 delegated_amount = 26;
+  repeated string delegated_accounts = 27;
 }
 
 message CreateSmartContract {

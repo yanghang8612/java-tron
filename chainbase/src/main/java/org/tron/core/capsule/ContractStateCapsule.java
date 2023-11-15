@@ -294,6 +294,55 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
       this.contractState = this.contractState.toBuilder().setEnergyStake2(value).build();
   }
 
+  public long getUnstake() {
+    return this.getInstance().getUnstake();
+  }
+
+  public void addUnstake(long toAdd) {
+    this.contractState = this.contractState.toBuilder()
+            .setUnstake(this.contractState.getUnstake() + toAdd)
+            .build();
+  }
+
+  public long getStake2() {
+    return this.getInstance().getStake2();
+  }
+
+  public void addStake2(long toAdd) {
+    this.contractState = this.contractState.toBuilder()
+            .setStake2(this.contractState.getStake2() + toAdd)
+            .build();
+  }
+
+  public long getUnstake2() {
+    return this.getInstance().getUnstake2();
+  }
+
+  public void addUnstake2(long toAdd) {
+    this.contractState = this.contractState.toBuilder()
+            .setUnstake2(this.contractState.getUnstake2() + toAdd)
+            .build();
+  }
+
+  public long getDelegatedAmount() {
+    return this.getInstance().getDelegatedAmount();
+  }
+
+  public void addDelegatedAmount(long toAdd) {
+      this.contractState = this.contractState.toBuilder()
+          .setDelegatedAmount(this.contractState.getDelegatedAmount() + toAdd)
+          .build();
+  }
+
+  public void addDelegatedAccount(String addr) {
+    if (this.contractState.getDelegatedAccountsList().contains(addr)) {
+      return;
+    }
+    this.contractState = this.contractState.toBuilder()
+        .addDelegatedAccounts(addr)
+        .build();
+  }
+
 
   public boolean catchUpToCycle(DynamicPropertiesStore dps) {
     return catchUpToCycle(
@@ -368,6 +417,9 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
   }
 
   public void merge(ContractStateCapsule other) {
+    if (other == null) {
+      return;
+    }
     this.addEnergyUsage(other.getEnergyUsage());
     this.addEnergyUsageTotal(other.getEnergyUsageTotal());
     this.addEnergyUsageFailed(other.getEnergyUsageFailed());
@@ -382,6 +434,15 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
     this.addTxTrxCount(other.getTxTrxCount());
     this.addTxTrc10Count(other.getTxTrc10Count());
     this.addTxTrc20Count(other.getTxTrc20Count());
+    this.setBandwidthStake(other.getBandwidthStake());
+    this.setEnergyStake(other.getEnergyStake());
+    this.setBandwidthStake2(other.getBandwidthStake2());
+    this.setEnergyStake2(other.getEnergyStake2());
+    this.addStake2(other.getStake2());
+    this.addUnstake(other.getUnstake());
+    this.addUnstake2(other.getUnstake2());
+    this.addDelegatedAmount(other.getDelegatedAmount());
+    other.getInstance().getDelegatedAccountsList().forEach(this::addDelegatedAccount);
   }
 
   @Override

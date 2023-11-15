@@ -3,10 +3,8 @@ package org.tron.core.services.http;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.tron.common.utils.Commons;
-import org.tron.common.utils.StringUtil;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.capsule.ContractStateCapsule;
-import org.tron.core.db2.common.WrappedByteArray;
 import org.tron.core.store.ContractStateStore;
 import org.tron.core.store.ContractStore;
 import org.tron.core.store.DynamicPropertiesStore;
@@ -14,7 +12,10 @@ import org.tron.core.store.DynamicPropertiesStore;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.Date;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 
 @Component
 @Slf4j(topic = "API")
@@ -40,7 +41,7 @@ public class HeHeServlet extends RateLimiterServlet {
               + sdf.format(new Date(currentCycleStartTime)) + ", end: "
               + sdf.format(new Date(currentCycleStartTime + 6 * 60 * 60 * 1000)));
       long queryCycleStartTime = ChainBaseManager.getInstance()
-              .getBlockByNum(dps.getCycleEndBlockNumber(cycleNumber - cycleCount)).getTimeStamp();
+              .getBlockByNum(dps.getCycleEndBlockNumber(cycleNumber - 1)).getTimeStamp();
       response.getWriter().println("Query cycle number: " + cycleNumber);
       response.getWriter().println("Query cycle count: " + cycleCount);
       response.getWriter().println("Query start time: " + sdf.format(new Date(queryCycleStartTime)));
@@ -48,30 +49,8 @@ public class HeHeServlet extends RateLimiterServlet {
               + sdf.format(new Date(queryCycleStartTime + 6 * 60 * 60 * 1000 * cycleCount)));
 
       if (request.getParameter("address") == null) {
-        Map<String, ContractStateCapsule> result = new HashMap<>();
-        for (int i = 0; i < cycleCount; i++) {
-          byte[] cycleBytes = (cycleNumber + "-").getBytes();
-          byte[] key = new byte[cycleBytes.length + 1];
-          System.arraycopy(cycleBytes, 0, key, 0, cycleBytes.length);
-          key[key.length - 1] = 0x41;
-          Map<WrappedByteArray, ContractStateCapsule> contracts = css.prefixQuery(key);
-
-          contracts.forEach((k, v) -> {
-            byte[] addrBytes = Arrays.copyOfRange(k.getBytes(), 5, 26);
-            String addr = StringUtil.encode58Check(addrBytes);
-            if (result.containsKey(addr)) {
-              result.get(addr).merge(v);
-            } else {
-              result.put(addr, v);
-            }
-          });
-
-          cycleNumber -= 1;
-        }
-
-
-        List<Map.Entry<String, ContractStateCapsule>> list =
-            new LinkedList<>(result.entrySet());
+        Map<String, ContractStateCapsule> result = css.getMergedDataWithinCycles(cycleNumber, cycleCount, true);
+        List<Map.Entry<String, ContractStateCapsule>> list = new LinkedList<>(result.entrySet());
         String sortedBy = request.getParameter("sorted_by");
         if (sortedBy == null) {
           sortedBy = "usage";

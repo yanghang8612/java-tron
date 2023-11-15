@@ -69,6 +69,10 @@ import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.contract.BalanceContract;
+import org.tron.protos.contract.BalanceContract.DelegateResourceContract;
+import org.tron.protos.contract.BalanceContract.FreezeBalanceV2Contract;
+import org.tron.protos.contract.BalanceContract.UnfreezeBalanceV2Contract;
+import org.tron.protos.contract.Common;
 import org.tron.protos.contract.SmartContractOuterClass;
 
 import javax.annotation.PostConstruct;
@@ -1401,29 +1405,35 @@ public class Manager {
     }
     if (getDynamicPropertiesStore().supportVM()) {
       trxCap.setResult(trace.getTransactionContext());
+
+      // Get total record
+      ContractStateCapsule totalCap = chainBaseManager.getContractStateStore().getTotalRecord();
+      if (totalCap == null) {
+        totalCap = new ContractStateCapsule(0);
+      }
+      totalCap.addTxCount();
+
+      // Get personal record
+      byte[] owner = trxCap.getOwnerAddress();
+      ContractStateCapsule personalCap = chainBaseManager.getContractStateStore().getAccountRecord(owner);
+      if (personalCap == null) {
+        personalCap = new ContractStateCapsule(0);
+      }
+      personalCap.addTxCount();
+
       // Record something for smart contract
       if (trxCap.isContractType()) {
         // Record personal trx burn
-        byte[] owner = trxCap.getOwnerAddress();
-        ContractStateCapsule personalCap = chainBaseManager.getContractStateStore().getAccountRecord(owner);
-        if (personalCap == null) {
-          personalCap = new ContractStateCapsule(0);
-        }
         personalCap.addEnergyUsage(trace.getReceipt().getEnergyUsageTotal());
         personalCap.addEnergyPenaltyTotal(trace.getReceipt().getEnergyPenaltyTotal());
         personalCap.addTrxBurn(trace.getReceipt().getEnergyFee());
         personalCap.addTxTotalCount();
 
         // Record total energy consumption
-        ContractStateCapsule totalCap = chainBaseManager.getContractStateStore().getTotalRecord();
-        if (totalCap == null) {
-          totalCap = new ContractStateCapsule(0);
-        }
         totalCap.addEnergyUsage(trace.getReceipt().getEnergyUsageTotal());
         totalCap.addEnergyPenaltyTotal(trace.getReceipt().getEnergyPenaltyTotal());
         totalCap.addTrxBurn(trace.getReceipt().getEnergyFee());
         totalCap.addTxTotalCount();
-        totalCap.addTxCount();
 
         // Get contract state
         byte[] addr = trace.getRuntimeResult().getContractAddress();
@@ -1466,8 +1476,6 @@ public class Manager {
         csc.addTrxPenalty(energyByTrxBurned * getDynamicPropertiesStore().getEnergyFee());
 
         // Save to db
-        chainBaseManager.getContractStateStore().setAccountRecord(owner, personalCap);
-        chainBaseManager.getContractStateStore().setTotalRecord(totalCap);
         chainBaseManager.getContractStateStore().setContractRecord(addr, csc);
 
         // Deal with USDT
@@ -1512,24 +1520,49 @@ public class Manager {
           }
         }
       } else {
-        // Record tx count for non-contract tx
-        ContractStateCapsule totalCap = chainBaseManager.getContractStateStore().getTotalRecord();
-        if (totalCap == null) {
-          totalCap = new ContractStateCapsule(0);
+        try {
+          switch (trxCap.getInstance().getRawData().getContract(0).getType()) {
+            case TransferContract:
+              personalCap.addTxTrxCount();
+              totalCap.addTxTrxCount();
+              break;
+            case TransferAssetContract:
+              personalCap.addTxTrc10Count();
+              totalCap.addTxTrc10Count();
+              break;
+            case UnfreezeBalanceContract:
+              personalCap.addUnstake(trace.getTransactionContext().getProgramResult().getRet().getUnfreezeAmount());
+              break;
+            case FreezeBalanceV2Contract:
+              FreezeBalanceV2Contract freezeBalanceV2Contract =
+                      trxCap.getInstance().getRawData().getContract(0).getParameter()
+                              .unpack(FreezeBalanceV2Contract.class);
+              personalCap.addStake2(freezeBalanceV2Contract.getFrozenBalance());
+              break;
+            case DelegateResourceContract:
+              DelegateResourceContract delegateResourceContract =
+                      trxCap.getInstance().getRawData().getContract(0).getParameter()
+                              .unpack(DelegateResourceContract.class);
+              if (delegateResourceContract.getResource() == Common.ResourceCode.ENERGY) {
+                personalCap.addDelegatedAmount(delegateResourceContract.getBalance());
+                personalCap.addDelegatedAccount(
+                        StringUtil.encode58Check(delegateResourceContract.getReceiverAddress().toByteArray()));
+              }
+              break;
+            case UnfreezeBalanceV2Contract:
+              UnfreezeBalanceV2Contract unfreezeBalanceV2Contract =
+                      trxCap.getInstance().getRawData().getContract(0).getParameter()
+                              .unpack(UnfreezeBalanceV2Contract.class);
+              personalCap.addUnstake2(unfreezeBalanceV2Contract.getUnfreezeBalance());
+              break;
+          }
+        } catch (InvalidProtocolBufferException e) {
+            throw new RuntimeException(e);
         }
-        totalCap.addTxCount();
-
-        switch (trxCap.getInstance().getRawData().getContract(0).getType()) {
-          case TransferContract:
-            totalCap.addTxTrxCount();
-            break;
-          case TransferAssetContract:
-            totalCap.addTxTrc10Count();
-            break;
-        }
-
-        chainBaseManager.getContractStateStore().setTotalRecord(totalCap);
       }
+
+      chainBaseManager.getContractStateStore().setAccountRecord(owner, personalCap);
+      chainBaseManager.getContractStateStore().setTotalRecord(totalCap);
     }
     chainBaseManager.getTransactionStore().put(trxCap.getTransactionId().getBytes(), trxCap);
 

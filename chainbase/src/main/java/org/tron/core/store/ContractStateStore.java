@@ -5,9 +5,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.tron.common.utils.ByteUtil;
+import org.tron.common.utils.StringUtil;
 import org.tron.core.capsule.ContractStateCapsule;
 import org.tron.core.db.TronStoreWithRevoking;
+import org.tron.core.db2.common.WrappedByteArray;
 
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 @Slf4j(topic = "DB")
@@ -105,17 +110,10 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
   }
 
   public ContractStateCapsule getIntervalData(long startCycleNum, long cycleCount, byte[] addr) {
-    ContractStateCapsule total = get(addPrefix(startCycleNum, addr));
-    if (total == null) {
-      total = new ContractStateCapsule(0);
-    }
+    ContractStateCapsule total = new ContractStateCapsule(0);
 
-    for (int i = 1; i < cycleCount; i++) {
-      ContractStateCapsule csc = get(addPrefix(startCycleNum - i, addr));
-      if (csc == null) {
-        break;
-      }
-      total.merge(csc);
+    for (int i = 0; i < cycleCount; i++) {
+      total.merge(get(addPrefix(startCycleNum + i, addr)));
     }
     return total;
   }
@@ -147,5 +145,27 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
     avg.addEnergyPenaltyTotal((long) (penalty / penaltyCnt));
     avg.addTrxBurn((long) (trxBurn / trxCnt));
     return avg;
+  }
+
+  public Map<String, ContractStateCapsule> getMergedDataWithinCycles(long cycleNumber, long cycleCount, boolean isContract) {
+    Map<String, ContractStateCapsule> data = new HashMap<>();
+    for (int i = 0; i < cycleCount; i++) {
+      byte[] cycleBytes = ((cycleNumber + i) + "-").getBytes();
+      byte[] key = new byte[cycleBytes.length + 1];
+      System.arraycopy(cycleBytes, 0, key, 0, cycleBytes.length);
+      key[key.length - 1] = (byte) (isContract ? 0x41 : 0x42);
+      Map<WrappedByteArray, ContractStateCapsule> contracts = this.prefixQuery(key);
+
+      contracts.forEach((k, v) -> {
+        byte[] addrBytes = Arrays.copyOfRange(k.getBytes(), 5, 26);
+        String addr = StringUtil.encode58Check(addrBytes);
+        if (data.containsKey(addr)) {
+          data.get(addr).merge(v);
+        } else {
+          data.put(addr, v);
+        }
+      });
+    }
+    return data;
   }
 }
