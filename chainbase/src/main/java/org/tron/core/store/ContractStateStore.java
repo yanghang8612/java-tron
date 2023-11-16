@@ -1,5 +1,6 @@
 package org.tron.core.store;
 
+import com.google.protobuf.ByteString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -153,7 +154,7 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
 
   public Map<String, ContractStateCapsule> getMergedDataWithinCycles(long cycleNumber, long cycleCount,
                                                                      boolean isContract, boolean isSkipDelegatedAccounts) {
-    Map<String, ContractStateCapsule> data = new HashMap<>();
+    Map<ByteString, ContractStateCapsule> data = new HashMap<>();
     for (int i = 0; i < cycleCount; i++) {
       byte[] cycleBytes = ((cycleNumber + i) + "-").getBytes();
       byte[] key = new byte[cycleBytes.length + 1];
@@ -164,7 +165,7 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
       contracts.forEach((k, v) -> {
         byte[] addrBytes = Arrays.copyOfRange(k.getBytes(), 5, 26);
         addrBytes[0] = (byte) 0x41;
-        String addr = StringUtil.encode58Check(addrBytes);
+        ByteString addr = ByteString.copyFrom(addrBytes);
         if (isSkipDelegatedAccounts) {
           v.clearDelegatedAccount();
         }
@@ -175,6 +176,14 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
         }
       });
     }
-    return data;
+    Map<String, ContractStateCapsule> result = new HashMap<>();
+    data.forEach((k, v) -> result.put(StringUtil.encode58Check(k.toByteArray()), v));
+    return result;
+  }
+
+  public static void main(String[] args) {
+    Map<ByteString, Integer> m = new HashMap<>();
+    m.put(ByteString.copyFrom("a".getBytes()), 1);
+    System.out.println(m.containsKey(ByteString.copyFrom("a".getBytes())));
   }
 }
