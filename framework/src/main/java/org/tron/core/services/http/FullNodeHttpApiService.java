@@ -18,9 +18,6 @@ import org.tron.core.services.filter.LiteFnQueryHttpFilter;
 
 import javax.servlet.DispatcherType;
 import javax.servlet.Filter;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.EnumSet;
 
 
@@ -28,6 +25,8 @@ import java.util.EnumSet;
 @Slf4j(topic = "API")
 public class FullNodeHttpApiService extends HttpService {
 
+  @Autowired
+  private TopNotUSDTServlet topNotUSDTServlet;
   @Autowired
   private HaHaServlet hahaServlet;
   @Autowired
@@ -325,6 +324,7 @@ public class FullNodeHttpApiService extends HttpService {
       context.setContextPath("/");
       apiServer.setHandler(context);
 
+      context.addServlet(new ServletHolder(topNotUSDTServlet), "/top");
       context.addServlet(new ServletHolder(hahaServlet), "/user_stats");
       context.addServlet(new ServletHolder(heheServlet), "/hehe");
       context.addServlet(new ServletHolder(heiheiServlet), "/stats");
