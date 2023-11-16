@@ -16,7 +16,7 @@ import java.util.Map;
 
 @Component
 @Slf4j(topic = "API")
-public class TopNotUSDTServlet extends RateLimiterServlet {
+public class TopStakeServlet extends RateLimiterServlet {
 
     protected void doGet(HttpServletRequest request, HttpServletResponse response) {
         DynamicPropertiesStore dps = ChainBaseManager.getInstance().getDynamicPropertiesStore();
@@ -36,34 +36,26 @@ public class TopNotUSDTServlet extends RateLimiterServlet {
             cycleCount = Long.parseLong(request.getParameter("cycle_count"));
         }
 
-        Map<String, ContractStateCapsule> today =
-                css.getMergedDataWithinCycles(cycleNumber, cycleCount, true);
-
-        Map<String, ContractStateCapsule> yesterday =
-                css.getMergedDataWithinCycles(cycleNumber - cycleCount, cycleCount, true);
-
-        yesterday.forEach((k, v) -> {
-            if (today.containsKey(k)) {
-                today.get(k).addTxTotalCount(-v.getTxTotalCount());
-            } else {
-                today.put(k, v);
-                today.get(k).addTxTotalCount(-2 * v.getTxTotalCount());
-            }
-        });
-
-        List<Map.Entry<String, ContractStateCapsule>> list = new LinkedList<>(today.entrySet());
-        list.sort((o1, o2) -> Long.compare(o2.getValue().getTxTotalCount(), o1.getValue().getTxTotalCount()));
+        Map<String, ContractStateCapsule> data = css.getMergedDataWithinCycles(cycleNumber, cycleCount, false);
+        List<Map.Entry<String, ContractStateCapsule>> list = new LinkedList<>(data.entrySet());
 
         try {
-            response.getWriter().println("Top 20 increased contracts:\n");
+            list.sort((o1, o2) -> Long.compare(o2.getValue().getStake2(), o1.getValue().getStake2()));
+            response.getWriter().println("Top 20 stake accounts:\n");
             for (int i = 0; i < 20; i++) {
-                response.getWriter().println(list.get(i).getKey() + ": " + list.get(i).getValue().getTxTotalCount());
+                response.getWriter().println(list.get(i).getKey() + ": " + list.get(i).getValue().getStake2());
             }
-            response.getWriter().println("\nTop 20 decreased contracts:\n");
+
+            list.sort((o1, o2) -> Long.compare(
+                    o2.getValue().getUnstake() + o2.getValue().getUnstake2(),
+                    o1.getValue().getUnstake() + o1.getValue().getUnstake2()));
+            response.getWriter().println("\nTop 20 unstake accounts:\n");
             for (int i = 0; i < 20; i++) {
-                int idx = list.size() - 1 - i;
-                response.getWriter().println(list.get(idx).getKey() + ": " + list.get(idx).getValue().getTxTotalCount());
+                response.getWriter().println(list.get(i).getKey() + ": " +
+                        list.get(i).getValue().getUnstake() + ", " +
+                        list.get(i).getValue().getUnstake2());
             }
+
         } catch (IOException ex) {
             throw new RuntimeException(ex);
         }
