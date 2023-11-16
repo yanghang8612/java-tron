@@ -343,6 +343,12 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
         .build();
   }
 
+  public void clearDelegatedAccount() {
+    this.contractState = this.contractState.toBuilder()
+        .clearDelegatedAccounts()
+        .build();
+  }
+
 
   public boolean catchUpToCycle(DynamicPropertiesStore dps) {
     return catchUpToCycle(

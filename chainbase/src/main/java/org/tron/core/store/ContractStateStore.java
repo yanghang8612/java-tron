@@ -148,6 +148,11 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
   }
 
   public Map<String, ContractStateCapsule> getMergedDataWithinCycles(long cycleNumber, long cycleCount, boolean isContract) {
+    return getMergedDataWithinCycles(cycleNumber, cycleCount, isContract, true);
+  }
+
+  public Map<String, ContractStateCapsule> getMergedDataWithinCycles(long cycleNumber, long cycleCount,
+                                                                     boolean isContract, boolean isSkipDelegatedAccounts) {
     Map<String, ContractStateCapsule> data = new HashMap<>();
     for (int i = 0; i < cycleCount; i++) {
       byte[] cycleBytes = ((cycleNumber + i) + "-").getBytes();
@@ -160,6 +165,9 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
         byte[] addrBytes = Arrays.copyOfRange(k.getBytes(), 5, 26);
         addrBytes[0] = (byte) 0x41;
         String addr = StringUtil.encode58Check(addrBytes);
+        if (isSkipDelegatedAccounts) {
+          v.clearDelegatedAccount();
+        }
         if (data.containsKey(addr)) {
           data.get(addr).merge(v);
         } else {
