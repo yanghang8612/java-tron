@@ -7,6 +7,7 @@ import org.tron.protos.contract.SmartContractOuterClass;
 import org.tron.protos.contract.SmartContractOuterClass.ContractState;
 
 import java.text.DecimalFormat;
+import java.util.List;
 
 import static org.tron.core.Constant.DYNAMIC_ENERGY_DECREASE_DIVISION;
 import static org.tron.core.Constant.DYNAMIC_ENERGY_FACTOR_DECIMAL;
@@ -332,6 +333,10 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
       this.contractState = this.contractState.toBuilder()
           .setDelegatedAmount(this.contractState.getDelegatedAmount() + toAdd)
           .build();
+  }
+
+  public List<String> getDelegatedAccountsList() {
+    return this.getInstance().getDelegatedAccountsList();
   }
 
   public void addDelegatedAccount(String addr) {
