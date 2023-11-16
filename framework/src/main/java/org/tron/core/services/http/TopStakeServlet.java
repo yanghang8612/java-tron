@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Component
 @Slf4j(topic = "API")
@@ -38,6 +39,11 @@ public class TopStakeServlet extends RateLimiterServlet {
 
         Map<String, ContractStateCapsule> data = css.getMergedDataWithinCycles(cycleNumber, cycleCount, false);
         List<Map.Entry<String, ContractStateCapsule>> list = new LinkedList<>(data.entrySet());
+        list = list.stream()
+                .filter(e -> e.getValue().getStake2() != 0 ||
+                        e.getValue().getUnstake() != 0 ||
+                        e.getValue().getUnstake2() != 0)
+                .collect(Collectors.toList());
 
         try {
             list.sort((o1, o2) -> Long.compare(o2.getValue().getStake2(), o1.getValue().getStake2()));

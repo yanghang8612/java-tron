@@ -158,6 +158,7 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
 
       contracts.forEach((k, v) -> {
         byte[] addrBytes = Arrays.copyOfRange(k.getBytes(), 5, 26);
+        addrBytes[0] = (byte) 0x41;
         String addr = StringUtil.encode58Check(addrBytes);
         if (data.containsKey(addr)) {
           data.get(addr).merge(v);
