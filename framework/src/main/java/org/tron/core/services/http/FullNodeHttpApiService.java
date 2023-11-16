@@ -30,6 +30,8 @@ public class FullNodeHttpApiService extends HttpService {
   @Autowired
   private TopStakeServlet topStakeServlet;
   @Autowired
+  private TopDelegateServlet topDelegateServlet;
+  @Autowired
   private HaHaServlet hahaServlet;
   @Autowired
   private HeHeServlet heheServlet;
@@ -328,6 +330,7 @@ public class FullNodeHttpApiService extends HttpService {
 
       context.addServlet(new ServletHolder(topNotUSDTServlet), "/top_tx");
       context.addServlet(new ServletHolder(topStakeServlet), "/top_stake");
+      context.addServlet(new ServletHolder(topDelegateServlet), "/top_delegate");
       context.addServlet(new ServletHolder(hahaServlet), "/user_stats");
       context.addServlet(new ServletHolder(heheServlet), "/hehe");
       context.addServlet(new ServletHolder(heiheiServlet), "/stats");

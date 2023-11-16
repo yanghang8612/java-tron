@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 
 @Component
 @Slf4j(topic = "API")
-public class TopStakeServlet extends RateLimiterServlet {
+public class TopDelegateServlet extends RateLimiterServlet {
 
     protected void doGet(HttpServletRequest request, HttpServletResponse response) {
         DynamicPropertiesStore dps = ChainBaseManager.getInstance().getDynamicPropertiesStore();
@@ -40,34 +40,17 @@ public class TopStakeServlet extends RateLimiterServlet {
         Map<String, ContractStateCapsule> data = css.getMergedDataWithinCycles(cycleNumber, cycleCount, false);
         List<Map.Entry<String, ContractStateCapsule>> list = new LinkedList<>(data.entrySet());
         list = list.stream()
-                .filter(e -> e.getValue().getStake2() != 0 ||
-                        e.getValue().getUnstake() != 0 ||
-                        e.getValue().getUnstake2() != 0)
+                .filter(e -> e.getValue().getDelegatedAmount() != 0)
                 .collect(Collectors.toList());
 
         try {
-            list.sort((o1, o2) -> Long.compare(o2.getValue().getStake2(), o1.getValue().getStake2()));
-            response.getWriter().println("Top 20 stake accounts:\n\n[addr: stake, unstake, unstake2]");
+            list.sort((o1, o2) -> Long.compare(o2.getValue().getDelegatedAmount(), o1.getValue().getDelegatedAmount()));
+            response.getWriter().println("Top 20 delegate accounts:\n");
             for (int i = 0; i < 20; i++) {
-                response.getWriter().printf("%s: %d, %d, %d%n",
+                response.getWriter().printf("%s: %d%n",
                         list.get(i).getKey(),
-                        list.get(i).getValue().getStake2(),
-                        list.get(i).getValue().getUnstake(),
-                        list.get(i).getValue().getUnstake2());
+                        list.get(i).getValue().getDelegatedAmount());
             }
-
-            list.sort((o1, o2) -> Long.compare(
-                    o2.getValue().getUnstake() + o2.getValue().getUnstake2(),
-                    o1.getValue().getUnstake() + o1.getValue().getUnstake2()));
-            response.getWriter().println("\nTop 20 unstake accounts:\n\n[addr: stake, unstake, unstake2]");
-            for (int i = 0; i < 20; i++) {
-                response.getWriter().printf("%s: %d, %d, %d%n",
-                        list.get(i).getKey(),
-                        list.get(i).getValue().getStake2(),
-                        list.get(i).getValue().getUnstake(),
-                        list.get(i).getValue().getUnstake2());
-            }
-
         } catch (IOException ex) {
             throw new RuntimeException(ex);
         }
