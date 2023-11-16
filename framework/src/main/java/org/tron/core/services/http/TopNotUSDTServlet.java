@@ -44,12 +44,19 @@ public class TopNotUSDTServlet extends RateLimiterServlet {
 
         List<Map.Entry<String, ContractStateCapsule>> list = new LinkedList<>(today.entrySet());
         list.sort((o1, o2) -> Long.compare(o2.getValue().getTxTotalCount(), o1.getValue().getTxTotalCount()));
-        for (Map.Entry<String, ContractStateCapsule> e : list) {
-            try {
-                response.getWriter().println(e.getKey() + " = " + e.getValue());
-            } catch (IOException ex) {
-                throw new RuntimeException(ex);
+
+        try {
+            response.getWriter().println("Top 20 increased contracts:\n");
+            for (int i = 0; i < 20; i++) {
+                response.getWriter().println(list.get(i).getKey() + ": " + list.get(i).getValue().getTxTotalCount());
             }
+            response.getWriter().println("\nTop 20 decreased contracts:\n");
+            for (int i = 0; i < 20; i++) {
+                int idx = list.size() - 1 - i;
+                response.getWriter().println(list.get(idx).getKey() + ": " + list.get(idx).getValue().getTxTotalCount());
+            }
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
         }
     }
 }
