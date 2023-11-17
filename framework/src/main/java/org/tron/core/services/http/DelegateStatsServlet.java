@@ -44,13 +44,15 @@ public class DelegateStatsServlet extends RateLimiterServlet {
         ownerAddr[0] = 0x42;
         ContractStateCapsule owner = css.getIntervalData(cycleNumber, cycleCount, ownerAddr, false);
         ContractStateCapsule result = new ContractStateCapsule(0);
-        for (int i = 0; i < owner.getDelegatedAccountsList().size(); i++) {
-            byte[] addr = Commons.decode58Check(owner.getDelegatedAccountsList().get(i));
+
+        int i = 0;
+        for (String acc : owner.getDelegatedAccounts()) {
+            byte[] addr = Commons.decode58Check(acc);
             addr[0] = 0x42;
             ContractStateCapsule consumer = css.getIntervalData(cycleNumber, cycleCount, addr);
             result.addEnergyUsage(consumer.getEnergyUsage());
             result.addTrxBurn(consumer.getTrxBurn());
-            if (i % 100 == 0) {
+            if (i++ % 100 == 0) {
                 System.out.println("Counted-" + i + ": " + result);
                 response.getWriter().println("Counted-" + i + ": " + result);
             }

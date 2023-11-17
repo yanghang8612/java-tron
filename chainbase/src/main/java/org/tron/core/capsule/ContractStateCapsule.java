@@ -7,7 +7,8 @@ import org.tron.protos.contract.SmartContractOuterClass;
 import org.tron.protos.contract.SmartContractOuterClass.ContractState;
 
 import java.text.DecimalFormat;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 import static org.tron.core.Constant.DYNAMIC_ENERGY_DECREASE_DIVISION;
 import static org.tron.core.Constant.DYNAMIC_ENERGY_FACTOR_DECIMAL;
@@ -16,6 +17,8 @@ import static org.tron.core.Constant.DYNAMIC_ENERGY_FACTOR_DECIMAL;
 public class ContractStateCapsule implements ProtoCapsule<ContractState> {
 
   private ContractState contractState;
+
+  private Set<String> delegatedAccounts;
 
   public ContractStateCapsule(ContractState contractState) {
     this.contractState = contractState;
@@ -335,11 +338,14 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
           .build();
   }
 
-  public List<String> getDelegatedAccountsList() {
-    return this.getInstance().getDelegatedAccountsList();
+  public Set<String> getDelegatedAccounts() {
+    if (delegatedAccounts == null) {
+      delegatedAccounts = new HashSet<>(this.getInstance().getDelegatedAccountsList());
+    }
+    return delegatedAccounts;
   }
 
-  public void addDelegatedAccount(String addr) {
+  public void addDelegatedAccountToInstance(String addr) {
     if (this.contractState.getDelegatedAccountsList().contains(addr)) {
       return;
     }
@@ -348,7 +354,11 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
         .build();
   }
 
-  public void clearDelegatedAccount() {
+  public void addDelegatedAccount(String addr) {
+    this.getDelegatedAccounts().add(addr);
+  }
+
+  public void clearDelegatedAccounts() {
     this.contractState = this.contractState.toBuilder()
         .clearDelegatedAccounts()
         .build();

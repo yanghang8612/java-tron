@@ -1545,7 +1545,7 @@ public class Manager {
                               .unpack(DelegateResourceContract.class);
               if (delegateResourceContract.getResource() == Common.ResourceCode.ENERGY) {
                 personalCap.addDelegatedAmount(delegateResourceContract.getBalance());
-                personalCap.addDelegatedAccount(
+                personalCap.addDelegatedAccountToInstance(
                         StringUtil.encode58Check(delegateResourceContract.getReceiverAddress().toByteArray()));
               }
               break;

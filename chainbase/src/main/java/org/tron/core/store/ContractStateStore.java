@@ -118,13 +118,13 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
   }
 
   public ContractStateCapsule getIntervalData(long startCycleNum, long cycleCount, byte[] addr,
-                                              boolean clearDelegatedAccount) {
+                                              boolean clearDelegatedAccounts) {
     ContractStateCapsule total = new ContractStateCapsule(0);
 
     for (int i = 0; i < cycleCount; i++) {
       ContractStateCapsule data = get(addPrefix(startCycleNum + i, addr));
-      if (clearDelegatedAccount) {
-          data.clearDelegatedAccount();
+      if (clearDelegatedAccounts) {
+          data.clearDelegatedAccounts();
       }
       total.merge(data);
     }
@@ -173,7 +173,7 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
         byte[] addrBytes = Arrays.copyOfRange(k.getBytes(), 5, 26);
         addrBytes[0] = (byte) 0x41;
         ByteString addr = ByteString.copyFrom(addrBytes);
-        v.clearDelegatedAccount();
+        v.clearDelegatedAccounts();
         if (result.containsKey(addr)) {
           result.get(addr).merge(v);
         } else {
