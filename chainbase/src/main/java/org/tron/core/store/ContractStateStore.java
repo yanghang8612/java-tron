@@ -101,6 +101,10 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
     return ByteUtil.merge((cycleNumber + "-").getBytes(), key);
   }
 
+  public Map<WrappedByteArray, ContractStateCapsule> getCycleData(long cycleNumber) {
+    return this.prefixQuery((cycleNumber + "-").getBytes());
+  }
+
   public ContractStateCapsule getDayState(long cycleNum, byte[] addr) {
     return getIntervalData(cycleNum, 4, addr);
   }

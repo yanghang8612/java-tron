@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 import org.tron.common.utils.Commons;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.capsule.ContractStateCapsule;
+import org.tron.core.db2.common.WrappedByteArray;
 import org.tron.core.store.ContractStateStore;
 import org.tron.core.store.ContractStore;
 import org.tron.core.store.DynamicPropertiesStore;
@@ -48,6 +49,10 @@ public class HeHeServlet extends RateLimiterServlet {
       response.getWriter().println("Query start time: " + sdf.format(new Date(queryCycleStartTime)));
       response.getWriter().println("Query end time: "
               + sdf.format(new Date(queryCycleStartTime + 6 * 60 * 60 * 1000 * cycleCount)));
+
+      // Do stats for queried cycle
+      Map<WrappedByteArray, ContractStateCapsule> data = css.getCycleData(cycleNumber);
+      response.getWriter().println(data.size());
 
       if (request.getParameter("address") == null) {
         Map<ByteString, ContractStateCapsule> result = css.getMergedDataWithinCycles(cycleNumber, cycleCount, true);
