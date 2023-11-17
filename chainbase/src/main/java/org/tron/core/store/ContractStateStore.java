@@ -123,7 +123,7 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
 
     for (int i = 0; i < cycleCount; i++) {
       ContractStateCapsule data = get(addPrefix(startCycleNum + i, addr));
-      if (clearDelegatedAccounts) {
+      if (data != null && clearDelegatedAccounts) {
           data.clearDelegatedAccounts();
       }
       total.merge(data);

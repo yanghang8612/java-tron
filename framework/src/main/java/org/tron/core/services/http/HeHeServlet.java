@@ -82,8 +82,12 @@ public class HeHeServlet extends RateLimiterServlet {
         if (!cs.has(addr)) {
           addr[0] = (byte) 0x42;
         }
-        response.getWriter().println(request.getParameter("address") + " = " +
-                css.getIntervalData(cycleNumber, cycleCount, addr, false));
+        ContractStateCapsule result = css.getIntervalData(cycleNumber, cycleCount, addr);
+        response.getWriter().println(request.getParameter("address") + " = " + result);
+        response.getWriter().println("Delegated accounts:");
+        for (String acc : result.getDelegatedAccounts()) {
+          response.getWriter().println(acc);
+        }
       }
     } catch (Exception e) {
       Util.processError(e, response);

@@ -44,22 +44,12 @@ public class DelegateStatsServlet extends RateLimiterServlet {
         ownerAddr[0] = 0x42;
         ContractStateCapsule owner = css.getIntervalData(cycleNumber, cycleCount, ownerAddr, false);
         ContractStateCapsule result = new ContractStateCapsule(0);
-
-        try {
-            int i = 0;
-            for (String acc : owner.getDelegatedAccounts()) {
-                byte[] addr = Commons.decode58Check(acc);
-                addr[0] = 0x42;
-                ContractStateCapsule consumer = css.getIntervalData(cycleNumber, cycleCount, addr);
-                result.addEnergyUsage(consumer.getEnergyUsage());
-                result.addTrxBurn(consumer.getTrxBurn());
-                if (i++ % 100 == 0) {
-                    System.out.println("Counted-" + i + ": " + result);
-                    response.getWriter().println("Counted-" + i + ": " + result);
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace(System.out);
+        for (String acc : owner.getDelegatedAccounts()) {
+            byte[] addr = Commons.decode58Check(acc);
+            addr[0] = 0x42;
+            ContractStateCapsule consumer = css.getIntervalData(cycleNumber, cycleCount, addr);
+            result.addEnergyUsage(consumer.getEnergyUsage());
+            result.addTrxBurn(consumer.getTrxBurn());
         }
 
         response.getWriter().println("Stats = " + result);
