@@ -52,6 +52,7 @@ public class DelegateStatsServlet extends RateLimiterServlet {
             result.addTrxBurn(consumer.getTrxBurn());
             if (i % 100 == 0) {
                 System.out.println("Counted-" + i + ": " + result);
+                response.getWriter().println("Counted-" + i + ": " + result);
             }
         }
 
