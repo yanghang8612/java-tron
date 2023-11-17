@@ -4,6 +4,7 @@ import com.google.protobuf.ByteString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.tron.common.utils.Commons;
+import org.tron.common.utils.StringUtil;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.capsule.ContractStateCapsule;
 import org.tron.core.db2.common.WrappedByteArray;
@@ -86,9 +87,10 @@ public class HeHeServlet extends RateLimiterServlet {
 
         response.getWriter().println("Total" + " = " +
                 css.getIntervalData(cycleNumber, cycleCount, "total".getBytes()));
-        response.getWriter().println("\nTop contracts (sorted by " + sortedBy + "):\n");
-        for (Map.Entry<ByteString, ContractStateCapsule> e : list) {
-            response.getWriter().println(e.getKey() + " = " + e.getValue());
+        response.getWriter().println("\nTop 100 contracts (sorted by " + sortedBy + "):\n");
+        for (int i = 0; i < 100; i++) {
+          response.getWriter().println(StringUtil.encode58Check(list.get(i).getKey().toByteArray()) +
+                  " = " + list.get(i).getValue());
         }
       } else {
         response.getWriter().println("Total" + " = " +

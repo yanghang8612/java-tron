@@ -42,7 +42,7 @@ public class DelegateStatsServlet extends RateLimiterServlet {
         }
 
         ownerAddr[0] = 0x42;
-        ContractStateCapsule owner = css.getIntervalData(cycleNumber, cycleCount, ownerAddr);
+        ContractStateCapsule owner = css.getIntervalData(cycleNumber, cycleCount, ownerAddr, false);
         ContractStateCapsule result = new ContractStateCapsule(0);
         owner.getDelegatedAccountsList().forEach(acc -> {
             byte[] addr = Commons.decode58Check(acc);
