@@ -14,8 +14,6 @@ import org.tron.core.store.DynamicPropertiesStore;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -35,21 +33,6 @@ public class HeHeServlet extends RateLimiterServlet {
       cycleNumber = Math.min(cycleNumber, dps.getCurrentCycleNumber());
       long cycleCount = request.getParameter("cycle_count") == null ?
               1 : Long.parseLong(request.getParameter("cycle_count"));
-
-      long currentCycleNumber = dps.getCurrentCycleNumber();
-      long currentCycleStartTime = ChainBaseManager.getInstance()
-              .getBlockByNum(dps.getCycleEndBlockNumber(currentCycleNumber - 1)).getTimeStamp();
-      SimpleDateFormat sdf = new SimpleDateFormat("MM-dd HH:mm");
-      response.getWriter().println("Current cycle number: " + currentCycleNumber + ", start: "
-              + sdf.format(new Date(currentCycleStartTime)) + ", end: "
-              + sdf.format(new Date(currentCycleStartTime + 6 * 60 * 60 * 1000)));
-      long queryCycleStartTime = ChainBaseManager.getInstance()
-              .getBlockByNum(dps.getCycleEndBlockNumber(cycleNumber - 1)).getTimeStamp();
-      response.getWriter().println("Query cycle number: " + cycleNumber);
-      response.getWriter().println("Query cycle count: " + cycleCount);
-      response.getWriter().println("Query start time: " + sdf.format(new Date(queryCycleStartTime)));
-      response.getWriter().println("Query end time: "
-              + sdf.format(new Date(queryCycleStartTime + 6 * 60 * 60 * 1000 * cycleCount)));
 
       // Do stats for queried cycle
       Map<WrappedByteArray, ContractStateCapsule> data = css.getCycleData(cycleNumber);
@@ -100,7 +83,7 @@ public class HeHeServlet extends RateLimiterServlet {
           addr[0] = (byte) 0x42;
         }
         response.getWriter().println(request.getParameter("address") + " = " +
-                css.getIntervalData(cycleNumber, cycleCount, addr));
+                css.getIntervalData(cycleNumber, cycleCount, addr, false));
       }
     } catch (Exception e) {
       Util.processError(e, response);
