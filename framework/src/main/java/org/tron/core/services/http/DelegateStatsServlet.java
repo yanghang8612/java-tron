@@ -51,10 +51,10 @@ public class DelegateStatsServlet extends RateLimiterServlet {
             result.addEnergyUsage(consumer.getEnergyUsage());
             result.addTrxBurn(consumer.getTrxBurn());
             if (i % 100 == 0) {
-                System.out.println("Counted-" + i + ": " + request);
+                System.out.println("Counted-" + i + ": " + result);
             }
         }
 
-        response.getWriter().println(result);
+        response.getWriter().println("Stats = " + result);
     }
 }
