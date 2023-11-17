@@ -1,7 +1,9 @@
 package org.tron.core.services.http;
 
+import com.google.protobuf.ByteString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.tron.common.utils.StringUtil;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.capsule.ContractStateCapsule;
 import org.tron.core.store.ContractStateStore;
@@ -37,8 +39,8 @@ public class TopStakeServlet extends RateLimiterServlet {
             cycleCount = Long.parseLong(request.getParameter("cycle_count"));
         }
 
-        Map<String, ContractStateCapsule> data = css.getMergedDataWithinCycles(cycleNumber, cycleCount, false);
-        List<Map.Entry<String, ContractStateCapsule>> list = new LinkedList<>(data.entrySet());
+        Map<ByteString, ContractStateCapsule> data = css.getMergedDataWithinCycles(cycleNumber, cycleCount, false);
+        List<Map.Entry<ByteString, ContractStateCapsule>> list = new LinkedList<>(data.entrySet());
         list = list.stream()
                 .filter(e -> e.getValue().getStake2() != 0 ||
                         e.getValue().getUnstake() != 0 ||
@@ -50,7 +52,7 @@ public class TopStakeServlet extends RateLimiterServlet {
             response.getWriter().println("Top 20 stake accounts:\n\n[addr: stake, unstake, unstake2]");
             for (int i = 0; i < 20; i++) {
                 response.getWriter().printf("%s: %d, %d, %d%n",
-                        list.get(i).getKey(),
+                        StringUtil.encode58Check(list.get(i).getKey().toByteArray()),
                         list.get(i).getValue().getStake2(),
                         list.get(i).getValue().getUnstake(),
                         list.get(i).getValue().getUnstake2());
@@ -62,7 +64,7 @@ public class TopStakeServlet extends RateLimiterServlet {
             response.getWriter().println("\nTop 20 unstake accounts:\n\n[addr: stake, unstake, unstake2]");
             for (int i = 0; i < 20; i++) {
                 response.getWriter().printf("%s: %d, %d, %d%n",
-                        list.get(i).getKey(),
+                        StringUtil.encode58Check(list.get(i).getKey().toByteArray()),
                         list.get(i).getValue().getStake2(),
                         list.get(i).getValue().getUnstake(),
                         list.get(i).getValue().getUnstake2());

@@ -1,7 +1,9 @@
 package org.tron.core.services.http;
 
+import com.google.protobuf.ByteString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.tron.common.utils.StringUtil;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.capsule.ContractStateCapsule;
 import org.tron.core.store.ContractStateStore;
@@ -37,8 +39,8 @@ public class TopDelegateServlet extends RateLimiterServlet {
             cycleCount = Long.parseLong(request.getParameter("cycle_count"));
         }
 
-        Map<String, ContractStateCapsule> data = css.getMergedDataWithinCycles(cycleNumber, cycleCount, false);
-        List<Map.Entry<String, ContractStateCapsule>> list = new LinkedList<>(data.entrySet());
+        Map<ByteString, ContractStateCapsule> data = css.getMergedDataWithinCycles(cycleNumber, cycleCount, false);
+        List<Map.Entry<ByteString, ContractStateCapsule>> list = new LinkedList<>(data.entrySet());
         list = list.stream()
                 .filter(e -> e.getValue().getDelegatedAmount() != 0)
                 .collect(Collectors.toList());
@@ -48,7 +50,7 @@ public class TopDelegateServlet extends RateLimiterServlet {
             response.getWriter().println("Top 20 delegate accounts:\n");
             for (int i = 0; i < 20; i++) {
                 response.getWriter().printf("%s: %d%n",
-                        list.get(i).getKey(),
+                        StringUtil.encode58Check(list.get(i).getKey().toByteArray()),
                         list.get(i).getValue().getDelegatedAmount());
             }
         } catch (IOException ex) {

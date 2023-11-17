@@ -1,7 +1,9 @@
 package org.tron.core.services.http;
 
+import com.google.protobuf.ByteString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.tron.common.utils.StringUtil;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.capsule.ContractStateCapsule;
 import org.tron.core.store.ContractStateStore;
@@ -36,10 +38,10 @@ public class TopNotUSDTServlet extends RateLimiterServlet {
             cycleCount = Long.parseLong(request.getParameter("cycle_count"));
         }
 
-        Map<String, ContractStateCapsule> today =
+        Map<ByteString, ContractStateCapsule> today =
                 css.getMergedDataWithinCycles(cycleNumber, cycleCount, true);
 
-        Map<String, ContractStateCapsule> yesterday =
+        Map<ByteString, ContractStateCapsule> yesterday =
                 css.getMergedDataWithinCycles(cycleNumber - cycleCount, cycleCount, true);
 
         yesterday.forEach((k, v) -> {
@@ -51,18 +53,20 @@ public class TopNotUSDTServlet extends RateLimiterServlet {
             }
         });
 
-        List<Map.Entry<String, ContractStateCapsule>> list = new LinkedList<>(today.entrySet());
+        List<Map.Entry<ByteString, ContractStateCapsule>> list = new LinkedList<>(today.entrySet());
         list.sort((o1, o2) -> Long.compare(o2.getValue().getTxTotalCount(), o1.getValue().getTxTotalCount()));
 
         try {
             response.getWriter().println("Top 20 increased contracts:\n");
             for (int i = 0; i < 20; i++) {
-                response.getWriter().println(list.get(i).getKey() + ": " + list.get(i).getValue().getTxTotalCount());
+                response.getWriter().println(StringUtil.encode58Check(list.get(i).getKey().toByteArray()) +
+                        ": " + list.get(i).getValue().getTxTotalCount());
             }
             response.getWriter().println("\nTop 20 decreased contracts:\n");
             for (int i = 0; i < 20; i++) {
                 int idx = list.size() - 1 - i;
-                response.getWriter().println(list.get(idx).getKey() + ": " + list.get(idx).getValue().getTxTotalCount());
+                response.getWriter().println(StringUtil.encode58Check(list.get(idx).getKey().toByteArray()) +
+                        ": " + list.get(idx).getValue().getTxTotalCount());
             }
         } catch (IOException ex) {
             throw new RuntimeException(ex);

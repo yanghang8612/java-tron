@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.tron.common.utils.ByteUtil;
-import org.tron.common.utils.StringUtil;
 import org.tron.core.capsule.ContractStateCapsule;
 import org.tron.core.db.TronStoreWithRevoking;
 import org.tron.core.db2.common.WrappedByteArray;
@@ -148,13 +147,8 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
     return avg;
   }
 
-  public Map<String, ContractStateCapsule> getMergedDataWithinCycles(long cycleNumber, long cycleCount, boolean isContract) {
-    return getMergedDataWithinCycles(cycleNumber, cycleCount, isContract, true);
-  }
-
-  public Map<String, ContractStateCapsule> getMergedDataWithinCycles(long cycleNumber, long cycleCount,
-                                                                     boolean isContract, boolean isSkipDelegatedAccounts) {
-    Map<ByteString, ContractStateCapsule> data = new HashMap<>();
+  public Map<ByteString, ContractStateCapsule> getMergedDataWithinCycles(long cycleNumber, long cycleCount, boolean isContract) {
+    Map<ByteString, ContractStateCapsule> result = new HashMap<>();
     for (int i = 0; i < cycleCount; i++) {
       byte[] cycleBytes = ((cycleNumber + i) + "-").getBytes();
       byte[] key = new byte[cycleBytes.length + 1];
@@ -166,18 +160,14 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
         byte[] addrBytes = Arrays.copyOfRange(k.getBytes(), 5, 26);
         addrBytes[0] = (byte) 0x41;
         ByteString addr = ByteString.copyFrom(addrBytes);
-        if (isSkipDelegatedAccounts) {
-          v.clearDelegatedAccount();
-        }
-        if (data.containsKey(addr)) {
-          data.get(addr).merge(v);
+        v.clearDelegatedAccount();
+        if (result.containsKey(addr)) {
+          result.get(addr).merge(v);
         } else {
-          data.put(addr, v);
+          result.put(addr, v);
         }
       });
     }
-    Map<String, ContractStateCapsule> result = new HashMap<>();
-    data.forEach((k, v) -> result.put(StringUtil.encode58Check(k.toByteArray()), v));
     return result;
   }
 

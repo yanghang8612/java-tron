@@ -1,5 +1,6 @@
 package org.tron.core.services.http;
 
+import com.google.protobuf.ByteString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.tron.common.utils.Commons;
@@ -49,8 +50,9 @@ public class HeHeServlet extends RateLimiterServlet {
               + sdf.format(new Date(queryCycleStartTime + 6 * 60 * 60 * 1000 * cycleCount)));
 
       if (request.getParameter("address") == null) {
-        Map<String, ContractStateCapsule> result = css.getMergedDataWithinCycles(cycleNumber, cycleCount, true);
-        List<Map.Entry<String, ContractStateCapsule>> list = new LinkedList<>(result.entrySet());
+        Map<ByteString, ContractStateCapsule> result = css.getMergedDataWithinCycles(cycleNumber, cycleCount, true);
+        List<Map.Entry<ByteString, ContractStateCapsule>> list = new LinkedList<>(result.entrySet());
+
         String sortedBy = request.getParameter("sorted_by");
         if (sortedBy == null) {
           sortedBy = "usage";
@@ -76,14 +78,11 @@ public class HeHeServlet extends RateLimiterServlet {
             list.sort((o1, o2) ->
                 Long.compare(o2.getValue().getEnergyUsage(), o1.getValue().getEnergyUsage()));
         }
-        for (Map.Entry<String, ContractStateCapsule> e : list) {
-          response.getWriter().println(e.getKey() + "," + e.getValue().getTxTotalCount());
-        }
 
         response.getWriter().println("Total" + " = " +
                 css.getIntervalData(cycleNumber, cycleCount, "total".getBytes()));
         response.getWriter().println("\nTop contracts (sorted by " + sortedBy + "):\n");
-        for (Map.Entry<String, ContractStateCapsule> e : list) {
+        for (Map.Entry<ByteString, ContractStateCapsule> e : list) {
             response.getWriter().println(e.getKey() + " = " + e.getValue());
         }
       } else {
