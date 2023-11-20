@@ -48,12 +48,15 @@ public class TopStakeServlet extends RateLimiterServlet {
                 .collect(Collectors.toList());
 
         try {
-            list.sort((o1, o2) -> Long.compare(o2.getValue().getStake2(), o1.getValue().getStake2()));
-            response.getWriter().println("Top 20 stake accounts:\n\n[addr: stake2, unstake, unstake2]");
+            list.sort((o1, o2) -> Long.compare(
+                    o2.getValue().getStake2() + o2.getValue().getCancel(),
+                    o1.getValue().getStake2() + o1.getValue().getCancel()));
+            response.getWriter().println("Top 20 stake accounts:\n\n[addr: stake2, cancel, unstake, unstake2]");
             for (int i = 0; i < 20; i++) {
-                response.getWriter().printf("%s: %d, %d, %d%n",
+                response.getWriter().printf("%s: %d, %d, &d, %d%n",
                         StringUtil.encode58Check(list.get(i).getKey().toByteArray()),
                         list.get(i).getValue().getStake2(),
+                        list.get(i).getValue().getCancel(),
                         list.get(i).getValue().getUnstake(),
                         list.get(i).getValue().getUnstake2());
             }
@@ -61,11 +64,12 @@ public class TopStakeServlet extends RateLimiterServlet {
             list.sort((o1, o2) -> Long.compare(
                     o2.getValue().getUnstake() + o2.getValue().getUnstake2(),
                     o1.getValue().getUnstake() + o1.getValue().getUnstake2()));
-            response.getWriter().println("\nTop 20 unstake accounts:\n\n[addr: stake2, unstake, unstake2]");
+            response.getWriter().println("\nTop 20 unstake accounts:\n\n[addr: stake2, cancel, unstake, unstake2]");
             for (int i = 0; i < 20; i++) {
                 response.getWriter().printf("%s: %d, %d, %d%n",
                         StringUtil.encode58Check(list.get(i).getKey().toByteArray()),
                         list.get(i).getValue().getStake2(),
+                        list.get(i).getValue().getCancel(),
                         list.get(i).getValue().getUnstake(),
                         list.get(i).getValue().getUnstake2());
             }

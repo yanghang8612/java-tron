@@ -87,6 +87,21 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
     revokingDB.put(addPrefix(dps.getCurrentCycleNumber(), addr), item.getData());
   }
 
+  public ContractStateCapsule getTRC10Record(byte[] tokenName) {
+    return getUnchecked(addPrefix(dps.getCurrentCycleNumber(), getTRC10Key(tokenName)));
+  }
+
+  public void setTRC10Record(byte[] tokenName, ContractStateCapsule item) {
+    revokingDB.put(addPrefix(dps.getCurrentCycleNumber(), getTRC10Key(tokenName)), item.getData());
+  }
+
+  private byte[] getTRC10Key(byte[] tokenName) {
+    byte[] key = new byte[tokenName.length + 1];
+    key[0] = (byte) 0x51;
+    System.arraycopy(tokenName, 0, key, 1, tokenName.length);
+    return key;
+  }
+
   public void recordEnergyAndGasPrice(long energyPrice, long gasPrice) {
     ContractStateCapsule total = getTotalRecord();
     if (total == null) {

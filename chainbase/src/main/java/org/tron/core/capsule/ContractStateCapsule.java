@@ -298,16 +298,6 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
       this.contractState = this.contractState.toBuilder().setEnergyStake2(value).build();
   }
 
-  public long getUnstake() {
-    return this.getInstance().getUnstake();
-  }
-
-  public void addUnstake(long toAdd) {
-    this.contractState = this.contractState.toBuilder()
-            .setUnstake(this.contractState.getUnstake() + toAdd)
-            .build();
-  }
-
   public long getStake2() {
     return this.getInstance().getStake2();
   }
@@ -315,6 +305,26 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
   public void addStake2(long toAdd) {
     this.contractState = this.contractState.toBuilder()
             .setStake2(this.contractState.getStake2() + toAdd)
+            .build();
+  }
+
+  public long getCancel() {
+    return this.getInstance().getCancel();
+  }
+
+  public void addCancel(long toAdd) {
+    this.contractState = this.contractState.toBuilder()
+            .setCancel(this.contractState.getCancel() + toAdd)
+            .build();
+  }
+
+  public long getUnstake() {
+    return this.getInstance().getUnstake();
+  }
+
+  public void addUnstake(long toAdd) {
+    this.contractState = this.contractState.toBuilder()
+            .setUnstake(this.contractState.getUnstake() + toAdd)
             .build();
   }
 

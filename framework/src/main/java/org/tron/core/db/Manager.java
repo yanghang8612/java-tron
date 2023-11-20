@@ -68,6 +68,7 @@ import org.tron.protos.Protocol.Permission;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract;
 import org.tron.protos.Protocol.TransactionInfo;
+import org.tron.protos.contract.AssetIssueContractOuterClass.TransferAssetContract;
 import org.tron.protos.contract.BalanceContract;
 import org.tron.protos.contract.BalanceContract.DelegateResourceContract;
 import org.tron.protos.contract.BalanceContract.FreezeBalanceV2Contract;
@@ -1527,6 +1528,18 @@ public class Manager {
               totalCap.addTxTrxCount();
               break;
             case TransferAssetContract:
+              TransferAssetContract transferAssetContract =
+                      trxCap.getInstance().getRawData().getContract(0).getParameter()
+                              .unpack(TransferAssetContract.class);
+              ContractStateCapsule trc10Cap = chainBaseManager.getContractStateStore().getTRC10Record(
+                      transferAssetContract.getAssetName().toByteArray());
+              if (trc10Cap == null) {
+                trc10Cap = new ContractStateCapsule(0);
+              }
+              trc10Cap.addTxTrc10Count();
+              chainBaseManager.getContractStateStore().setTRC10Record(
+                      transferAssetContract.getAssetName().toByteArray(), trc10Cap);
+
               personalCap.addTxTrc10Count();
               totalCap.addTxTrc10Count();
               break;
@@ -1554,6 +1567,12 @@ public class Manager {
                       trxCap.getInstance().getRawData().getContract(0).getParameter()
                               .unpack(UnfreezeBalanceV2Contract.class);
               personalCap.addUnstake2(unfreezeBalanceV2Contract.getUnfreezeBalance());
+              break;
+            case CancelAllUnfreezeV2Contract:
+              for (Map.Entry<String, Long> e : trace.getTransactionContext().getProgramResult().getRet()
+                      .getCancelUnfreezeV2AmountMap().entrySet()) {
+                personalCap.addCancel(e.getValue());
+              }
               break;
           }
         } catch (InvalidProtocolBufferException e) {
