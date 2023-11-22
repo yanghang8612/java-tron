@@ -1,6 +1,7 @@
 package org.tron.core.services.http.tracker;
 
-import org.tron.core.ChainBaseManager;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.tron.core.services.http.RateLimiterServlet;
 import org.tron.core.store.ContractStateStore;
 import org.tron.core.store.DynamicPropertiesStore;
@@ -9,10 +10,14 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
+@Slf4j
 public abstract class BaseTrackerServlet extends RateLimiterServlet {
 
-    protected DynamicPropertiesStore dps = ChainBaseManager.getInstance().getDynamicPropertiesStore();
-    protected ContractStateStore css = ChainBaseManager.getInstance().getContractStateStore();
+    @Autowired
+    protected DynamicPropertiesStore dps;
+    @Autowired
+    protected ContractStateStore css;
+
     protected long cycleNumber;
     protected long cycleCount;
 
