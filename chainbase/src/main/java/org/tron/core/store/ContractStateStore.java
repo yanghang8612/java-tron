@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.tron.common.es.ExecutorServiceManager;
 import org.tron.common.utils.ByteUtil;
 import org.tron.core.capsule.ContractStateCapsule;
 import org.tron.core.db.TronStoreWithRevoking;
@@ -14,10 +15,15 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.locks.ReentrantLock;
 
 @Slf4j(topic = "DB")
 @Component
 public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsule> {
+
+  private ExecutorService queryThreadPool = ExecutorServiceManager.newFixedThreadPool("ContractStateStore-query", 16);
 
   @Autowired
   private DynamicPropertiesStore dps;
@@ -177,31 +183,38 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
 
   public Map<ByteString, ContractStateCapsule> getMergedDataWithinCycles(long cycleNumber, long cycleCount, boolean isContract) {
     Map<ByteString, ContractStateCapsule> result = new HashMap<>();
+    CountDownLatch cdl = new CountDownLatch((int) cycleCount);
+    ReentrantLock lock = new ReentrantLock();
     for (int i = 0; i < cycleCount; i++) {
-      byte[] cycleBytes = ((cycleNumber + i) + "-").getBytes();
-      byte[] key = new byte[cycleBytes.length + 1];
-      System.arraycopy(cycleBytes, 0, key, 0, cycleBytes.length);
-      key[key.length - 1] = (byte) (isContract ? 0x41 : 0x42);
-      Map<WrappedByteArray, ContractStateCapsule> contracts = this.prefixQuery(key);
-
-      contracts.forEach((k, v) -> {
-        byte[] addrBytes = Arrays.copyOfRange(k.getBytes(), 5, 26);
-        addrBytes[0] = (byte) 0x41;
-        ByteString addr = ByteString.copyFrom(addrBytes);
-        v.clearDelegatedAccounts();
-        if (result.containsKey(addr)) {
-          result.get(addr).merge(v);
-        } else {
-          result.put(addr, v);
+      final int index = i;
+      queryThreadPool.submit(() -> {
+        byte[] cycleBytes = ((cycleNumber + index) + "-").getBytes();
+        byte[] key = new byte[cycleBytes.length + 1];
+        System.arraycopy(cycleBytes, 0, key, 0, cycleBytes.length);
+        key[key.length - 1] = (byte) (isContract ? 0x41 : 0x42);
+        Map<WrappedByteArray, ContractStateCapsule> data = this.prefixQuery(key);
+        lock.lock();
+        try {
+          data.forEach((k, v) -> {
+            ByteString addr = ByteString.copyFrom(Arrays.copyOfRange(k.getBytes(), 5, 26));
+            v.clearDelegatedAccounts();
+            if (result.containsKey(addr)) {
+              result.get(addr).merge(v);
+            } else {
+              result.put(addr, v);
+            }
+          });
+        } finally {
+          lock.unlock();
         }
+        cdl.countDown();
       });
     }
+    try {
+      cdl.await();
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
     return result;
-  }
-
-  public static void main(String[] args) {
-    Map<ByteString, Integer> m = new HashMap<>();
-    m.put(ByteString.copyFrom("a".getBytes()), 1);
-    System.out.println(m.containsKey(ByteString.copyFrom("a".getBytes())));
   }
 }

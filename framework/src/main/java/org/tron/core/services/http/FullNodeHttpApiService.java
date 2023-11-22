@@ -15,6 +15,7 @@ import org.tron.core.config.args.Args;
 import org.tron.core.services.filter.HttpApiAccessFilter;
 import org.tron.core.services.filter.HttpInterceptor;
 import org.tron.core.services.filter.LiteFnQueryHttpFilter;
+import org.tron.core.services.http.tracker.*;
 
 import javax.servlet.DispatcherType;
 import javax.servlet.Filter;
@@ -38,7 +39,7 @@ public class FullNodeHttpApiService extends HttpService {
   @Autowired
   private DelegateStatsServlet delegateStatsServlet;
   @Autowired
-  private HaHaServlet hahaServlet;
+  private TronLinkAccountTrxBurnCountServlet hahaServlet;
   @Autowired
   private HeHeServlet heheServlet;
   @Autowired
