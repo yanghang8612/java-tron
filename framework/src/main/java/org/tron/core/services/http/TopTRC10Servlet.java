@@ -35,7 +35,7 @@ public class TopTRC10Servlet extends RateLimiterServlet {
         key[prefix.length] = 0x51;
         Map<WrappedByteArray, ContractStateCapsule> data = css.prefixQuery(key);
         data.forEach((k, v) -> {
-          String tokeName = new String(Arrays.copyOfRange(k.getBytes(), key.length, k.getBytes().length - 1));
+          String tokeName = new String(Arrays.copyOfRange(k.getBytes(), key.length, k.getBytes().length));
           result.put(tokeName, result.getOrDefault(tokeName, 0L) + v.getTxTrc10Count());
         });
       }
