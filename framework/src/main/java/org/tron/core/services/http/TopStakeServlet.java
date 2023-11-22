@@ -43,6 +43,7 @@ public class TopStakeServlet extends RateLimiterServlet {
         List<Map.Entry<ByteString, ContractStateCapsule>> list = new LinkedList<>(data.entrySet());
         list = list.stream()
                 .filter(e -> e.getValue().getStake2() != 0 ||
+                        e.getValue().getCancel() != 0 ||
                         e.getValue().getUnstake() != 0 ||
                         e.getValue().getUnstake2() != 0)
                 .collect(Collectors.toList());
