@@ -193,7 +193,6 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
         System.arraycopy(cycleBytes, 0, key, 0, cycleBytes.length);
         key[key.length - 1] = (byte) (isContract ? 0x41 : 0x42);
         Map<WrappedByteArray, ContractStateCapsule> data = this.prefixQuery(key);
-        System.out.println("[" + Thread.currentThread().getName() + "] Cycle " + (cycleNumber + index) + " has " + data.size() + " records.");
         lock.lock();
         try {
           data.forEach((k, v) -> {
@@ -207,7 +206,6 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
           });
         } finally {
           lock.unlock();
-          System.out.println("[" + Thread.currentThread().getName() + "] Cycle " + (cycleNumber + index) + " has " + result.size() + " merged records.");
         }
         cdl.countDown();
       });
