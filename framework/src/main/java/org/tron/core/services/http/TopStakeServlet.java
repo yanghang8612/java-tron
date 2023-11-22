@@ -53,7 +53,7 @@ public class TopStakeServlet extends RateLimiterServlet {
                     o1.getValue().getStake2() + o1.getValue().getCancel()));
             response.getWriter().println("Top 20 stake accounts:\n\n[addr: stake2, cancel, unstake, unstake2]");
             for (int i = 0; i < 20; i++) {
-                response.getWriter().printf("%s: %d, %d, &d, %d%n",
+                response.getWriter().printf("%s: %d, %d, %d, %d%n",
                         StringUtil.encode58Check(list.get(i).getKey().toByteArray()),
                         list.get(i).getValue().getStake2(),
                         list.get(i).getValue().getCancel(),
@@ -66,7 +66,7 @@ public class TopStakeServlet extends RateLimiterServlet {
                     o1.getValue().getUnstake() + o1.getValue().getUnstake2()));
             response.getWriter().println("\nTop 20 unstake accounts:\n\n[addr: stake2, cancel, unstake, unstake2]");
             for (int i = 0; i < 20; i++) {
-                response.getWriter().printf("%s: %d, %d, %d%n",
+                response.getWriter().printf("%s: %d, %d, %d, %d%n",
                         StringUtil.encode58Check(list.get(i).getKey().toByteArray()),
                         list.get(i).getValue().getStake2(),
                         list.get(i).getValue().getCancel(),
