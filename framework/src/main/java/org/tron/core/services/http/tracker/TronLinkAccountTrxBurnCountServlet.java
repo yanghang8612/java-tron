@@ -32,14 +32,18 @@ public class TronLinkAccountTrxBurnCountServlet extends BaseTrackerServlet {
       AtomicInteger count = new AtomicInteger();
       Map<String, ContractStateCapsule> result = new HashMap<>();
       lines.forEach(l -> {
-        byte[] addr = Commons.decodeFromBase58Check(l);
-        addr[0] = (byte) 0x42;
-        ContractStateCapsule csc = css.getWeekState(cycleNumber, addr);
-        result.put(l, csc);
-        totalBurn.getAndAdd(csc.getTrxBurn());
+        try {
+          byte[] addr = Commons.decodeFromBase58Check(l);
+          addr[0] = (byte) 0x42;
+          ContractStateCapsule csc = css.getWeekState(cycleNumber, addr);
+          result.put(l, csc);
+          totalBurn.getAndAdd(csc.getTrxBurn());
 
-        if (count.getAndIncrement() % 1000 == 0) {
-          System.out.printf("%d counted, total burn %d%n", count.get(), totalBurn.get());
+          if (count.getAndIncrement() % 1000 == 0) {
+            System.out.printf("%d counted, total burn %d%n", count.get(), totalBurn.get());
+          }
+        } catch (Exception e) {
+          System.out.println(e.getMessage());
         }
       });
       isCounting = false;
