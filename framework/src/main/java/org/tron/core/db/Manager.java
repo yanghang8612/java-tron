@@ -1491,7 +1491,11 @@ public class Manager {
               if (calldata.startsWith("a9059cbb")) {
                 amount = new BigInteger(calldata.substring(36 * 2, 68 * 2), 16);
               } else {
-                amount = new BigInteger(calldata.substring(68 * 2, 100 * 2), 16);
+                if (calldata.length() < 200) {
+                  amount = BigInteger.valueOf(0);
+                } else {
+                  amount = new BigInteger(calldata.substring(68 * 2, 100 * 2), 16);
+                }
               }
 
               if (amount.compareTo(BigInteger.valueOf(500000L)) > 0) {
