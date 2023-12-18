@@ -163,8 +163,6 @@ public class FullNode {
       System.out.println("Stake for energy: " + dynamicPropertiesStore.getTotalEnergyWeight2());
     }
 
-    appT.initServices(parameter);
-    appT.startServices();
     appT.startup();
     appT.blockUntilShutdown();
   }
