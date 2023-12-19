@@ -320,6 +320,7 @@ public class FullNodeHttpApiService extends HttpService {
 
   @Override
   public void init() {
+    logger.info("FullNodeHttpApiService init");
   }
 
   @Override
