@@ -16,12 +16,6 @@ import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
 import org.tron.core.services.RpcApiService;
 import org.tron.core.services.http.FullNodeHttpApiService;
-import org.tron.core.services.interfaceJsonRpcOnPBFT.JsonRpcServiceOnPBFT;
-import org.tron.core.services.interfaceJsonRpcOnSolidity.JsonRpcServiceOnSolidity;
-import org.tron.core.services.interfaceOnPBFT.RpcApiServiceOnPBFT;
-import org.tron.core.services.interfaceOnPBFT.http.PBFT.HttpApiOnPBFTService;
-import org.tron.core.services.interfaceOnSolidity.RpcApiServiceOnSolidity;
-import org.tron.core.services.interfaceOnSolidity.http.solidity.HttpApiOnSolidityService;
 import org.tron.core.services.jsonrpc.FullNodeJsonRpcHttpService;
 import org.tron.core.store.AccountStore;
 import org.tron.core.store.DynamicPropertiesStore;
@@ -99,38 +93,6 @@ public class FullNode {
       FullNodeJsonRpcHttpService jsonRpcHttpService =
           context.getBean(FullNodeJsonRpcHttpService.class);
       appT.addService(jsonRpcHttpService);
-    }
-
-    // full node and solidity node fuse together
-    // provide solidity rpc and http server on the full node.
-    RpcApiServiceOnSolidity rpcApiServiceOnSolidity = context
-        .getBean(RpcApiServiceOnSolidity.class);
-    appT.addService(rpcApiServiceOnSolidity);
-    HttpApiOnSolidityService httpApiOnSolidityService = context
-        .getBean(HttpApiOnSolidityService.class);
-    if (CommonParameter.getInstance().solidityNodeHttpEnable) {
-      appT.addService(httpApiOnSolidityService);
-    }
-
-    // JSON-RPC on solidity
-    if (CommonParameter.getInstance().jsonRpcHttpSolidityNodeEnable) {
-      JsonRpcServiceOnSolidity jsonRpcServiceOnSolidity = context
-          .getBean(JsonRpcServiceOnSolidity.class);
-      appT.addService(jsonRpcServiceOnSolidity);
-    }
-
-    // PBFT API (HTTP and GRPC)
-    RpcApiServiceOnPBFT rpcApiServiceOnPBFT = context
-        .getBean(RpcApiServiceOnPBFT.class);
-    appT.addService(rpcApiServiceOnPBFT);
-    HttpApiOnPBFTService httpApiOnPBFTService = context
-        .getBean(HttpApiOnPBFTService.class);
-    appT.addService(httpApiOnPBFTService);
-
-    // JSON-RPC on PBFT
-    if (CommonParameter.getInstance().jsonRpcHttpPBFTNodeEnable) {
-      JsonRpcServiceOnPBFT jsonRpcServiceOnPBFT = context.getBean(JsonRpcServiceOnPBFT.class);
-      appT.addService(jsonRpcServiceOnPBFT);
     }
 
     // Init stake2.0
