@@ -320,12 +320,12 @@ public class FullNodeHttpApiService extends HttpService {
 
   @Override
   public void init() {
-    logger.info("FullNodeHttpApiService init");
   }
 
   @Override
   public void init(CommonParameter args) {
     port = Args.getInstance().getFullNodeHttpPort();
+    logger.info("FullNodeHttpApiService init at port " + port);
   }
 
   @Override
@@ -563,8 +563,8 @@ public class FullNodeHttpApiService extends HttpService {
 
       // filters the specified APIs
       // when node is lite fullnode and openHistoryQueryWhenLiteFN is false
-//      context.addFilter(new FilterHolder(liteFnQueryHttpFilter), "/*",
-//          EnumSet.allOf(DispatcherType.class));
+      context.addFilter(new FilterHolder(liteFnQueryHttpFilter), "/*",
+          EnumSet.allOf(DispatcherType.class));
 
       // http access filter, it should have higher priority than HttpInterceptor
       context.addFilter(new FilterHolder(httpApiAccessFilter), "/*",
