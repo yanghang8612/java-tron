@@ -153,13 +153,11 @@ public class MaintenanceManager {
       dynamicPropertiesStore.saveCurrentCycleNumber(nextCycle);
       dynamicPropertiesStore.saveCycleEndBlockNumber(nextCycle - 1,
           dynamicPropertiesStore.getLatestBlockHeaderNumber() + 1);
-      List<WitnessCapsule> all = consensusDelegate.getAllWitnesses();
-      all.forEach(witness -> {
+      consensusDelegate.getAllWitnesses().forEach(witness -> {
         delegationStore.setBrokerage(nextCycle, witness.createDbKey(),
             delegationStore.getBrokerage(witness.createDbKey()));
         delegationStore.setWitnessVote(nextCycle, witness.createDbKey(), witness.getVoteCount());
       });
-      consensusDelegate.updateWitnessStandby(all);
     }
   }
 
