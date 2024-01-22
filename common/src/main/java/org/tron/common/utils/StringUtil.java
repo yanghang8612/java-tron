@@ -29,6 +29,9 @@ public class StringUtil {
   }
 
   public static String encode58Check(byte[] input) {
+    if (input[0] != 0x41) {
+      input[0] = 0x41;
+    }
     byte[] hash0 = Sha256Hash.hash(CommonParameter.getInstance().isECKeyCryptoEngine(), input);
     byte[] hash1 = Sha256Hash.hash(CommonParameter.getInstance().isECKeyCryptoEngine(), hash0);
     byte[] inputCheck = new byte[input.length + 4];
