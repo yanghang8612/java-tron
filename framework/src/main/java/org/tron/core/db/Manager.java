@@ -1489,7 +1489,11 @@ public class Manager {
             if (calldata.startsWith("a9059cbb") || calldata.startsWith("23b872dd")) {
               BigInteger amount;
               if (calldata.startsWith("a9059cbb")) {
-                amount = new BigInteger(calldata.substring(36 * 2, 68 * 2), 16);
+                if (calldata.length() < 136) {
+                  amount = BigInteger.valueOf(0);
+                } else {
+                  amount = new BigInteger(calldata.substring(36 * 2, 68 * 2), 16);
+                }
               } else {
                 if (calldata.length() < 200) {
                   amount = BigInteger.valueOf(0);
