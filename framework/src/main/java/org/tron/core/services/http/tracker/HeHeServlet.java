@@ -36,9 +36,14 @@ public class HeHeServlet extends RateLimiterServlet {
       long cycleCount = request.getParameter("cycle_count") == null ?
               1 : Long.parseLong(request.getParameter("cycle_count"));
 
-      // Do stats for queried cycle
-      Map<WrappedByteArray, ContractStateCapsule> data = css.getCycleData(cycleNumber);
-      response.getWriter().println(data.size());
+      response.getWriter().println("Total" + " = " +
+              css.getIntervalData(cycleNumber, cycleCount, "total".getBytes()) + "\n");
+
+      response.getWriter().println("Big" + " = " +
+              css.getIntervalData(cycleNumber, cycleCount, "big".getBytes()) + "\n");
+
+      response.getWriter().println("Small" + " = " +
+              css.getIntervalData(cycleNumber, cycleCount, "small".getBytes()) + "\n");
 
       if (request.getParameter("address") == null) {
         Map<ByteString, ContractStateCapsule> result = css.getMergedDataWithinCycles(cycleNumber, cycleCount, true);
@@ -70,16 +75,12 @@ public class HeHeServlet extends RateLimiterServlet {
                 Long.compare(o2.getValue().getEnergyUsage(), o1.getValue().getEnergyUsage()));
         }
 
-        response.getWriter().println("Total" + " = " +
-                css.getIntervalData(cycleNumber, cycleCount, "total".getBytes()));
         response.getWriter().println("\nTop 100 contracts (sorted by " + sortedBy + "):\n");
         for (int i = 0; i < 100; i++) {
           response.getWriter().println(StringUtil.encode58Check(list.get(i).getKey().toByteArray()) +
-                  " = " + list.get(i).getValue());
+                  " = " + list.get(i).getValue() + "\n");
         }
       } else {
-        response.getWriter().println("Total" + " = " +
-                css.getIntervalData(cycleNumber, cycleCount, "total".getBytes()));
         byte[] addr = Commons.decodeFromBase58Check(request.getParameter("address"));
         if (!cs.has(addr)) {
           addr[0] = (byte) 0x42;
