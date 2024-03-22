@@ -51,28 +51,28 @@ public class HeHeServlet extends RateLimiterServlet {
 
         String sortedBy = request.getParameter("sorted_by");
         if (sortedBy == null) {
-          sortedBy = "usage";
+          sortedBy = "totalUsage";
         }
         switch (sortedBy) {
-          case "totalUsage":
+          case "usage":
             list.sort((o1, o2) ->
-                Long.compare(o2.getValue().getEnergyUsageTotal(), o1.getValue().getEnergyUsageTotal()));
+                    Long.compare(o2.getValue().getEnergyUsage(), o1.getValue().getEnergyUsage()));
             break;
           case "totalPenalty":
             list.sort((o1, o2) ->
-                Long.compare(o2.getValue().getEnergyPenaltyTotal(), o1.getValue().getEnergyPenaltyTotal()));
+                    Long.compare(o2.getValue().getEnergyPenaltyTotal(), o1.getValue().getEnergyPenaltyTotal()));
             break;
           case "trxBurn":
             list.sort((o1, o2) ->
-                Long.compare(o2.getValue().getTrxBurn(), o1.getValue().getTrxBurn()));
+                    Long.compare(o2.getValue().getTrxBurn(), o1.getValue().getTrxBurn()));
             break;
           case "txCount":
             list.sort((o1, o2) ->
-                Long.compare(o2.getValue().getTxTotalCount(), o1.getValue().getTxTotalCount()));
+                    Long.compare(o2.getValue().getTxTotalCount(), o1.getValue().getTxTotalCount()));
             break;
           default:
             list.sort((o1, o2) ->
-                Long.compare(o2.getValue().getEnergyUsage(), o1.getValue().getEnergyUsage()));
+                    Long.compare(o2.getValue().getEnergyUsageTotal(), o1.getValue().getEnergyUsageTotal()));
         }
 
         response.getWriter().println("\nTop 100 contracts (sorted by " + sortedBy + "):\n");
