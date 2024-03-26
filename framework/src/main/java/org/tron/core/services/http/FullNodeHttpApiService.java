@@ -27,6 +27,8 @@ import java.util.EnumSet;
 public class FullNodeHttpApiService extends HttpService {
 
   @Autowired
+  private TopUserServlet topUserServlet;
+  @Autowired
   private TopTRC10Servlet topTRC10Servlet;
   @Autowired
   private ListCycleServlet listCycleServlet;
@@ -336,6 +338,7 @@ public class FullNodeHttpApiService extends HttpService {
       context.setContextPath("/");
       apiServer.setHandler(context);
 
+      context.addServlet(new ServletHolder(topUserServlet), "/top_user");
       context.addServlet(new ServletHolder(topTRC10Servlet), "/top_trc10");
       context.addServlet(new ServletHolder(listCycleServlet), "/list_cycle");
       context.addServlet(new ServletHolder(topNotUSDTServlet), "/top_tx");
