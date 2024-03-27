@@ -102,7 +102,6 @@ public class TransactionCapsule implements ProtoCapsule<Transaction> {
   @Setter
   private TransactionTrace trxTrace;
 
-  private StringBuilder toStringBuff = new StringBuilder();
   @Getter
   @Setter
   private long time;
@@ -739,8 +738,7 @@ public class TransactionCapsule implements ProtoCapsule<Transaction> {
 
   @Override
   public String toString() {
-
-    toStringBuff.setLength(0);
+    StringBuilder toStringBuff = new StringBuilder();
     toStringBuff.append("TransactionCapsule \n[ ");
 
     toStringBuff.append("hash=").append(getTransactionId()).append("\n");

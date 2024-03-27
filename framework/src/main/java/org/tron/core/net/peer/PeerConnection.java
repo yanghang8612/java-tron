@@ -202,7 +202,6 @@ public class PeerConnection {
     syncBlockToFetch.clear();
     syncBlockRequested.clear();
     syncBlockInProcess.clear();
-    syncBlockInProcess.clear();
   }
 
   public String log() {
