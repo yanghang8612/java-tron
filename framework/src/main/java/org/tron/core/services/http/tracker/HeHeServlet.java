@@ -1,5 +1,8 @@
 package org.tron.core.services.http.tracker;
 
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
+import com.google.gson.JsonObject;
 import com.google.protobuf.ByteString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -8,6 +11,7 @@ import org.tron.common.utils.StringUtil;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.capsule.ContractStateCapsule;
 import org.tron.core.db2.common.WrappedByteArray;
+import org.tron.core.services.http.JsonFormat;
 import org.tron.core.services.http.RateLimiterServlet;
 import org.tron.core.services.http.Util;
 import org.tron.core.store.ContractStateStore;
@@ -36,14 +40,13 @@ public class HeHeServlet extends RateLimiterServlet {
       long cycleCount = request.getParameter("cycle_count") == null ?
               1 : Long.parseLong(request.getParameter("cycle_count"));
 
-      response.getWriter().println("Total" + " = " +
-              css.getIntervalData(cycleNumber, cycleCount, "total".getBytes()) + "\n");
-
-      response.getWriter().println("Big" + " = " +
-              css.getIntervalData(cycleNumber, cycleCount, "big".getBytes()) + "\n");
-
-      response.getWriter().println("Small" + " = " +
-              css.getIntervalData(cycleNumber, cycleCount, "small".getBytes()) + "\n");
+      JSONObject resObj = new JSONObject();
+      resObj.put("total",
+              JsonFormat.printToString(css.getIntervalData(cycleNumber, cycleCount, "total".getBytes()).getInstance()));
+      resObj.put("big",
+              JsonFormat.printToString(css.getIntervalData(cycleNumber, cycleCount, "big".getBytes()).getInstance()));
+      resObj.put("small",
+              JsonFormat.printToString(css.getIntervalData(cycleNumber, cycleCount, "small".getBytes()).getInstance()));
 
       if (request.getParameter("address") == null) {
         Map<ByteString, ContractStateCapsule> result = css.getMergedDataWithinCycles(cycleNumber, cycleCount, true);
@@ -76,22 +79,25 @@ public class HeHeServlet extends RateLimiterServlet {
         }
 
         response.getWriter().println("\nTop 100 contracts (sorted by " + sortedBy + "):\n");
+
+        JSONArray top100Array = new JSONArray();
         for (int i = 0; i < 100; i++) {
-          response.getWriter().println(StringUtil.encode58Check(list.get(i).getKey().toByteArray()) +
-                  " = " + list.get(i).getValue() + "\n");
+          JSONObject topObj = new JSONObject();
+          topObj.put(StringUtil.encode58Check(list.get(i).getKey().toByteArray()),
+                  JsonFormat.printToString(list.get(i).getValue().getInstance()));
+          top100Array.add(topObj);
         }
+        resObj.put("top100", top100Array);
       } else {
         byte[] addr = Commons.decodeFromBase58Check(request.getParameter("address"));
         if (!cs.has(addr)) {
           addr[0] = (byte) 0x42;
         }
-        ContractStateCapsule result = css.getIntervalData(cycleNumber, cycleCount, addr, false);
-        response.getWriter().println(request.getParameter("address") + " = " + result);
-        response.getWriter().println("Delegated accounts:");
-        for (String acc : result.getDelegatedAccounts()) {
-          response.getWriter().println(acc);
-        }
+        resObj.put(request.getParameter("address"),
+                JsonFormat.printToString(css.getIntervalData(cycleNumber, cycleCount, addr, false).getInstance()));
       }
+
+      response.getWriter().println(resObj.toJSONString());
     } catch (Exception e) {
       Util.processError(e, response);
     }
