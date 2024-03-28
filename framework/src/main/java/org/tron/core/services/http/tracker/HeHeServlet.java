@@ -2,7 +2,6 @@ package org.tron.core.services.http.tracker;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-import com.google.gson.JsonObject;
 import com.google.protobuf.ByteString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -10,8 +9,6 @@ import org.tron.common.utils.Commons;
 import org.tron.common.utils.StringUtil;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.capsule.ContractStateCapsule;
-import org.tron.core.db2.common.WrappedByteArray;
-import org.tron.core.services.http.JsonFormat;
 import org.tron.core.services.http.RateLimiterServlet;
 import org.tron.core.services.http.Util;
 import org.tron.core.store.ContractStateStore;
@@ -41,12 +38,9 @@ public class HeHeServlet extends RateLimiterServlet {
               1 : Long.parseLong(request.getParameter("cycle_count"));
 
       JSONObject resObj = new JSONObject();
-      resObj.put("total",
-              JsonFormat.printToString(css.getIntervalData(cycleNumber, cycleCount, "total".getBytes()).getInstance()));
-      resObj.put("big",
-              JsonFormat.printToString(css.getIntervalData(cycleNumber, cycleCount, "big".getBytes()).getInstance()));
-      resObj.put("small",
-              JsonFormat.printToString(css.getIntervalData(cycleNumber, cycleCount, "small".getBytes()).getInstance()));
+      resObj.put("total", css.getIntervalData(cycleNumber, cycleCount, "total".getBytes()).getInstance());
+      resObj.put("big", css.getIntervalData(cycleNumber, cycleCount, "big".getBytes()).getInstance());
+      resObj.put("small", css.getIntervalData(cycleNumber, cycleCount, "small".getBytes()).getInstance());
 
       if (request.getParameter("address") == null) {
         Map<ByteString, ContractStateCapsule> result = css.getMergedDataWithinCycles(cycleNumber, cycleCount, true);
@@ -78,13 +72,10 @@ public class HeHeServlet extends RateLimiterServlet {
                     Long.compare(o2.getValue().getEnergyUsageTotal(), o1.getValue().getEnergyUsageTotal()));
         }
 
-        response.getWriter().println("\nTop 100 contracts (sorted by " + sortedBy + "):\n");
-
         JSONArray top100Array = new JSONArray();
         for (int i = 0; i < 100; i++) {
           JSONObject topObj = new JSONObject();
-          topObj.put(StringUtil.encode58Check(list.get(i).getKey().toByteArray()),
-                  JsonFormat.printToString(list.get(i).getValue().getInstance()));
+          topObj.put(StringUtil.encode58Check(list.get(i).getKey().toByteArray()), list.get(i).getValue());
           top100Array.add(topObj);
         }
         resObj.put("top100", top100Array);
@@ -94,7 +85,7 @@ public class HeHeServlet extends RateLimiterServlet {
           addr[0] = (byte) 0x42;
         }
         resObj.put(request.getParameter("address"),
-                JsonFormat.printToString(css.getIntervalData(cycleNumber, cycleCount, addr, false).getInstance()));
+                css.getIntervalData(cycleNumber, cycleCount, addr, false).getInstance());
       }
 
       response.getWriter().println(resObj.toJSONString());
