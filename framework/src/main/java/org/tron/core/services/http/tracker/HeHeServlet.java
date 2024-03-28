@@ -38,9 +38,9 @@ public class HeHeServlet extends RateLimiterServlet {
               1 : Long.parseLong(request.getParameter("cycle_count"));
 
       JSONObject resObj = new JSONObject();
-      resObj.put("total", css.getIntervalData(cycleNumber, cycleCount, "total".getBytes()).getInstance());
-      resObj.put("big", css.getIntervalData(cycleNumber, cycleCount, "big".getBytes()).getInstance());
-      resObj.put("small", css.getIntervalData(cycleNumber, cycleCount, "small".getBytes()).getInstance());
+      resObj.put("total", css.getIntervalData(cycleNumber, cycleCount, "total".getBytes()));
+      resObj.put("big", css.getIntervalData(cycleNumber, cycleCount, "big".getBytes()));
+      resObj.put("small", css.getIntervalData(cycleNumber, cycleCount, "small".getBytes()));
 
       if (request.getParameter("address") == null) {
         Map<ByteString, ContractStateCapsule> result = css.getMergedDataWithinCycles(cycleNumber, cycleCount, true);
@@ -84,8 +84,7 @@ public class HeHeServlet extends RateLimiterServlet {
         if (!cs.has(addr)) {
           addr[0] = (byte) 0x42;
         }
-        resObj.put(request.getParameter("address"),
-                css.getIntervalData(cycleNumber, cycleCount, addr, false).getInstance());
+        resObj.put(request.getParameter("address"), css.getIntervalData(cycleNumber, cycleCount, addr, false));
       }
 
       response.getWriter().println(resObj.toJSONString());
