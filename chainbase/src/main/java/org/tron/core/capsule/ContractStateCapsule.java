@@ -1,5 +1,6 @@
 package org.tron.core.capsule;
 
+import com.alibaba.fastjson.JSONObject;
 import com.google.protobuf.InvalidProtocolBufferException;
 import lombok.extern.slf4j.Slf4j;
 import org.tron.core.store.DynamicPropertiesStore;
@@ -479,6 +480,83 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
   @Override
   public String toString() {
     return "{\n" + contractState.toString() + '}';
+  }
+
+  public JSONObject toJsonObject() {
+    JSONObject jsonObject = new JSONObject();
+    if (this.getEnergyUsage() > 0) {
+      jsonObject.put("energy_usage", this.getEnergyUsage());
+    }
+    if (this.getEnergyUsageTotal() > 0) {
+      jsonObject.put("energy_usage_total", this.getEnergyUsageTotal());
+    }
+    if (this.getEnergyUsageFailed() > 0) {
+      jsonObject.put("energy_usage_failed", this.getEnergyUsageFailed());
+    }
+    if (this.getEnergyPenaltyTotal() > 0) {
+      jsonObject.put("energy_penalty_total", this.getEnergyPenaltyTotal());
+    }
+    if (this.getEnergyPenaltyFailed() > 0) {
+      jsonObject.put("energy_penalty_failed", this.getEnergyPenaltyFailed());
+    }
+    if (this.getTrxBurn() > 0) {
+      jsonObject.put("trx_burn", this.getTrxBurn());
+    }
+    if (this.getTrxPenalty() > 0) {
+      jsonObject.put("trx_penalty", this.getTrxPenalty());
+    }
+    if (this.getTxTotalCount() > 0) {
+      jsonObject.put("tx_total_count", this.getTxTotalCount());
+    }
+    if (this.getTxFailedCount() > 0) {
+      jsonObject.put("tx_failed_count", this.getTxFailedCount());
+    }
+    if (this.getTxOOECount() > 0) {
+      jsonObject.put("tx_ooe_count", this.getTxOOECount());
+    }
+    if (this.getTxCount() > 0) {
+      jsonObject.put("tx_count", this.getTxCount());
+    }
+    if (this.getTxTrxCount() > 0) {
+      jsonObject.put("tx_trx_count", this.getTxTrxCount());
+    }
+    if (this.getTxTrc10Count() > 0) {
+      jsonObject.put("tx_trc10_count", this.getTxTrc10Count());
+    }
+    if (this.getTxTrc20Count() > 0) {
+      jsonObject.put("tx_trc20_count", this.getTxTrc20Count());
+    }
+    if (this.getBandwidthStake() > 0) {
+      jsonObject.put("bandwidth_stake", this.getBandwidthStake());
+    }
+    if (this.getEnergyStake() > 0) {
+      jsonObject.put("energy_stake", this.getEnergyStake());
+    }
+    if (this.getBandwidthStake2() > 0) {
+      jsonObject.put("bandwidth_stake2", this.getBandwidthStake2());
+    }
+    if (this.getEnergyStake2() > 0) {
+      jsonObject.put("energy_stake2", this.getEnergyStake2());
+    }
+    if (this.getStake2() > 0) {
+        jsonObject.put("stake2", this.getStake2());
+    }
+    if (this.getCancel() > 0) {
+        jsonObject.put("cancel", this.getCancel());
+    }
+    if (this.getUnstake() > 0) {
+        jsonObject.put("unstake", this.getUnstake());
+    }
+    if (this.getUnstake2() > 0) {
+        jsonObject.put("unstake2", this.getUnstake2());
+    }
+    if (this.getDelegatedAmount() > 0) {
+        jsonObject.put("delegated_amount", this.getDelegatedAmount());
+    }
+    if (!this.getDelegatedAccounts().isEmpty()) {
+        jsonObject.put("delegated_accounts", this.getDelegatedAccounts());
+    }
+    return jsonObject;
   }
 
   public String toSlackMsg() {

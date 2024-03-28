@@ -38,9 +38,9 @@ public class HeHeServlet extends RateLimiterServlet {
               1 : Long.parseLong(request.getParameter("cycle_count"));
 
       JSONObject resObj = new JSONObject();
-      resObj.put("total", css.getIntervalData(cycleNumber, cycleCount, "total".getBytes()));
-      resObj.put("big", css.getIntervalData(cycleNumber, cycleCount, "big".getBytes()));
-      resObj.put("small", css.getIntervalData(cycleNumber, cycleCount, "small".getBytes()));
+      resObj.put("total", css.getIntervalData(cycleNumber, cycleCount, "total".getBytes()).toJsonObject());
+      resObj.put("big", css.getIntervalData(cycleNumber, cycleCount, "big".getBytes()).toJsonObject());
+      resObj.put("small", css.getIntervalData(cycleNumber, cycleCount, "small".getBytes()).toJsonObject());
 
       if (request.getParameter("address") == null) {
         Map<ByteString, ContractStateCapsule> result = css.getMergedDataWithinCycles(cycleNumber, cycleCount, true);
@@ -75,7 +75,8 @@ public class HeHeServlet extends RateLimiterServlet {
         JSONArray top100Array = new JSONArray();
         for (int i = 0; i < 100; i++) {
           JSONObject topObj = new JSONObject();
-          topObj.put(StringUtil.encode58Check(list.get(i).getKey().toByteArray()), list.get(i).getValue());
+          topObj.put(StringUtil.encode58Check(list.get(i).getKey().toByteArray()),
+                  list.get(i).getValue().toJsonObject());
           top100Array.add(topObj);
         }
         resObj.put("top100", top100Array);
@@ -84,7 +85,8 @@ public class HeHeServlet extends RateLimiterServlet {
         if (!cs.has(addr)) {
           addr[0] = (byte) 0x42;
         }
-        resObj.put(request.getParameter("address"), css.getIntervalData(cycleNumber, cycleCount, addr, false));
+        resObj.put(request.getParameter("address"),
+                css.getIntervalData(cycleNumber, cycleCount, addr, false).toJsonObject());
       }
 
       response.getWriter().println(resObj.toJSONString());
