@@ -27,7 +27,9 @@ public abstract class BaseTrackerServlet extends RateLimiterServlet {
         cycleNumber = Math.min(cycleNumber, dps.getCurrentCycleNumber());
         cycleCount = request.getParameter("cycle_count") == null ?
                 1 : Long.parseLong(request.getParameter("cycle_count"));
+
         responseGet(request, response);
+        response.setContentType("application/json");
     }
 
     abstract void responseGet(HttpServletRequest request, HttpServletResponse response) throws IOException;

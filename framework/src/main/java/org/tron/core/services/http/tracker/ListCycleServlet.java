@@ -1,5 +1,6 @@
 package org.tron.core.services.http.tracker;
 
+import com.alibaba.fastjson.JSONObject;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.tron.core.ChainBaseManager;
@@ -20,22 +21,23 @@ public class ListCycleServlet extends RateLimiterServlet {
     try {
       DynamicPropertiesStore dps = ChainBaseManager.getInstance().getDynamicPropertiesStore();
 
+      JSONObject resObj = new JSONObject();
       long currentCycleNumber = dps.getCurrentCycleNumber();
-      long currentCycleStartTime = ChainBaseManager.getInstance()
-              .getBlockByNum(dps.getCycleEndBlockNumber(currentCycleNumber - 1)).getTimeStamp();
-      SimpleDateFormat sdf = new SimpleDateFormat("MM-dd HH:mm");
-      response.getWriter().println("Current cycle number: " + currentCycleNumber + ", start: "
-              + sdf.format(new Date(currentCycleStartTime)) + ", end: "
-              + sdf.format(new Date(currentCycleStartTime + 6 * 60 * 60 * 1000)));
+      resObj.put("current", currentCycleNumber);
 
-      long todayCycleNumber = (currentCycleNumber - 3) / 4 * 4 + 3;
-      for (int i = 0; i < 30; i++) {
+      long startCycleNumberInDay = (currentCycleNumber - 3) / 4 * 4 + 3;
+      resObj.put("today", startCycleNumberInDay);
+
+      SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+      for (int i = 0; i < 365; i++) {
         long cycleStartTime = ChainBaseManager.getInstance()
-                .getBlockByNum(dps.getCycleEndBlockNumber(todayCycleNumber - 1)).getTimeStamp();
-        response.getWriter().println(new SimpleDateFormat("MM-dd E").format(new Date(cycleStartTime)) + ": " + todayCycleNumber);
-
-        todayCycleNumber -= 4;
+                .getBlockByNum(dps.getCycleEndBlockNumber(startCycleNumberInDay - 1)).getTimeStamp();
+        resObj.put(sdf.format(new Date(cycleStartTime)), startCycleNumberInDay);
+        startCycleNumberInDay -= 4;
       }
+
+      response.getWriter().println(resObj.toJSONString());
+      response.setContentType("application/json");
     } catch (Exception e) {
       Util.processError(e, response);
     }
