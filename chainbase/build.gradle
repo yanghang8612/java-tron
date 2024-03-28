@@ -13,6 +13,7 @@ dependencies {
     compile "org.fusesource.jansi:jansi:$jansiVersion"
     compile 'io.github.tronprotocol:zksnark-java-sdk:1.0.0'
     compile 'org.reflections:reflections:0.9.11'
+    compile 'com.alibaba:fastjson:1.2.83'
 }
 
 
