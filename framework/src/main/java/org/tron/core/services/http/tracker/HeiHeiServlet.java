@@ -14,7 +14,7 @@ import java.io.IOException;
 public class HeiHeiServlet extends BaseTrackerServlet {
 
   @Override
-  void responseGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
+  void responseGet() throws IOException {
     response.getWriter().println("Current cycle number: " + dps.getCurrentCycleNumber());
     response.getWriter().println("Query cycle number: " + cycleNumber + "\n");
 

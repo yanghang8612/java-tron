@@ -1,5 +1,6 @@
 package org.tron.core.services.http.tracker;
 
+import com.alibaba.fastjson.JSONObject;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.tron.core.services.http.RateLimiterServlet;
@@ -18,19 +19,43 @@ public abstract class BaseTrackerServlet extends RateLimiterServlet {
     @Autowired
     protected ContractStateStore css;
 
+    protected HttpServletRequest request;
+    protected HttpServletResponse response;
+
     protected long cycleNumber;
     protected long cycleCount;
 
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        cycleNumber = request.getParameter("cycle_number") == null ?
-                dps.getCurrentCycleNumber() : Long.parseLong(request.getParameter("cycle_number"));
-        cycleNumber = Math.min(cycleNumber, dps.getCurrentCycleNumber());
-        cycleCount = request.getParameter("cycle_count") == null ?
-                1 : Long.parseLong(request.getParameter("cycle_count"));
+        this.request = request;
+        this.response = response;
+        this.response.setContentType("application/json; charset=utf-8");
 
-        responseGet(request, response);
-        response.setContentType("application/json");
+        this.cycleNumber =
+                this.request.getParameter("cycle_number") == null ?
+                        this.dps.getCurrentCycleNumber() : Long.parseLong(request.getParameter("cycle_number"));
+        this.cycleNumber = Math.min(this.cycleNumber, this.dps.getCurrentCycleNumber());
+
+        this.cycleCount =
+                this.request.getParameter("cycle_count") == null ?
+                        1 : Long.parseLong(this.request.getParameter("cycle_count"));
+
+        try {
+            responseGet();
+        } catch (MissingParameterException e) {
+            JSONObject res = new JSONObject();
+            res.put("code", 500);
+            res.put("error", e.getMessage());
+            response.getWriter().println(res.toJSONString());
+        }
     }
 
-    abstract void responseGet(HttpServletRequest request, HttpServletResponse response) throws IOException;
+    protected String mustGetParameter(String name) {
+        String value = this.request.getParameter(name);
+        if (value == null) {
+            throw new MissingParameterException(name);
+        }
+        return value;
+    }
+
+    abstract void responseGet() throws IOException, MissingParameterException;
 }

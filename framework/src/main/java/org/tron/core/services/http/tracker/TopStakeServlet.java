@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 public class TopStakeServlet extends BaseTrackerServlet {
 
     @Override
-    void responseGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
+    void responseGet() throws IOException {
         Map<ByteString, ContractStateCapsule> data = css.getMergedDataWithinCycles(cycleNumber, cycleCount, false);
         List<Map.Entry<ByteString, ContractStateCapsule>> list = new LinkedList<>(data.entrySet());
         list = list.stream()

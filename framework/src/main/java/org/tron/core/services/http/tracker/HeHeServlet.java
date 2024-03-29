@@ -23,7 +23,7 @@ import java.util.Map;
 public class HeHeServlet extends BaseTrackerServlet {
 
   @Override
-  void responseGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
+  void responseGet() throws IOException {
     ContractStore cs = ChainBaseManager.getInstance().getContractStore();
 
     JSONObject resObj = new JSONObject();
@@ -71,9 +71,6 @@ public class HeHeServlet extends BaseTrackerServlet {
       resObj.put("top100", top100Array);
     } else {
       byte[] addr = Commons.decodeFromBase58Check(request.getParameter("address"));
-      if (!cs.has(addr)) {
-        addr[0] = (byte) 0x42;
-      }
       resObj.put(request.getParameter("address"),
               css.getIntervalData(cycleNumber, cycleCount, addr, false).toJsonObject());
     }

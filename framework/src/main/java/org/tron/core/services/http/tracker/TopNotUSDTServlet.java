@@ -1,5 +1,7 @@
 package org.tron.core.services.http.tracker;
 
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import com.google.protobuf.ByteString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -18,7 +20,7 @@ import java.util.Map;
 public class TopNotUSDTServlet extends BaseTrackerServlet {
 
     @Override
-    void responseGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
+    void responseGet() throws IOException {
         Map<ByteString, ContractStateCapsule> today =
                 css.getMergedDataWithinCycles(cycleNumber, cycleCount, true);
 
@@ -37,16 +39,26 @@ public class TopNotUSDTServlet extends BaseTrackerServlet {
         List<Map.Entry<ByteString, ContractStateCapsule>> list = new LinkedList<>(today.entrySet());
         list.sort((o1, o2) -> Long.compare(o2.getValue().getTxTotalCount(), o1.getValue().getTxTotalCount()));
 
-        response.getWriter().println("Top 20 increased contracts:\n");
+        JSONObject res = new JSONObject();
+        JSONArray top20Increased = new JSONArray();
         for (int i = 0; i < 20 && i < list.size(); i++) {
-            response.getWriter().println(StringUtil.encode58Check(list.get(i).getKey().toByteArray()) +
-                    ": " + list.get(i).getValue().getTxTotalCount());
+            JSONObject obj = new JSONObject();
+            obj.put("address", StringUtil.encode58Check(list.get(i).getKey().toByteArray()));
+            obj.put("num_of_changes_in_tx", list.get(i).getValue().getTxTotalCount());
+            top20Increased.add(obj);
         }
-        response.getWriter().println("\nTop 20 decreased contracts:\n");
+        res.put("top_20_increased", top20Increased);
+
+        JSONArray top20Decreased = new JSONArray();
         for (int i = 0; i < 20 && i < list.size(); i++) {
             int idx = list.size() - 1 - i;
-            response.getWriter().println(StringUtil.encode58Check(list.get(idx).getKey().toByteArray()) +
-                    ": " + list.get(idx).getValue().getTxTotalCount());
+            JSONObject obj = new JSONObject();
+            obj.put("address", StringUtil.encode58Check(list.get(idx).getKey().toByteArray()));
+            obj.put("num_of_changes_in_tx", list.get(idx).getValue().getTxTotalCount());
+            top20Decreased.add(obj);
         }
+        res.put("top_20_decreased", top20Decreased);
+
+        response.getWriter().println(res.toJSONString());
     }
 }

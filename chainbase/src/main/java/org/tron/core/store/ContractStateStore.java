@@ -29,6 +29,9 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
   private DynamicPropertiesStore dps;
 
   @Autowired
+  private ContractStore cs;
+
+  @Autowired
   private ContractStateStore(@Value("contract-state") String dbName) {
     super(dbName);
   }
@@ -140,6 +143,10 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
 
   public ContractStateCapsule getIntervalData(long startCycleNum, long cycleCount, byte[] addr,
                                               boolean clearDelegatedAccounts) {
+    if (!cs.has(addr)) {
+      addr[0] = (byte) 0x42;
+    }
+
     ContractStateCapsule total = new ContractStateCapsule(0);
 
     for (int i = 0; i < cycleCount; i++) {
@@ -181,7 +188,8 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
     return avg;
   }
 
-  public Map<ByteString, ContractStateCapsule> getMergedDataWithinCycles(long cycleNumber, long cycleCount, boolean isContract) {
+  public Map<ByteString, ContractStateCapsule> getMergedDataWithinCycles(
+          long cycleNumber, long cycleCount, boolean isContract) {
     Map<ByteString, ContractStateCapsule> result = new HashMap<>();
     CountDownLatch cdl = new CountDownLatch((int) cycleCount);
     ReentrantLock lock = new ReentrantLock();

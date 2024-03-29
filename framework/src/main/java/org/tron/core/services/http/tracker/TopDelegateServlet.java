@@ -1,5 +1,7 @@
 package org.tron.core.services.http.tracker;
 
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import com.google.protobuf.ByteString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -19,19 +21,22 @@ import java.util.stream.Collectors;
 public class TopDelegateServlet extends BaseTrackerServlet {
 
     @Override
-    void responseGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
+    void responseGet() throws IOException {
         Map<ByteString, ContractStateCapsule> data = css.getMergedDataWithinCycles(cycleNumber, cycleCount, false);
         List<Map.Entry<ByteString, ContractStateCapsule>> list = new LinkedList<>(data.entrySet());
         list = list.stream()
                 .filter(e -> e.getValue().getDelegatedAmount() != 0)
+                .sorted((o1, o2) ->
+                        Long.compare(o2.getValue().getDelegatedAmount(), o1.getValue().getDelegatedAmount()))
                 .collect(Collectors.toList());
 
-        list.sort((o1, o2) -> Long.compare(o2.getValue().getDelegatedAmount(), o1.getValue().getDelegatedAmount()));
-        response.getWriter().println("Top 20 delegate accounts:\n");
+        JSONArray res = new JSONArray();
         for (int i = 0; i < 20 && i < list.size(); i++) {
-            response.getWriter().printf("%s: %d%n",
-                    StringUtil.encode58Check(list.get(i).getKey().toByteArray()),
-                    list.get(i).getValue().getDelegatedAmount());
+            JSONObject obj = new JSONObject();
+            obj.put("address", StringUtil.encode58Check(list.get(i).getKey().toByteArray()));
+            obj.put("delegated_amount", list.get(i).getValue().getDelegatedAmount());
+            res.add(obj);
         }
+        response.getWriter().println(res.toJSONString());
     }
 }

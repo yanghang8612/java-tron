@@ -1,5 +1,7 @@
 package org.tron.core.services.http.tracker;
 
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.tron.core.capsule.ContractStateCapsule;
@@ -15,7 +17,7 @@ import java.util.*;
 public class TopTRC10Servlet extends BaseTrackerServlet {
 
   @Override
-  void responseGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
+  void responseGet() throws IOException {
     Map<String, Long> result = new HashMap<>();
     for (int i = 0; i < cycleCount; i++) {
       byte[] prefix = ((cycleNumber + i) + "-").getBytes();
@@ -32,9 +34,14 @@ public class TopTRC10Servlet extends BaseTrackerServlet {
     List<Map.Entry<String, Long>> list = new LinkedList<>(result.entrySet());
     list.sort((o1, o2) -> Long.compare(o2.getValue(), o1.getValue()));
 
-    response.getWriter().println("Top 20 Transfer TRC10:\n");
+    JSONArray res = new JSONArray();
     for (int i = 0; i < 20 && i < list.size(); i++) {
-      response.getWriter().println(list.get(i).getKey() + ": " + list.get(i).getValue());
+      JSONObject obj = new JSONObject();
+      obj.put("token_name", list.get(i).getKey());
+      obj.put("tx_count", list.get(i).getValue());
+      res.add(obj);
     }
+
+    response.getWriter().println(res.toJSONString());
   }
 }
