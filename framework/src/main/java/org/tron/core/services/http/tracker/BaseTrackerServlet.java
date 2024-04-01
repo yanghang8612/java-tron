@@ -57,5 +57,10 @@ public abstract class BaseTrackerServlet extends RateLimiterServlet {
         return value;
     }
 
+    protected String mayGetParameter(String name, String defaultValue) {
+        String value = this.request.getParameter(name);
+        return value == null ? defaultValue : value;
+    }
+
     abstract void responseGet() throws IOException, MissingParameterException;
 }

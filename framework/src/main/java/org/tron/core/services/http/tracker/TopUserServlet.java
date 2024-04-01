@@ -28,12 +28,14 @@ public class TopUserServlet extends BaseTrackerServlet {
 
   @Override
   void responseGet() throws IOException {
+    int limit = Integer.parseInt(mayGetParameter("limit", "1000"));
+
     Map<ByteString, ContractStateCapsule> result = css.getMergedDataWithinCycles(cycleNumber, cycleCount, false);
     List<Map.Entry<ByteString, ContractStateCapsule>> list = new LinkedList<>(result.entrySet());
     list.sort((o1, o2) -> Long.compare(o2.getValue().getTrxBurn(), o1.getValue().getTrxBurn()));
 
     JSONArray res = new JSONArray();
-    for (int i = 0; i < 10000; i++) {
+    for (int i = 0; i < limit; i++) {
       JSONObject obj = new JSONObject();
       obj.put("address", StringUtil.encode58Check(list.get(i).getKey().toByteArray()));
       obj.put("trx_burn", list.get(i).getValue().getTrxBurn());
