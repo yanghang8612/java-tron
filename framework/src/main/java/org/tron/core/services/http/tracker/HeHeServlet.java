@@ -24,8 +24,6 @@ public class HeHeServlet extends BaseTrackerServlet {
 
   @Override
   void responseGet() throws IOException {
-    ContractStore cs = ChainBaseManager.getInstance().getContractStore();
-
     JSONObject resObj = new JSONObject();
     resObj.put("total", css.getIntervalData(cycleNumber, cycleCount, "total".getBytes()).toJsonObject());
     resObj.put("big", css.getIntervalData(cycleNumber, cycleCount, "big".getBytes()).toJsonObject());

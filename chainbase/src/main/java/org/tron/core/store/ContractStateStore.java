@@ -143,8 +143,8 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
 
   public ContractStateCapsule getIntervalData(long startCycleNum, long cycleCount, byte[] addr,
                                               boolean clearDelegatedAccounts) {
-    if (!cs.has(addr)) {
-      addr[0] = (byte) 0x42;
+    if (!cs.has(addr) && addr[0] == 0x41) {
+      addr[0] = 0x42;
     }
 
     ContractStateCapsule total = new ContractStateCapsule(0);
