@@ -423,6 +423,12 @@ public class TRC20Utils {
     List<AssetStatusPojo> result = new LinkedList<>();
     for (String keys : trc20IncrementMap.keySet()) {
       String[] key = keys.split(",");
+
+      // if it's share token, then skip it.
+      if (trc20ShareTokens.contains(key[1])) {
+        continue;
+      }
+
       AssetStatusPojo assetStatusPojo = new AssetStatusPojo();
       assetStatusPojo.setAccountAddress(key[0]);
       assetStatusPojo.setTokenAddress(key[1]);
@@ -437,7 +443,7 @@ public class TRC20Utils {
       AssetStatusPojo assetStatusPojo = new AssetStatusPojo();
       assetStatusPojo.setAccountAddress(key[0]);
       assetStatusPojo.setTokenAddress(key[1]);
-      assetStatusPojo.setIncrementBalance(bigIntegertoString(trc20IncrementMap.get(keys)));
+      assetStatusPojo.setIncrementBalance(bigIntegertoString(trc20ShareIncrementMap.get(keys)));
       assetStatusPojo.setBalance(bigIntegertoString(balanceMap.get(keys)));
       assetStatusPojo.setDecimals(bigIntegertoString(decimalMap.get(key[1])));
       result.add(assetStatusPojo);
