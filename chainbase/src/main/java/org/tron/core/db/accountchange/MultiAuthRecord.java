@@ -1,5 +1,6 @@
 package org.tron.core.db.accountchange;
 
+import com.google.protobuf.ByteString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -7,10 +8,12 @@ import org.tron.common.entity.AuthInfo;
 import org.tron.common.entity.OwnerAuthInfo;
 import org.tron.common.utils.Commons;
 import org.tron.common.utils.StringUtil;
+import org.tron.core.ChainBaseManager;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.capsule.TransactionCapsule;
 import org.tron.core.store.AccountStore;
+import org.tron.core.store.DynamicPropertiesStore;
 import org.tron.protos.Protocol;
 import org.tron.protos.contract.AccountContract;
 
@@ -30,8 +33,13 @@ public class MultiAuthRecord {
   private static volatile boolean recordMultiAuth = false;
 
   private static final Map<String, OwnerAuthInfo> ownerAuthMap = new HashMap<>();
+  private final DynamicPropertiesStore dynamicPropertiesStore;
 
   private AccountStore accountStore = null;
+
+  public MultiAuthRecord(DynamicPropertiesStore dynamicPropertiesStore) {
+    this.dynamicPropertiesStore = dynamicPropertiesStore;
+  }
 
   public void startRecordOld(boolean record, BlockCapsule block, AccountStore accountStore) {
     this.recordMultiAuth = record;
@@ -93,7 +101,17 @@ public class MultiAuthRecord {
       ownerAuthInfo.setOwnerAddress(ownerAddress);
 //      ownerAuthInfo.setNewAuthList(authList);
       final AccountCapsule oldAccount = accountStore.get(ownerAddressBytes);
-      ownerAuthInfo.setOldAuthList(getMultiAuth(ownerAddress, oldAccount));
+
+      // If the account does not exist, it must be activated in this block before the permission update transaction.
+      // In order to deal with this case, we just create a fake new account and pass it to getMultiAuth method.
+      if (oldAccount == null) {
+        AccountCapsule newOwnerAccount =
+            new AccountCapsule(ByteString.copyFrom(ownerAddressBytes), Protocol.AccountType.Normal);
+        ownerAuthInfo.setOldAuthList(getMultiAuth(ownerAddress, newOwnerAccount));
+      } else {
+        ownerAuthInfo.setOldAuthList(getMultiAuth(ownerAddress, oldAccount));
+      }
+
       return ownerAuthInfo;
     } catch (Exception ex) {
       logger.error("", ex);
