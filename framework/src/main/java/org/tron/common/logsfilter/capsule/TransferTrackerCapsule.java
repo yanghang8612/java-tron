@@ -227,7 +227,7 @@ public class TransferTrackerCapsule extends TriggerCapsule {
     String from = StringUtil.encode58Check(internalTransaction.getSender());
     String to = StringUtil.encode58Check(internalTransaction.getReceiveAddress());
     String txid = transactionCapsule.getTransactionId().toString();
-    String note = convertNote(transactionCapsule);
+    String note = internalTransaction.getNote();
     convertInfo(key, value, from, to, txid, note, trxAssetTransferInfoList, assetTransferInfoList);
   }
 
