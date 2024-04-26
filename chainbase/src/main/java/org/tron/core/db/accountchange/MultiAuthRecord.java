@@ -8,12 +8,10 @@ import org.tron.common.entity.AuthInfo;
 import org.tron.common.entity.OwnerAuthInfo;
 import org.tron.common.utils.Commons;
 import org.tron.common.utils.StringUtil;
-import org.tron.core.ChainBaseManager;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.capsule.TransactionCapsule;
 import org.tron.core.store.AccountStore;
-import org.tron.core.store.DynamicPropertiesStore;
 import org.tron.protos.Protocol;
 import org.tron.protos.contract.AccountContract;
 
@@ -33,13 +31,8 @@ public class MultiAuthRecord {
   private static volatile boolean recordMultiAuth = false;
 
   private static final Map<String, OwnerAuthInfo> ownerAuthMap = new HashMap<>();
-  private final DynamicPropertiesStore dynamicPropertiesStore;
 
   private AccountStore accountStore = null;
-
-  public MultiAuthRecord(DynamicPropertiesStore dynamicPropertiesStore) {
-    this.dynamicPropertiesStore = dynamicPropertiesStore;
-  }
 
   public void startRecordOld(boolean record, BlockCapsule block, AccountStore accountStore) {
     this.recordMultiAuth = record;
