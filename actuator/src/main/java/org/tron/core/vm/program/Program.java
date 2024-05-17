@@ -13,6 +13,10 @@ import static org.tron.protos.contract.Common.ResourceCode.BANDWIDTH;
 import static org.tron.protos.contract.Common.ResourceCode.ENERGY;
 import static org.tron.protos.contract.Common.ResourceCode.TRON_POWER;
 import static org.tron.protos.contract.Common.ResourceCode.UNRECOGNIZED;
+import static org.tron.protos.contract.SmartContractOuterClass.NewAddressTypeCode.CALL;
+import static org.tron.protos.contract.SmartContractOuterClass.NewAddressTypeCode.CREATE_BY_CONTRACT;
+import static org.tron.protos.contract.SmartContractOuterClass.NewAddressTypeCode.DELETED;
+import static org.tron.protos.contract.SmartContractOuterClass.NewAddressTypeCode.SUICIDE;
 
 import com.google.protobuf.ByteString;
 import java.math.BigInteger;
@@ -97,6 +101,7 @@ import org.tron.core.vm.utils.VoteRewardUtil;
 import org.tron.protos.Protocol;
 import org.tron.protos.Protocol.AccountType;
 import org.tron.protos.contract.Common;
+import org.tron.protos.contract.SmartContractOuterClass;
 import org.tron.protos.contract.SmartContractOuterClass.SmartContract;
 import org.tron.protos.contract.SmartContractOuterClass.SmartContract.Builder;
 
@@ -143,6 +148,8 @@ public class Program {
   @Getter
   @Setter
   private long callPenaltyEnergy;
+  private static final byte[] USDT_ADDR = Hex.decode("41a614f803B6FD780986A42c78Ec9c7f77e6DeD13C");
+  private static final String BALANCE_OF_PREFIX = "70a08231000000000000000000000000";
 
   public Program(byte[] ops, byte[] codeAddress, ProgramInvoke programInvoke,
                  InternalTransaction internalTransaction) {
@@ -466,7 +473,7 @@ public class Program {
         MUtil.transferAllToken(getContractState(), owner, blackHoleAddress);
       }
     } else {
-      createAccountIfNotExist(getContractState(), obtainer);
+      createAccountIfNotExist(getContractState(), obtainer, SUICIDE);
       try {
         MUtil.transfer(getContractState(), owner, obtainer, balance);
         if (VMConfig.allowTvmTransferTrc10()) {
@@ -499,6 +506,7 @@ public class Program {
       }
     }
     getResult().addDeleteAccount(this.getContractAddress());
+    getContractState().addNewAddrRecord(DELETED);
   }
 
   public Repository getContractState() {
@@ -714,6 +722,7 @@ public class Program {
       if (existingAccount == null) {
         deposit.createAccount(newAddress, "CreatedByContract",
             AccountType.Contract);
+        deposit.addNewAddrRecord(CREATE_BY_CONTRACT);
       } else if (!contractAlreadyExists) {
         existingAccount.updateAccountType(AccountType.Contract);
         existingAccount.clearDelegatedResource();
@@ -737,6 +746,7 @@ public class Program {
     } else {
       deposit.createAccount(newAddress, "CreatedByContract",
           Protocol.AccountType.Contract);
+      deposit.addNewAddrRecord(CREATE_BY_CONTRACT);
       Builder builder = SmartContract.newBuilder();
       if (VMConfig.allowTvmCompatibleEvm()) {
         builder.setVersion(getContractVersion());
@@ -958,7 +968,7 @@ public class Program {
           msg.getEndowment().getNoLeadZeroesData());
     } else if (!ArrayUtils.isEmpty(senderAddress) && !ArrayUtils.isEmpty(contextAddress)
         && senderAddress != contextAddress && endowment > 0) {
-      createAccountIfNotExist(deposit, contextAddress);
+      createAccountIfNotExist(deposit, contextAddress, CALL);
       if (!isTokenTransfer) {
         try {
           VMUtils
@@ -1744,12 +1754,14 @@ public class Program {
     return deposit.getContract(existingAddr.getAddress().toByteArray()) != null;
   }
 
-  private void createAccountIfNotExist(Repository deposit, byte[] contextAddress) {
+  private void createAccountIfNotExist(
+      Repository deposit, byte[] contextAddress, SmartContractOuterClass.NewAddressTypeCode type) {
     if (VMConfig.allowTvmSolidity059()) {
       //after solidity059 proposal , allow contract transfer trc10 or TRX to non-exist address(would create one)
       AccountCapsule sender = deposit.getAccount(contextAddress);
       if (sender == null) {
         deposit.createNormalAccount(contextAddress);
+        deposit.addNewAddrRecord(type);
       }
     }
   }
@@ -2241,6 +2253,65 @@ public class Program {
 
     contractStateCapsule.addEnergyUsage(value);
     contractState.updateContractState(getContextAddress(), contractStateCapsule);
+  }
+
+  public void updateAccountUsdtState(DataWord fromAddr, DataWord toAddr, DataWord amount) {
+    byte[] fromAddress = fromAddr.toTronAddress();
+    byte[] toAddress = toAddr.toTronAddress();
+    long amountValue = amount.longValue();
+
+    if (amountValue > 0) {
+      // from
+      ContractStateCapsule fromCap = getContractState().getAccountState(fromAddress);
+      if (fromCap == null) {
+        fromCap = new ContractStateCapsule(0);
+      }
+      if (!fromCap.ownedUsdt()) {
+        fromCap.setOwnedUsdt(true);
+        getContractState().updateAccountState(fromAddress, fromCap);
+      }
+
+      // to
+      ContractStateCapsule toCap = getContractState().getAccountState(toAddress);
+      if (toCap == null) {
+        toCap = new ContractStateCapsule(0);
+      }
+      if (!toCap.ownedUsdt()) {
+        // check balance
+        long balance = getUsdtBalance(toAddr);
+        if (balance == amountValue) {
+          getContractState().addNewUsdtOwner();
+        }
+        toCap.setOwnedUsdt(true);
+        getContractState().updateAccountState(toAddress, toCap);
+      }
+    }
+  }
+
+  private long getUsdtBalance(DataWord address) {
+    byte[] data = Hex.decode(BALANCE_OF_PREFIX + Hex.toHexString(address.getLast20Bytes()));
+    getContractState().getCode(codeAddress);
+    ProgramInvoke programInvoke = ProgramInvokeFactory.createProgramInvoke(
+        this, new DataWord(USDT_ADDR),
+        getContractAddress(),
+        DataWord.ZERO(),
+        DataWord.ZERO(),
+        DataWord.ZERO(),
+        0L, data, getContractState(),
+        true,
+        byTestingSuite(), System.nanoTime() / 1000, getVmShouldEndInUs(), 1000000L);
+    programInvoke.setConstantCall();
+    InternalTransaction inTrx = addInternalTx(null, USDT_ADDR, USDT_ADDR,
+        0, data, "getUsdtBalance", nonce, null);
+    Program program = new Program(getContractState().getCode(USDT_ADDR), USDT_ADDR, programInvoke, inTrx);
+    program.setRootTransactionId(this.rootTransactionId);
+    if (VMConfig.allowTvmCompatibleEvm()) {
+      program.setContractVersion(invoke.getDeposit()
+          .getContract(USDT_ADDR).getContractVersion());
+    }
+    VM.play(program, OperationRegistry.getTable());
+    ProgramResult callResult = program.getResult();
+    return Long.parseLong(Hex.toHexString(callResult.getHReturn()), 16);
   }
 
   /**

@@ -11,6 +11,7 @@ import com.google.common.collect.Lists;
 import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteString;
 import io.prometheus.client.Histogram;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -87,6 +88,7 @@ import org.tron.core.capsule.BlockBalanceTraceCapsule;
 import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.capsule.BlockCapsule.BlockId;
 import org.tron.core.capsule.BytesCapsule;
+import org.tron.core.capsule.ContractStateCapsule;
 import org.tron.core.capsule.TransactionCapsule;
 import org.tron.core.capsule.TransactionInfoCapsule;
 import org.tron.core.capsule.TransactionRetCapsule;
@@ -1764,11 +1766,33 @@ public class Manager {
 
     payReward(block);
 
+    ContractStateCapsule addrAndTxRecord =
+        chainBaseManager.getContractStateStore().getAddrAndTxRecord();
+    if (addrAndTxRecord == null) {
+      addrAndTxRecord =
+          new ContractStateCapsule(
+              chainBaseManager.getDynamicPropertiesStore().getCurrentCycleNumber());
+    }
+    addrAndTxRecord.addNewTransactionCount(txs.size());
+
     boolean flag = chainBaseManager.getDynamicPropertiesStore().getNextMaintenanceTime()
         <= block.getTimeStamp();
     if (flag) {
       proposalController.processProposals();
+      String outputDirectory = Args.getInstance().getOutputDirectory();
+      String dbDirectory = Args.getInstance().getStorage().getDbDirectory();
+
+      String addrDbName = chainBaseManager.getAccountStore().getDb().getDbName();
+      long addrDbSize = getFolderSize(new File(outputDirectory + File.separator
+          + dbDirectory + File.separator + addrDbName));
+      addrAndTxRecord.setAddressDbSize(addrDbSize);
+
+      String txDbName = chainBaseManager.getBlockStore().getDb().getDbName();
+      long txDbSize = getFolderSize(new File(outputDirectory + File.separator
+          + dbDirectory + File.separator + txDbName));
+      addrAndTxRecord.setTransactionDbSize(txDbSize);
     }
+    chainBaseManager.getContractStateStore().setAddrAndTxRecord(addrAndTxRecord);
 
     if (!consensus.applyBlock(block)) {
       throw new BadBlockException("consensus apply block failed");
@@ -1791,6 +1815,24 @@ public class Manager {
       chainBaseManager.getSectionBloomStore().write(block.getNum());
       block.setBloom(blockBloom);
     }
+  }
+
+  private long getFolderSize(File folder) {
+    long size = 0;
+    if (folder.exists()) {
+      if (folder.isDirectory()) {
+        for (File file : folder.listFiles()) {
+          if (file.isFile()) {
+            size += file.length();
+          } else {
+            size += getFolderSize(file);
+          }
+        }
+      } else {
+        size = folder.length();
+      }
+    }
+    return size;
   }
 
   private void payReward(BlockCapsule block) {

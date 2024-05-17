@@ -58,10 +58,27 @@ message SmartContract {
   int32 version = 11;
 }
 
+enum NewAddressTypeCode {
+  TRANSFER_TRX = 0x00;
+  CREATE_ACCOUNT = 0x01;
+  TRANSFER_10 = 0x02;
+  CREATE_CONTRACT = 0x03;
+  CREATE_BY_CONTRACT = 0x04;
+  CALL = 0x05;
+  SUICIDE = 0x06;
+  DELETED = 0x07;
+}
+
 message ContractState {
   int64 energy_usage = 1;
   int64 energy_factor = 2;
   int64 update_cycle = 3;
+  int64 address_db_size = 4;
+  map<string, int64> new_address_count = 5;
+  int64 transaction_db_size = 6;
+  int64 new_transaction_count = 7;
+  int64 new_usdt_owner = 8;
+  bool owned_usdt = 9;
 }
 
 message CreateSmartContract {

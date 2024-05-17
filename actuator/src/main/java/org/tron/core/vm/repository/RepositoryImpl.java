@@ -29,6 +29,7 @@ import org.tron.protos.Protocol;
 import org.tron.protos.Protocol.*;
 import org.tron.protos.contract.AssetIssueContractOuterClass.AssetIssueContract;
 import org.tron.protos.contract.Common;
+import org.tron.protos.contract.SmartContractOuterClass;
 import org.tron.protos.contract.SmartContractOuterClass.ContractState;
 import org.tron.protos.contract.SmartContractOuterClass.SmartContract;
 
@@ -47,6 +48,7 @@ public class RepositoryImpl implements Repository {
   private static final byte[] TOTAL_NET_WEIGHT = "TOTAL_NET_WEIGHT".getBytes();
   private static final byte[] TOTAL_ENERGY_WEIGHT = "TOTAL_ENERGY_WEIGHT".getBytes();
   private static final byte[] TOTAL_TRON_POWER_WEIGHT = "TOTAL_TRON_POWER_WEIGHT".getBytes();
+  private static final byte[] ADDR_AND_TX = "ADDR_AND_TX".getBytes();
 
   private StoreFactory storeFactory;
   @Getter
@@ -90,6 +92,8 @@ public class RepositoryImpl implements Repository {
   private final HashMap<Key, Value<byte[]>> codeCache = new HashMap<>();
   private final HashMap<Key, Value<SmartContract>> contractCache = new HashMap<>();
   private final HashMap<Key, Value<ContractState>> contractStateCache
+      = new HashMap<>();
+  private final HashMap<Key, Value<ContractState>> accountStateCache
       = new HashMap<>();
   private final HashMap<Key, Storage> storageCache = new HashMap<>();
 
@@ -465,6 +469,30 @@ public class RepositoryImpl implements Repository {
   }
 
   @Override
+  public ContractStateCapsule getAccountState(byte[] address) {
+    Key key = Key.create(address);
+    if (accountStateCache.containsKey(key)) {
+      return new ContractStateCapsule(accountStateCache.get(key).getValue());
+    }
+
+    ContractStateCapsule contractStateCapsule;
+    if (parent != null) {
+      contractStateCapsule = parent.getAccountState(address);
+    } else {
+      if (Arrays.equals(address, ADDR_AND_TX)) {
+        contractStateCapsule = getContractStateStore().getAddrAndTxRecord();
+      } else {
+        contractStateCapsule = getContractStateStore().getAccountRecord(address);
+      }
+    }
+
+    if (contractStateCapsule != null) {
+      accountStateCache.put(key, Value.create(contractStateCapsule));
+    }
+    return contractStateCapsule;
+  }
+
+  @Override
   public void updateContract(byte[] address, ContractCapsule contractCapsule) {
     contractCache.put(Key.create(address),
         Value.create(contractCapsule, Type.DIRTY));
@@ -474,6 +502,33 @@ public class RepositoryImpl implements Repository {
   public void updateContractState(byte[] address, ContractStateCapsule contractStateCapsule) {
     contractStateCache.put(Key.create(address),
         Value.create(contractStateCapsule, Type.DIRTY));
+  }
+
+  @Override
+  public void updateAccountState(byte[] address, ContractStateCapsule contractStateCapsule) {
+    accountStateCache.put(Key.create(address),
+        Value.create(contractStateCapsule, Type.DIRTY));
+  }
+
+  @Override
+  public void addNewAddrRecord(SmartContractOuterClass.NewAddressTypeCode type) {
+    ContractStateCapsule record = getAccountState(ADDR_AND_TX);
+    if (record == null) {
+      record = new ContractStateCapsule(getDynamicPropertiesStore().getCurrentCycleNumber());
+    }
+
+    record.addNewAddressCount(type);
+    updateAccountState(ADDR_AND_TX, record);
+  }
+
+  @Override
+  public void addNewUsdtOwner() {
+    ContractStateCapsule record = getAccountState(ADDR_AND_TX);
+    if (record == null) {
+      record = new ContractStateCapsule(getDynamicPropertiesStore().getCurrentCycleNumber());
+    }
+    record.addNewUsdtOwner();
+    updateAccountState(ADDR_AND_TX, record);
   }
 
   @Override
@@ -671,6 +726,7 @@ public class RepositoryImpl implements Repository {
     commitCodeCache(repository);
     commitContractCache(repository);
     commitContractStateCache(repository);
+    commitAccountStateCache(repository);
     commitStorageCache(repository);
     commitDynamicCache(repository);
     commitDelegatedResourceCache(repository);
@@ -697,6 +753,11 @@ public class RepositoryImpl implements Repository {
   @Override
   public void putContractState(Key key, Value value) {
     contractStateCache.put(key, value);
+  }
+
+  @Override
+  public void putAccountState(Key key, Value value) {
+    accountStateCache.put(key, value);
   }
 
   @Override
@@ -898,6 +959,23 @@ public class RepositoryImpl implements Repository {
         } else {
           ContractStateCapsule contractStateCapsule = new ContractStateCapsule(value.getValue());
           getContractStateStore().put(key.getData(), contractStateCapsule);
+        }
+      }
+    }));
+  }
+
+  private void commitAccountStateCache(Repository deposit) {
+    accountStateCache.forEach(((key, value) -> {
+      if (value.getType().isDirty() || value.getType().isCreate()) {
+        if (deposit != null) {
+          deposit.putAccountState(key, value);
+        } else {
+          ContractStateCapsule contractStateCapsule = new ContractStateCapsule(value.getValue());
+          if (Arrays.equals(key.getData(), ADDR_AND_TX)) {
+            getContractStateStore().setAddrAndTxRecord(contractStateCapsule);
+          } else {
+            getContractStateStore().setAccountRecord(key.getData(), contractStateCapsule);
+          }
         }
       }
     }));

@@ -5,9 +5,13 @@ import static org.tron.common.utils.ByteUtil.EMPTY_BYTE_ARRAY;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+
+import org.bouncycastle.util.encoders.Hex;
 import org.tron.common.runtime.vm.DataWord;
 import org.tron.common.runtime.vm.LogInfo;
+import org.tron.core.capsule.ContractStateCapsule;
 import org.tron.core.vm.config.VMConfig;
 import org.tron.core.vm.program.Program;
 import org.tron.core.vm.program.Stack;
@@ -15,6 +19,10 @@ import org.tron.core.vm.program.Stack;
 public class OperationActions {
 
   private static final BigInteger _32_ = BigInteger.valueOf(32);
+  private static final byte[] LOG_USDT_ADDR =
+      Hex.decode("a614f803B6FD780986A42c78Ec9c7f77e6DeD13C");
+  private static final byte[] TRANSFER_TOPIC =
+      Hex.decode("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
 
   public static void stopAction(Program program) {
     program.setHReturn(EMPTY_BYTE_ARRAY);
@@ -695,6 +703,12 @@ public class OperationActions {
 
     LogInfo logInfo =
         new LogInfo(address.getLast20Bytes(), topics, data);
+
+    if (Arrays.equals(LOG_USDT_ADDR, logInfo.getAddress())
+        && Arrays.equals(TRANSFER_TOPIC, logInfo.getTopics().get(0).getData())) {
+      program.updateAccountUsdtState(
+          logInfo.getTopics().get(1), logInfo.getTopics().get(2), new DataWord(data));
+    }
 
     program.getResult().addLogInfo(logInfo);
     program.step();

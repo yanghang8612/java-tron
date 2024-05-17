@@ -296,6 +296,10 @@ public class FullNodeHttpApiService extends HttpService {
   private UnDelegateResourceServlet unDelegateResourceServlet;
   @Autowired
   private CancelAllUnfreezeV2Servlet cancelAllUnfreezeV2Servlet;
+  @Autowired
+  private GetAddressAndTxServlet getAddressAndTxServlet;
+  @Autowired
+  private FilterContractServlet filterContractServlet;
 
   @Override
   public void init() {
@@ -314,6 +318,8 @@ public class FullNodeHttpApiService extends HttpService {
       context.setContextPath("/");
       apiServer.setHandler(context);
 
+      context.addServlet(new ServletHolder(filterContractServlet), "/wallet/filtercontract");
+      context.addServlet(new ServletHolder(getAddressAndTxServlet), "/wallet/getaddressandtx");
       context.addServlet(new ServletHolder(getStakeInfoServlet), "/wallet/getstakeinfo");
       context.addServlet(new ServletHolder(getAccountServlet), "/wallet/getaccount");
       context.addServlet(new ServletHolder(transferServlet), "/wallet/createtransaction");

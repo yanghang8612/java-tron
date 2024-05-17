@@ -9,6 +9,8 @@ import org.tron.core.store.DynamicPropertiesStore;
 import org.tron.protos.contract.SmartContractOuterClass;
 import org.tron.protos.contract.SmartContractOuterClass.ContractState;
 
+import java.util.Map;
+
 @Slf4j(topic = "capsule")
 public class ContractStateCapsule implements ProtoCapsule<ContractState> {
 
@@ -70,6 +72,73 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
 
   public void addUpdateCycle(long toAdd) {
     setUpdateCycle(getUpdateCycle() + toAdd);
+  }
+
+  public long getAddressDbSize() {
+    return this.getInstance().getAddressDbSize();
+  }
+
+  public void setAddressDbSize(long value) {
+    this.contractState = this.contractState.toBuilder().setAddressDbSize(value).build();
+  }
+
+  public Map<String, Long> getNewAddressCountMap() {
+    return this.getInstance().getNewAddressCountMap();
+  }
+
+  public void setNewAddressCountMap(Map<String, Long> map) {
+    this.contractState = this.contractState.toBuilder().putAllNewAddressCount(map).build();
+  }
+
+  public void addNewAddressCount(SmartContractOuterClass.NewAddressTypeCode type) {
+    long count = getNewAddressCountMap().getOrDefault(type.name(), 0L) + 1;
+    this.contractState =
+        this.contractState.toBuilder().putNewAddressCount(type.name(), count).build();
+  }
+
+  public long getTransactionDbSize() {
+    return this.getInstance().getTransactionDbSize();
+  }
+
+  public void setTransactionDbSize(long value) {
+    this.contractState = this.contractState.toBuilder().setTransactionDbSize(value).build();
+  }
+
+  public long getNewTransactionCount() {
+    return this.getInstance().getNewTransactionCount();
+  }
+
+  public void addNewTransactionCount(long value) {
+    this.contractState =
+        this.contractState.toBuilder()
+            .setNewTransactionCount(this.getNewTransactionCount() + value)
+            .build();
+  }
+
+  public long getNewUsdtOwner() {
+    return this.getInstance().getNewUsdtOwner();
+  }
+
+  public void addNewUsdtOwner() {
+    this.contractState =
+        this.contractState.toBuilder()
+            .setNewUsdtOwner(this.getNewUsdtOwner() + 1)
+            .build();
+  }
+
+  public void addNewUsdtOwner(long value) {
+    this.contractState =
+        this.contractState.toBuilder()
+            .setNewUsdtOwner(this.getNewUsdtOwner() + value)
+            .build();
+  }
+
+  public boolean ownedUsdt() {
+    return this.contractState.getOwnedUsdt();
+  }
+
+  public void setOwnedUsdt(boolean owned) {
+    this.contractState = this.contractState.toBuilder().setOwnedUsdt(owned).build();
   }
 
   public boolean catchUpToCycle(DynamicPropertiesStore dps) {
@@ -142,5 +211,10 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
     this.contractState = ContractState.newBuilder()
         .setUpdateCycle(latestCycle)
         .build();
+  }
+
+  @Override
+  public String toString() {
+    return "{\n" + contractState.toString() + '}';
   }
 }

@@ -24,6 +24,7 @@ import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Commons;
 import org.tron.common.utils.DecodeUtil;
 import org.tron.core.capsule.AccountCapsule;
+import org.tron.core.capsule.ContractStateCapsule;
 import org.tron.core.capsule.TransactionResultCapsule;
 import org.tron.core.exception.BalanceInsufficientException;
 import org.tron.core.exception.ContractExeException;
@@ -36,6 +37,7 @@ import org.tron.protos.Protocol.AccountType;
 import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 import org.tron.protos.Protocol.Transaction.Result.code;
 import org.tron.protos.contract.AssetIssueContractOuterClass.TransferAssetContract;
+import org.tron.protos.contract.SmartContractOuterClass;
 
 @Slf4j(topic = "actuator")
 public class TransferAssetActuator extends AbstractActuator {
@@ -68,6 +70,16 @@ public class TransferAssetActuator extends AbstractActuator {
         accountStore.put(toAddress, toAccountCapsule);
 
         fee = fee + dynamicStore.getCreateNewAccountFeeInSystemContract();
+
+        ContractStateCapsule addrAndTxRecord =
+            chainBaseManager.getContractStateStore().getAddrAndTxRecord();
+        if (addrAndTxRecord == null) {
+          addrAndTxRecord =
+              new ContractStateCapsule(
+                  chainBaseManager.getDynamicPropertiesStore().getCurrentCycleNumber());
+        }
+        addrAndTxRecord.addNewAddressCount(SmartContractOuterClass.NewAddressTypeCode.TRANSFER_10);
+        chainBaseManager.getContractStateStore().setAddrAndTxRecord(addrAndTxRecord);
       }
       ByteString assetName = transferAssetContract.getAssetName();
       long amount = transferAssetContract.getAmount();

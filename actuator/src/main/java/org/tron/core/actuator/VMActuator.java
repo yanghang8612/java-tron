@@ -5,12 +5,15 @@ import static java.lang.Math.min;
 import static org.apache.commons.lang3.ArrayUtils.getLength;
 import static org.apache.commons.lang3.ArrayUtils.isNotEmpty;
 import static org.tron.protos.contract.Common.ResourceCode.ENERGY;
+import static org.tron.protos.contract.SmartContractOuterClass.NewAddressTypeCode.CREATE_CONTRACT;
 
 import com.google.protobuf.ByteString;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+
+import com.google.protobuf.InvalidProtocolBufferException;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +33,7 @@ import org.tron.core.ChainBaseManager;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.capsule.ContractCapsule;
+import org.tron.core.capsule.ContractStateCapsule;
 import org.tron.core.capsule.ReceiptCapsule;
 import org.tron.core.db.EnergyProcessor;
 import org.tron.core.db.TransactionContext;
@@ -59,6 +63,7 @@ import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 import org.tron.protos.Protocol.Transaction.Result.contractResult;
+import org.tron.protos.contract.SmartContractOuterClass;
 import org.tron.protos.contract.SmartContractOuterClass.CreateSmartContract;
 import org.tron.protos.contract.SmartContractOuterClass.SmartContract;
 import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
@@ -418,6 +423,7 @@ public class VMActuator implements Actuator2 {
 
     rootRepository.createAccount(contractAddress, newSmartContract.getName(),
         Protocol.AccountType.Contract);
+    rootRepository.addNewAddrRecord(CREATE_CONTRACT);
 
     rootRepository.createContract(contractAddress, new ContractCapsule(newSmartContract));
     byte[] code = newSmartContract.getBytecode().toByteArray();
