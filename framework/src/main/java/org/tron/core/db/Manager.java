@@ -1773,7 +1773,7 @@ public class Manager {
           new ContractStateCapsule(
               chainBaseManager.getDynamicPropertiesStore().getCurrentCycleNumber());
     }
-    addrAndTxRecord.addNewTransactionCount(txs.size());
+    addrAndTxRecord.addNewTransactionCount(block.getTransactions().size());
 
     boolean flag = chainBaseManager.getDynamicPropertiesStore().getNextMaintenanceTime()
         <= block.getTimeStamp();
