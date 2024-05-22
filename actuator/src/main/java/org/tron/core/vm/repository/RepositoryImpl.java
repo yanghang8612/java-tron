@@ -532,6 +532,16 @@ public class RepositoryImpl implements Repository {
   }
 
   @Override
+  public void addNewUsdtSender() {
+    ContractStateCapsule record = getAccountState(ADDR_AND_TX);
+    if (record == null) {
+      record = new ContractStateCapsule(getDynamicPropertiesStore().getCurrentCycleNumber());
+    }
+    record.addNewUsdtSender();
+    updateAccountState(ADDR_AND_TX, record);
+  }
+
+  @Override
   public void updateAccount(byte[] address, AccountCapsule accountCapsule) {
     accountCache.put(Key.create(address),
         Value.create(accountCapsule, Type.DIRTY));

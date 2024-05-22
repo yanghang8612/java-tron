@@ -2266,8 +2266,17 @@ public class Program {
       if (fromCap == null) {
         fromCap = new ContractStateCapsule(0);
       }
+      boolean flag = false;
       if (!fromCap.ownedUsdt()) {
         fromCap.setOwnedUsdt(true);
+        flag = true;
+      }
+      if (!fromCap.sentUsdt()) {
+        fromCap.setSentUsdt(true);
+        getContractState().addNewUsdtSender();
+        flag = true;
+      }
+      if (flag) {
         getContractState().updateAccountState(fromAddress, fromCap);
       }
 

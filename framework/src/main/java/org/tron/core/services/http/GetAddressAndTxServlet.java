@@ -48,6 +48,7 @@ public class GetAddressAndTxServlet extends RateLimiterServlet {
         }
         result.addNewTransactionCount(cycleCap.getNewTransactionCount());
         result.addNewUsdtOwner(cycleCap.getNewUsdtOwner());
+        result.addNewUsdtSender(cycleCap.getNewUsdtSender());
         cycleCap
             .getNewAddressCountMap()
             .forEach(

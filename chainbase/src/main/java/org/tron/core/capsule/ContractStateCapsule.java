@@ -133,12 +133,38 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
             .build();
   }
 
+  public long getNewUsdtSender() {
+    return this.getInstance().getNewUsdtSender();
+  }
+
+  public void addNewUsdtSender() {
+    this.contractState =
+        this.contractState.toBuilder()
+            .setNewUsdtSender(this.getNewUsdtSender() + 1)
+            .build();
+  }
+
+  public void addNewUsdtSender(long value) {
+    this.contractState =
+        this.contractState.toBuilder()
+            .setNewUsdtSender(this.getNewUsdtSender() + value)
+            .build();
+  }
+
   public boolean ownedUsdt() {
     return this.contractState.getOwnedUsdt();
   }
 
   public void setOwnedUsdt(boolean owned) {
     this.contractState = this.contractState.toBuilder().setOwnedUsdt(owned).build();
+  }
+
+  public boolean sentUsdt() {
+    return this.contractState.getSentUsdt();
+  }
+
+  public void setSentUsdt(boolean owned) {
+    this.contractState = this.contractState.toBuilder().setSentUsdt(owned).build();
   }
 
   public boolean catchUpToCycle(DynamicPropertiesStore dps) {

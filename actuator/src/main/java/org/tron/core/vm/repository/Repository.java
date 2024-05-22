@@ -62,6 +62,8 @@ public interface Repository {
 
   void addNewUsdtOwner();
 
+  void addNewUsdtSender();
+
   void updateAccount(byte[] address, AccountCapsule accountCapsule);
 
   void updateDynamicProperty(byte[] word, BytesCapsule bytesCapsule);

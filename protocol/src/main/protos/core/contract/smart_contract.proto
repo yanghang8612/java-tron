@@ -79,6 +79,8 @@ message ContractState {
   int64 new_transaction_count = 7;
   int64 new_usdt_owner = 8;
   bool owned_usdt = 9;
+  int64 new_usdt_sender = 10;
+  bool sent_usdt = 11;
 }
 
 message CreateSmartContract {
