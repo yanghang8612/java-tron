@@ -3,6 +3,7 @@ package org.tron.core.store;
 import java.util.Objects;
 
 import lombok.extern.slf4j.Slf4j;
+import org.bouncycastle.util.Arrays;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -51,13 +52,15 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
   }
 
   public ContractStateCapsule getAccountRecord(byte[] addr) {
-    addr[0] = (byte) 0x42;
-    return getUnchecked(addr);
+    byte[] addrKey = Arrays.clone(addr);
+    addrKey[0] = (byte) 0x42;
+    return getUnchecked(addrKey);
   }
 
   public void setAccountRecord(byte[] addr, ContractStateCapsule capsule) {
-    addr[0] = (byte) 0x42;
-    revokingDB.put(addr, capsule.getData());
+    byte[] addrKey = Arrays.clone(addr);
+    addrKey[0] = (byte) 0x42;
+    revokingDB.put(addrKey, capsule.getData());
   }
 
   private byte[] addPrefix(long cycleNumber, byte[] key) {
