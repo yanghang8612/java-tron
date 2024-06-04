@@ -1,5 +1,6 @@
 package org.tron.core.db.accountchange;
 
+import com.google.protobuf.ByteString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -93,7 +94,17 @@ public class MultiAuthRecord {
       ownerAuthInfo.setOwnerAddress(ownerAddress);
 //      ownerAuthInfo.setNewAuthList(authList);
       final AccountCapsule oldAccount = accountStore.get(ownerAddressBytes);
-      ownerAuthInfo.setOldAuthList(getMultiAuth(ownerAddress, oldAccount));
+
+      // If the account does not exist, it must be activated in this block before the permission update transaction.
+      // In order to deal with this case, we just create a fake new account and pass it to getMultiAuth method.
+      if (oldAccount == null) {
+        AccountCapsule newOwnerAccount =
+            new AccountCapsule(ByteString.copyFrom(ownerAddressBytes), Protocol.AccountType.Normal);
+        ownerAuthInfo.setOldAuthList(getMultiAuth(ownerAddress, newOwnerAccount));
+      } else {
+        ownerAuthInfo.setOldAuthList(getMultiAuth(ownerAddress, oldAccount));
+      }
+
       return ownerAuthInfo;
     } catch (Exception ex) {
       logger.error("", ex);
