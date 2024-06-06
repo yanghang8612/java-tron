@@ -195,10 +195,10 @@ public class PeerConnection {
   public void onDisconnect() {
     syncService.onDisconnect(this);
     advService.onDisconnect(this);
-    advInvReceive.cleanUp();
-    advInvSpread.cleanUp();
+    advInvReceive.invalidateAll();
+    advInvSpread.invalidateAll();
     advInvRequest.clear();
-    syncBlockIdCache.cleanUp();
+    syncBlockIdCache.invalidateAll();
     syncBlockToFetch.clear();
     syncBlockRequested.clear();
     syncBlockInProcess.clear();

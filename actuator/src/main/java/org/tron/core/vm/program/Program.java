@@ -281,6 +281,10 @@ public class Program {
     this.lastOp = op;
   }
 
+  public byte getLastOp() {
+    return this.lastOp;
+  }
+
   /**
    * Returns the last fully executed OP.
    */
@@ -463,7 +467,8 @@ public class Program {
     InternalTransaction internalTx = addSimplifyInternalTx("suicide", obtainer, null, balance,
         getContractState().getAccount(owner).getAssetMapV2());
 
-    if (FastByteComparisons.compareTo(owner, 0, 20, obtainer, 0, 20) == 0) {
+    int ADDRESS_SIZE = VMUtils.getAddressSize();
+    if (FastByteComparisons.compareTo(owner, 0, ADDRESS_SIZE, obtainer, 0, ADDRESS_SIZE) == 0) {
       // if owner == obtainer just zeroing account according to Yellow Paper
       getContractState().addBalance(owner, -balance);
       byte[] blackHoleAddress = getContractState().getBlackHoleAddress();
