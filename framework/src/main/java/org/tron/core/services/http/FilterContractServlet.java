@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 import org.tron.common.utils.Commons;
+import org.tron.common.utils.DecodeUtil;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.store.AccountStore;
@@ -27,39 +28,47 @@ public class FilterContractServlet extends RateLimiterServlet {
   @Override
   protected void doGet(HttpServletRequest request, HttpServletResponse response)
       throws IOException {
-    String fileName =
-        request.getParameter("file_name") == null
-            ? null
-            : String.valueOf(request.getParameter("file_name"));
-    if (StringUtils.isEmpty(fileName)) {
-      response.getWriter().println("Failed: Empty file name!");
-    } else {
-      File file = new File(fileName + ".txt");
-      if (!file.exists()) {
-        response.getWriter().println("Failed: File not exists!");
+    try {
+      String fileName =
+          request.getParameter("file_name") == null
+              ? null
+              : String.valueOf(request.getParameter("file_name"));
+      if (StringUtils.isEmpty(fileName)) {
+        response.getWriter().println("Failed: Empty file name!");
       } else {
-        AccountStore accountStore = ChainBaseManager.getInstance().getAccountStore();
+        File file = new File(fileName + ".txt");
+        if (!file.exists()) {
+          response.getWriter().println("Failed: File not exists!");
+        } else {
+          AccountStore accountStore = ChainBaseManager.getInstance().getAccountStore();
 
-        String filteredFile = fileName + "-filtered.txt";
-        PrintWriter writer = new PrintWriter(filteredFile);
-        String address;
-        long count = 0;
-        BufferedReader reader = new BufferedReader(new FileReader(file));
-        while ((address = reader.readLine()) != null) {
-          AccountCapsule accountCapsule = accountStore.get(Commons.decodeFromBase58Check(address));
-          if (Objects.nonNull(accountCapsule)
-              && accountCapsule.getInstance().getType().equals(Protocol.AccountType.Contract)) {
-            continue;
+          String filteredFile = fileName + "-filtered.txt";
+          PrintWriter writer = new PrintWriter(filteredFile);
+          String address;
+          long count = 0;
+          BufferedReader reader = new BufferedReader(new FileReader(file));
+          while ((address = reader.readLine()) != null) {
+            byte[] addr = Commons.decodeFromBase58Check(address);
+            if (addr == null) {
+              continue;
+            }
+            AccountCapsule accountCapsule = accountStore.get(addr);
+            if (Objects.nonNull(accountCapsule)
+                && accountCapsule.getInstance().getType().equals(Protocol.AccountType.Contract)) {
+              continue;
+            }
+            count++;
+            writer.println(address);
           }
-          count++;
-          writer.println(address);
-        }
-        writer.close();
+          writer.close();
 
-        response
-            .getWriter()
-            .println("Success: \nFile name: " + filteredFile + "\nAddress count: " + count);
+          response
+              .getWriter()
+              .println("Success: \nFile name: " + filteredFile + "\nAddress count: " + count);
+        }
       }
+    } catch (Exception e) {
+      response.getWriter().println("Failed: " + e.getMessage());
     }
   }
 }

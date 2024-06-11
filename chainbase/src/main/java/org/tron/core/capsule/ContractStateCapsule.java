@@ -4,6 +4,7 @@ import static org.tron.core.Constant.DYNAMIC_ENERGY_DECREASE_DIVISION;
 import static org.tron.core.Constant.DYNAMIC_ENERGY_FACTOR_DECIMAL;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
 import lombok.extern.slf4j.Slf4j;
 import org.tron.core.store.DynamicPropertiesStore;
 import org.tron.protos.contract.SmartContractOuterClass;
@@ -15,6 +16,8 @@ import java.util.Map;
 public class ContractStateCapsule implements ProtoCapsule<ContractState> {
 
   private ContractState contractState;
+
+  private static  final JsonFormat.Printer printer = JsonFormat.printer().omittingInsignificantWhitespace();
 
   public ContractStateCapsule(ContractState contractState) {
     this.contractState = contractState;
@@ -242,5 +245,13 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
   @Override
   public String toString() {
     return "{\n" + contractState.toString() + '}';
+  }
+
+  public String toJsonString() {
+    try {
+      return printer.print(contractState);
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException(e);
+    }
   }
 }
