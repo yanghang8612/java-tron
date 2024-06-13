@@ -52,7 +52,7 @@ public class GetAddressAndTxServlet extends RateLimiterServlet {
                         newAddressCountMap.put(
                             key, newAddressCountMap.getOrDefault(key, 0L) + value));
 
-            if (cycle == startCycle + 3) {
+            if (cycle == curStartCycle + 3) {
               dayCap.setAddressDbSize(cycleCap.getAddressDbSize());
               dayCap.setTransactionDbSize(cycleCap.getTransactionDbSize());
             }
