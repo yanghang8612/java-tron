@@ -81,6 +81,7 @@ message ContractState {
   bool owned_usdt = 9;
   int64 new_usdt_sender = 10;
   bool sent_usdt = 11;
+  int64 db_size = 12;
 }
 
 message CreateSmartContract {

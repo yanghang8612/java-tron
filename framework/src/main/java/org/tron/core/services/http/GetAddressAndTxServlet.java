@@ -55,6 +55,7 @@ public class GetAddressAndTxServlet extends RateLimiterServlet {
             if (cycle == curStartCycle + 3) {
               dayCap.setAddressDbSize(cycleCap.getAddressDbSize());
               dayCap.setTransactionDbSize(cycleCap.getTransactionDbSize());
+              dayCap.setDbSize(cycleCap.getDbSize());
             }
           }
           dayCap.setNewAddressCountMap(newAddressCountMap);
@@ -98,6 +99,7 @@ public class GetAddressAndTxServlet extends RateLimiterServlet {
             result.setAddressDbSize(cycleCap.getAddressDbSize() - firstCap.getAddressDbSize());
             result.setTransactionDbSize(
                 cycleCap.getTransactionDbSize() - firstCap.getTransactionDbSize());
+            result.setDbSize(cycleCap.getDbSize() - firstCap.getDbSize());
           }
         }
         result.setNewAddressCountMap(newAddressCountMap);

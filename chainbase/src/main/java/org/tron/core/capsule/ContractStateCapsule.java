@@ -170,6 +170,14 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
     this.contractState = this.contractState.toBuilder().setSentUsdt(owned).build();
   }
 
+  public long getDbSize() {
+    return this.getInstance().getDbSize();
+  }
+
+  public void setDbSize(long value) {
+    this.contractState = this.contractState.toBuilder().setDbSize(value).build();
+  }
+
   public boolean catchUpToCycle(DynamicPropertiesStore dps) {
     return catchUpToCycle(
         dps.getCurrentCycleNumber(),

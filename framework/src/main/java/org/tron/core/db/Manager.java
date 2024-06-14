@@ -1805,6 +1805,10 @@ public class Manager {
       long txDbSize = getFolderSize(new File(outputDirectory + File.separator
           + dbDirectory + File.separator + txDbName));
       addrAndTxRecord.setTransactionDbSize(txDbSize);
+
+      long dbSize = getFolderSize(new File(outputDirectory
+          + File.separator + dbDirectory));
+      addrAndTxRecord.setDbSize(dbSize);
     }
     chainBaseManager.getContractStateStore().setAddrAndTxRecord(addrAndTxRecord);
 
