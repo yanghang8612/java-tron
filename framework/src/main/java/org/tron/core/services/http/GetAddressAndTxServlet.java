@@ -32,7 +32,7 @@ public class GetAddressAndTxServlet extends RateLimiterServlet {
       long days =
           request.getParameter("days") == null ? 0 : Long.parseLong(request.getParameter("days"));
       if (days > 0) {
-        StringBuilder sb = new StringBuilder("\"data\": [");
+        StringBuilder sb = new StringBuilder("[");
         for (int i = 0; i < days; i++) {
           long curStartCycle = startCycle + i * 4L;
           ContractStateCapsule dayCap = new ContractStateCapsule(curStartCycle);
