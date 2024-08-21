@@ -320,7 +320,7 @@ public class FullNodeHttpApiService extends HttpService {
       context.setContextPath("/");
       apiServer.setHandler(context);
 
-      context.addServlet(new ServletHolder(contractFactorServlet), "/wallet/constractfactor");
+      context.addServlet(new ServletHolder(contractFactorServlet), "/wallet/contractfactor");
       context.addServlet(new ServletHolder(filterContractServlet), "/wallet/filtercontract");
       context.addServlet(new ServletHolder(getAddressAndTxServlet), "/wallet/getaddressandtx");
       context.addServlet(new ServletHolder(getStakeInfoServlet), "/wallet/getstakeinfo");

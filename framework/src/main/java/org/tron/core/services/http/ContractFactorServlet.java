@@ -1,6 +1,7 @@
 package org.tron.core.services.http;
 
 import lombok.extern.slf4j.Slf4j;
+import org.checkerframework.checker.units.qual.K;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.tron.common.utils.StringUtil;
@@ -19,10 +20,10 @@ public class ContractFactorServlet extends RateLimiterServlet {
 
   protected void doGet(HttpServletRequest request, HttpServletResponse response) {
     try {
-      css.forEach(v -> {
+      css.prefixQuery(new byte[]{0x41}).forEach((k, v) -> {
         try {
-          if (v.getKey().length == 21 && v.getKey()[0] == 0x41 && v.getValue().getEnergyFactor() != 0) {
-            response.getWriter().println(StringUtil.encode58Check(v.getKey()) + " " + v.getValue().getEnergyFactor());
+          if (k.getBytes().length == 21 && (v.getEnergyFactor() != 0 || v.getEnergyUsage() > 1_000_000_000L)) {
+            response.getWriter().println(StringUtil.encode58Check(k.getBytes()) + " " + v.getEnergyUsage() + " " + v.getEnergyFactor());
           }
         } catch (Exception e) {
           Util.processError(e, response);
