@@ -176,6 +176,7 @@ public class TransactionUtil {
     itBuilder.setDeep(it.getDeep());
     itBuilder.setEnergyLeft(it.getEnergyLeft());
     itBuilder.setData(ByteString.copyFrom(it.getData()));
+    itBuilder.setEnergyUsed(it.getEnergyUsed());
     return itBuilder.build();
   }
 

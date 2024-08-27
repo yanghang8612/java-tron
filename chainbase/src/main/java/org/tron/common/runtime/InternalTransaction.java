@@ -24,7 +24,9 @@ import com.google.common.primitives.Longs;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+
 import lombok.Getter;
+import lombok.Setter;
 import org.apache.commons.lang3.ArrayUtils;
 import org.tron.common.crypto.Hash;
 import org.tron.common.utils.WalletUtil;
@@ -62,6 +64,9 @@ public class InternalTransaction {
   private int deep;
   @Getter
   private int energyLeft;
+  @Getter
+  @Setter
+  private int energyUsed;
   @Getter
   private int index;
   private boolean rejected;

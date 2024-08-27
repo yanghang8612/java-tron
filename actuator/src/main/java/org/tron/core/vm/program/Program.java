@@ -782,6 +782,7 @@ public class Program {
     // [5] COOK THE INVOKE AND EXECUTE
     InternalTransaction internalTx = addInternalTx(getEnergyLimitLeft(), senderAddress, newAddress,
         endowment, programCode, isCreate2 ? "creat2" : "create", nonce, null);
+    long preUsage = getContractState().getAccount(newAddress).getEnergyUsage();
     long vmStartInUs = System.nanoTime() / 1000;
     ProgramInvoke programInvoke = ProgramInvokeFactory.createProgramInvoke(
         this, new DataWord(newAddress), getContractAddress(), value, DataWord.ZERO(),
@@ -864,6 +865,11 @@ public class Program {
 
     // 5. REFUND THE REMAIN Energy
     refundEnergyAfterVM(energyLimit, createResult);
+
+    if (internalTx != null) {
+      long curUsage = getContractState().getAccount(newAddress).getEnergyUsage();
+      internalTx.setEnergyUsed((int) (curUsage - preUsage));
+    }
   }
 
   public void refundEnergyAfterVM(DataWord energyLimit, ProgramResult result) {
@@ -1008,6 +1014,7 @@ public class Program {
     InternalTransaction internalTx = addInternalTx(msg.getEnergy(), senderAddress, codeAddress,
         !isTokenTransfer ? endowment : 0, data, Op.getNameOf(msg.getOpCode()).toLowerCase(), nonce,
         !isTokenTransfer ? null : tokenInfo);
+    long perUsage = getContractState().getContractState(contextAddress).getEnergyUsage();
     ProgramResult callResult = null;
     if (isNotEmpty(programCode)) {
       long vmStartInUs = System.nanoTime() / 1000;
@@ -1097,6 +1104,9 @@ public class Program {
     } else {
       refundEnergy(msg.getEnergy().longValue(), "remaining energy from the internal call");
     }
+
+    long curUsage = getContractState().getContractState(contextAddress).getEnergyUsage();
+    internalTx.setEnergyUsed((int) (curUsage - perUsage));
   }
 
   public void increaseNonce() {
