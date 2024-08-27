@@ -489,6 +489,9 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
     if (this.getEnergyUsage() > 0) {
       jsonObject.put("energy_usage", this.getEnergyUsage());
     }
+    if (this.getEnergyFactor() > 0) {
+      jsonObject.put("energy_factor", this.getEnergyFactor());
+    }
     if (this.getEnergyUsageTotal() > 0) {
       jsonObject.put("energy_usage_total", this.getEnergyUsageTotal());
     }
