@@ -453,6 +453,8 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
       return;
     }
     this.addEnergyUsage(other.getEnergyUsage());
+    this.setEnergyFactor(other.getEnergyFactor());
+    this.setUpdateCycle(other.getUpdateCycle());
     this.addEnergyUsageTotal(other.getEnergyUsageTotal());
     this.addEnergyUsageFailed(other.getEnergyUsageFailed());
     this.addEnergyPenaltyTotal(other.getEnergyPenaltyTotal());

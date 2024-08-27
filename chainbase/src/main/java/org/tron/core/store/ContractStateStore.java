@@ -48,6 +48,13 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
     }
 
     revokingDB.put(key, item.getData());
+    ContractStateCapsule csc = getContractRecord(key);
+    if (csc == null) {
+      csc = item;
+    } else {
+      csc.merge(item);
+    }
+    setContractRecord(key, csc);
   }
 
   public ContractStateCapsule getByCycle(byte[] key, long cycleNumber) {
