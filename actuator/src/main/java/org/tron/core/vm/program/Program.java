@@ -866,9 +866,9 @@ public class Program {
     // 5. REFUND THE REMAIN Energy
     refundEnergyAfterVM(energyLimit, createResult);
 
-    if (internalTx != null) {
-      long curUsage = getContractState().getAccount(newAddress).getEnergyUsage();
-      internalTx.setEnergyUsed((int) (curUsage));
+    ContractStateCapsule csc = getContractState().getContractState(newAddress);
+    if (internalTx != null && csc != null) {
+      internalTx.setEnergyUsed((int) (csc.getEnergyUsage()));
     }
   }
 
