@@ -28,6 +28,7 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.map.LRUMap;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.aspectj.org.eclipse.jdt.core.dom.NullLiteral;
 import org.bouncycastle.util.encoders.Hex;
 import org.tron.common.crypto.Hash;
 import org.tron.common.parameter.CommonParameter;
@@ -782,7 +783,6 @@ public class Program {
     // [5] COOK THE INVOKE AND EXECUTE
     InternalTransaction internalTx = addInternalTx(getEnergyLimitLeft(), senderAddress, newAddress,
         endowment, programCode, isCreate2 ? "creat2" : "create", nonce, null);
-    long preUsage = getContractState().getAccount(newAddress).getEnergyUsage();
     long vmStartInUs = System.nanoTime() / 1000;
     ProgramInvoke programInvoke = ProgramInvokeFactory.createProgramInvoke(
         this, new DataWord(newAddress), getContractAddress(), value, DataWord.ZERO(),
@@ -868,7 +868,7 @@ public class Program {
 
     if (internalTx != null) {
       long curUsage = getContractState().getAccount(newAddress).getEnergyUsage();
-      internalTx.setEnergyUsed((int) (curUsage - preUsage));
+      internalTx.setEnergyUsed((int) (curUsage));
     }
   }
 
@@ -1014,7 +1014,13 @@ public class Program {
     InternalTransaction internalTx = addInternalTx(msg.getEnergy(), senderAddress, codeAddress,
         !isTokenTransfer ? endowment : 0, data, Op.getNameOf(msg.getOpCode()).toLowerCase(), nonce,
         !isTokenTransfer ? null : tokenInfo);
-    long perUsage = getContractState().getContractState(contextAddress).getEnergyUsage();
+
+    long perUsage = 0L;
+    ContractStateCapsule csc = getContractState().getContractState(contextAddress);
+    if (csc != null) {
+      perUsage = csc.getEnergyUsage();
+    }
+
     ProgramResult callResult = null;
     if (isNotEmpty(programCode)) {
       long vmStartInUs = System.nanoTime() / 1000;
@@ -1105,8 +1111,11 @@ public class Program {
       refundEnergy(msg.getEnergy().longValue(), "remaining energy from the internal call");
     }
 
-    long curUsage = getContractState().getContractState(contextAddress).getEnergyUsage();
-    internalTx.setEnergyUsed((int) (curUsage - perUsage));
+    csc = getContractState().getContractState(contextAddress);
+    if (internalTx != null && csc != null) {
+      long curUsage = getContractState().getContractState(contextAddress).getEnergyUsage();
+      internalTx.setEnergyUsed((int) (curUsage - perUsage));
+    }
   }
 
   public void increaseNonce() {
