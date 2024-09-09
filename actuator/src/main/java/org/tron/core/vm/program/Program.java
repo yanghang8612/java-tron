@@ -1016,9 +1016,11 @@ public class Program {
         !isTokenTransfer ? null : tokenInfo);
 
     long perUsage = 0L;
+    long preCycle = 0L;
     ContractStateCapsule csc = getContractState().getContractState(contextAddress);
     if (csc != null) {
       perUsage = csc.getEnergyUsage();
+      preCycle = csc.getUpdateCycle();
     }
 
     ProgramResult callResult = null;
@@ -1113,8 +1115,13 @@ public class Program {
 
     csc = getContractState().getContractState(contextAddress);
     if (internalTx != null && csc != null) {
-      long curUsage = getContractState().getContractState(contextAddress).getEnergyUsage();
-      internalTx.setEnergyUsed((int) (curUsage - perUsage));
+      long curUsage = csc.getEnergyUsage();
+      long curCycle = csc.getUpdateCycle();
+      if (curCycle == preCycle) {
+        internalTx.setEnergyUsed((int) (curUsage - perUsage));
+      } else {
+        internalTx.setEnergyUsed((int) curUsage);
+      }
     }
   }
 
