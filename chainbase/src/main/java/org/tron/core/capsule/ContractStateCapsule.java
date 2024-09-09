@@ -474,7 +474,7 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
     if (other == null) {
       return;
     }
-    this.setEnergyUsage(other.getEnergyUsage());
+    this.addEnergyUsage(other.getEnergyUsage());
     this.setEnergyFactor(other.getEnergyFactor());
     this.setUpdateCycle(other.getUpdateCycle());
     this.addEnergyUsageTotal(other.getEnergyUsageTotal());
