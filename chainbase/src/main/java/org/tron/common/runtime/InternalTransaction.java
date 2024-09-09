@@ -68,6 +68,9 @@ public class InternalTransaction {
   @Setter
   private int energyUsed;
   @Getter
+  @Setter
+  private int energyPenalty;
+  @Getter
   private int index;
   private boolean rejected;
   private String note;

@@ -87,6 +87,8 @@ message ContractState {
   int64 unstake2 = 26;
   int64 delegated_amount = 27;
   repeated string delegated_accounts = 28;
+  int64 energy_penalty = 29;
+  int64 trx_burn_internal = 30;
 }
 
 message CreateSmartContract {

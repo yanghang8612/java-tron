@@ -375,6 +375,28 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
         .build();
   }
 
+  public long getEnergyPenalty() {
+    return this.contractState.getEnergyPenalty();
+  }
+
+  public void setEnergyPenalty(long value) {
+    this.contractState = this.contractState.toBuilder().setEnergyPenalty(value).build();
+  }
+
+  public void addEnergyPenalty(long toAdd) {
+    setEnergyPenalty(getEnergyPenalty() + toAdd);
+  }
+
+  public long getTrxBurnInternal() {
+    return this.getInstance().getTrxBurnInternal();
+  }
+
+  public void addTrxBurnInternal(long toAdd) {
+    this.contractState = this.contractState.toBuilder()
+        .setTrxBurnInternal(this.contractState.getTrxBurnInternal() + toAdd)
+        .build();
+  }
+
 
   public boolean catchUpToCycle(DynamicPropertiesStore dps) {
     return catchUpToCycle(
@@ -477,6 +499,8 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
     this.addUnstake2(other.getUnstake2());
     this.addDelegatedAmount(other.getDelegatedAmount());
     other.getInstance().getDelegatedAccountsList().forEach(this::addDelegatedAccount);
+    this.addEnergyPenalty(other.getEnergyPenalty());
+    this.addTrxBurnInternal(other.getTrxBurnInternal());
   }
 
   @Override
@@ -560,6 +584,12 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
     }
     if (!this.getDelegatedAccounts().isEmpty()) {
         jsonObject.put("delegated_accounts", this.getDelegatedAccounts());
+    }
+    if (this.getEnergyPenalty() > 0) {
+      jsonObject.put("energy_penalty", this.getEnergyPenalty());
+    }
+    if (this.getTrxBurnInternal() > 0) {
+      jsonObject.put("trx_burn_internal", this.getTrxBurnInternal());
     }
     return jsonObject;
   }

@@ -37,6 +37,7 @@ import org.tron.common.parameter.CommonParameter;
 import org.tron.common.prometheus.MetricKeys;
 import org.tron.common.prometheus.MetricLabels;
 import org.tron.common.prometheus.Metrics;
+import org.tron.common.runtime.InternalTransaction;
 import org.tron.common.runtime.RuntimeImpl;
 import org.tron.common.utils.*;
 import org.tron.common.zksnark.MerkleContainer;
@@ -1550,6 +1551,17 @@ public class Manager {
             }
           } catch (InvalidProtocolBufferException e) {
             throw new RuntimeException(e);
+          }
+        } else if (trace.getRuntimeResult().getResultCode() == SUCCESS && trace.getReceipt().getEnergyFee() > 0) {
+          for (InternalTransaction it : trace.getRuntimeResult().getInternalTransactions()) {
+            byte[] iAddr = it.getTransferToAddress();
+            ContractStateCapsule iCsc = getChainBaseManager().getContractStateStore().getContractRecord(iAddr);
+            if (iCsc == null) {
+              iCsc = new ContractStateCapsule(getDynamicPropertiesStore().getCurrentCycleNumber());
+            }
+            iCsc.addTrxBurnInternal(trace.getReceipt().getEnergyFee()
+                    * (it.getEnergyUsed() + it.getEnergyPenalty()) / trace.getReceipt().getEnergyUsageTotal());
+            chainBaseManager.getContractStateStore().setContractRecord(iAddr, iCsc);
           }
         }
       } else {

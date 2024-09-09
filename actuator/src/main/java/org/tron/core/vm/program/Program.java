@@ -869,6 +869,7 @@ public class Program {
     ContractStateCapsule csc = getContractState().getContractState(newAddress);
     if (internalTx != null && csc != null) {
       internalTx.setEnergyUsed((int) (csc.getEnergyUsage()));
+      internalTx.setEnergyPenalty((int) csc.getEnergyPenalty());
     }
   }
 
@@ -1016,10 +1017,12 @@ public class Program {
         !isTokenTransfer ? null : tokenInfo);
 
     long perUsage = 0L;
+    long prePenalty = 0L;
     long preCycle = 0L;
     ContractStateCapsule csc = getContractState().getContractState(contextAddress);
     if (csc != null) {
       perUsage = csc.getEnergyUsage();
+      prePenalty = csc.getEnergyPenalty();
       preCycle = csc.getUpdateCycle();
     }
 
@@ -1116,11 +1119,14 @@ public class Program {
     csc = getContractState().getContractState(contextAddress);
     if (internalTx != null && csc != null) {
       long curUsage = csc.getEnergyUsage();
+      long curPenalty = csc.getEnergyPenalty();
       long curCycle = csc.getUpdateCycle();
       if (curCycle == preCycle) {
         internalTx.setEnergyUsed((int) (curUsage - perUsage));
+        internalTx.setEnergyPenalty((int) (curPenalty - prePenalty));
       } else {
         internalTx.setEnergyUsed((int) curUsage);
+        internalTx.setEnergyPenalty((int) curPenalty);
       }
     }
   }
@@ -2267,11 +2273,12 @@ public class Program {
     return contextContractFactor;
   }
 
-  public void addContextContractUsage(long value) {
+  public void addContextContractUsage(long value, long penalty) {
     ContractStateCapsule contractStateCapsule =
         contractState.getContractState(getContextAddress());
 
     contractStateCapsule.addEnergyUsage(value);
+    contractStateCapsule.addEnergyPenalty(penalty);
     contractState.updateContractState(getContextAddress(), contractStateCapsule);
   }
 
