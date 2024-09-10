@@ -52,7 +52,7 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
     if (csc == null) {
       csc = item;
     } else {
-      csc.merge(item);
+      csc.merge(item, true);
     }
     setContractRecord(key, csc);
   }

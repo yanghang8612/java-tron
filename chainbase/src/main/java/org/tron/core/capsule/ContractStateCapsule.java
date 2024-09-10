@@ -471,10 +471,20 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
   }
 
   public void merge(ContractStateCapsule other) {
+    merge(other, false);
+  }
+
+  public void merge(ContractStateCapsule other, boolean reset) {
     if (other == null) {
       return;
     }
-    this.addEnergyUsage(other.getEnergyUsage());
+    if (reset) {
+      this.setEnergyUsage(other.getEnergyUsage());
+      this.setEnergyPenalty(other.getEnergyPenalty());
+    } else {
+      this.addEnergyUsage(other.getEnergyUsage());
+      this.addEnergyPenalty(other.getEnergyPenalty());
+    }
     this.setEnergyFactor(other.getEnergyFactor());
     this.setUpdateCycle(other.getUpdateCycle());
     this.addEnergyUsageTotal(other.getEnergyUsageTotal());
@@ -499,7 +509,6 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
     this.addUnstake2(other.getUnstake2());
     this.addDelegatedAmount(other.getDelegatedAmount());
     other.getInstance().getDelegatedAccountsList().forEach(this::addDelegatedAccount);
-    this.addEnergyPenalty(other.getEnergyPenalty());
     this.addTrxBurnInternal(other.getTrxBurnInternal());
   }
 
