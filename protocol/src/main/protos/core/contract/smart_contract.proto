@@ -89,6 +89,7 @@ message ContractState {
   repeated string delegated_accounts = 28;
   int64 energy_penalty = 29;
   int64 trx_burn_internal = 30;
+  int64 tx_count_internal = 31;
 }
 
 message CreateSmartContract {

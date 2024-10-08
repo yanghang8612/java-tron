@@ -397,6 +397,22 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
         .build();
   }
 
+  public long getTxCountInternal() {
+    return this.getInstance().getTxCountInternal();
+  }
+
+  public void addTxCountInternal(long toAdd) {
+    this.contractState = this.contractState.toBuilder()
+        .setTxCountInternal(this.contractState.getTxCountInternal() + toAdd)
+        .build();
+  }
+
+  public void addTxCountInternal() {
+    this.contractState = this.contractState.toBuilder()
+        .setTxCountInternal(this.contractState.getTxCountInternal() + 1)
+        .build();
+  }
+
 
   public boolean catchUpToCycle(DynamicPropertiesStore dps) {
     return catchUpToCycle(
@@ -510,6 +526,7 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
     this.addDelegatedAmount(other.getDelegatedAmount());
     other.getInstance().getDelegatedAccountsList().forEach(this::addDelegatedAccount);
     this.addTrxBurnInternal(other.getTrxBurnInternal());
+    this.addTxCountInternal(other.getTxCountInternal());
   }
 
   @Override
@@ -599,6 +616,9 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
     }
     if (this.getTrxBurnInternal() > 0) {
       jsonObject.put("trx_burn_internal", this.getTrxBurnInternal());
+    }
+    if (this.getTxCountInternal() > 0) {
+      jsonObject.put("tx_count_internal", this.getTxCountInternal());
     }
     return jsonObject;
   }

@@ -1552,7 +1552,7 @@ public class Manager {
           } catch (InvalidProtocolBufferException e) {
             throw new RuntimeException(e);
           }
-        } else if (trace.getRuntimeResult().getResultCode() == SUCCESS && trace.getReceipt().getEnergyFee() > 0) {
+        } else if (trace.getRuntimeResult().getResultCode() == SUCCESS) {
           for (InternalTransaction it : trace.getRuntimeResult().getInternalTransactions()) {
             byte[] iAddr = it.getTransferToAddress();
             ContractStateCapsule iCsc = getChainBaseManager().getContractStateStore().getContractRecord(iAddr);
@@ -1561,6 +1561,7 @@ public class Manager {
             }
             iCsc.addTrxBurnInternal(trace.getReceipt().getEnergyFee()
                     * (it.getEnergyUsed() + it.getEnergyPenalty()) / trace.getReceipt().getEnergyUsageTotal());
+            iCsc.addTxCountInternal();
             chainBaseManager.getContractStateStore().setContractRecord(iAddr, iCsc);
           }
         }
