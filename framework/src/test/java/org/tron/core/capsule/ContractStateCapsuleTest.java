@@ -2,9 +2,21 @@ package org.tron.core.capsule;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.tron.common.BaseTest;
+import org.tron.core.Constant;
+import org.tron.core.config.args.Args;
 import org.tron.protos.contract.SmartContractOuterClass;
 
-public class ContractStateCapsuleTest {
+public class ContractStateCapsuleTest extends BaseTest {
+
+  static {
+    Args.setParam(
+        new String[]{
+            "--output-directory", dbPath()
+        },
+        Constant.TEST_CONF
+    );
+  }
 
   @Test
   public void testCatchUpCycle() {
