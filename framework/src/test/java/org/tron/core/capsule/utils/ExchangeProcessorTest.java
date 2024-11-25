@@ -24,7 +24,7 @@ public class ExchangeProcessorTest extends BaseTest {
   @BeforeClass
   public static void init() {
     long supply = 1_000_000_000_000_000_000L;
-    processor = new ExchangeProcessor(supply);
+    processor = new ExchangeProcessor(supply, false);
   }
 
   @Test
@@ -138,9 +138,9 @@ public class ExchangeProcessorTest extends BaseTest {
   @Test
   public void testStrictMath() {
     long supply = 1_000_000_000_000_000_000L;
-    ExchangeProcessor processor = new ExchangeProcessor(supply);
+    ExchangeProcessor processor = new ExchangeProcessor(supply, false);
     long anotherTokenQuant = processor.exchange(4732214, 2202692725330L, 29218);
-    chainBaseManager.getDynamicPropertiesStore().saveAllowStrictMath(1);
+   processor = new ExchangeProcessor(supply, true);
     long result = processor.exchange(4732214, 2202692725330L, 29218);
     Assert.assertNotEquals(anotherTokenQuant, result);
   }

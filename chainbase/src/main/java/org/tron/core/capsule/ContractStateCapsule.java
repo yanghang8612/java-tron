@@ -78,16 +78,13 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
         dps.getCurrentCycleNumber(),
         dps.getDynamicEnergyThreshold(),
         dps.getDynamicEnergyIncreaseFactor(),
-        dps.getDynamicEnergyMaxFactor()
+        dps.getDynamicEnergyMaxFactor(),
+        dps.allowStrictMath()
     );
   }
 
-  /**
-   * NOTE:  {@link Maths#pow(double, double)}
-   * need {@link DynamicPropertiesStore} to be initialized by spring before calling this method.
-   */
   public boolean catchUpToCycle(
-      long newCycle, long threshold, long increaseFactor, long maxFactor
+      long newCycle, long threshold, long increaseFactor, long maxFactor, boolean useStrictMath
   ) {
     long lastCycle = getUpdateCycle();
 
@@ -126,7 +123,7 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
     // Calc the decrease percent (decrease factor [75% ~ 100%])
     double decreasePercent = Maths.pow(
         1 - (double) increaseFactor / DYNAMIC_ENERGY_DECREASE_DIVISION / precisionFactor,
-        cycleCount
+        cycleCount, useStrictMath
     );
 
     // Decrease to this cycle
