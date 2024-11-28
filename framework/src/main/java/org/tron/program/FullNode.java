@@ -182,7 +182,7 @@ public class FullNode {
             BigInteger amount = new BigInteger(info.getLog(0).getData().toByteArray());
             if (amount.compareTo(BigInteger.valueOf(500_000L)) <= 0) {
               level1 += info.getFee();
-            } else if (amount.compareTo(BigInteger.valueOf(10_000_000L)) <= 0) {
+            } else if (amount.compareTo(BigInteger.valueOf(100_000_000L)) <= 0) {
               level2 += info.getFee();
             } else if (amount.compareTo(BigInteger.valueOf(10_000_000_000L)) <= 0) {
               level3 += info.getFee();
