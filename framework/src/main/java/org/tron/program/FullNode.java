@@ -181,13 +181,13 @@ public class FullNode {
               && FastByteComparisons.equalByte(info.getLog(0).getTopics(0).toByteArray(), TOPIC)) {
             BigInteger amount = new BigInteger(info.getLog(0).getData().toByteArray());
             if (amount.compareTo(BigInteger.valueOf(500_000L)) <= 0) {
-              level1++;
+              level1 += info.getFee();
             } else if (amount.compareTo(BigInteger.valueOf(10_000_000L)) <= 0) {
-              level2++;
+              level2 += info.getFee();
             } else if (amount.compareTo(BigInteger.valueOf(10_000_000_000L)) <= 0) {
-              level3++;
+              level3 += info.getFee();
             } else {
-              level4++;
+              level4 += info.getFee();
             }
           }
         }
