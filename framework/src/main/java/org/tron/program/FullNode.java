@@ -4,20 +4,27 @@ import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.joran.JoranConfigurator;
 import com.beust.jcommander.JCommander;
 import java.io.File;
+import java.math.BigInteger;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
 import lombok.extern.slf4j.Slf4j;
+import org.bouncycastle.util.encoders.Hex;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
+import org.tron.api.GrpcAPI;
 import org.tron.common.application.Application;
 import org.tron.common.application.ApplicationFactory;
 import org.tron.common.application.TronApplicationContext;
 import org.tron.common.parameter.CommonParameter;
 import org.tron.common.prometheus.Metrics;
+import org.tron.common.utils.DecodeUtil;
+import org.tron.common.utils.StringUtil;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.Constant;
 import org.tron.core.Wallet;
+import org.tron.core.capsule.TransactionCapsule;
+import org.tron.core.capsule.utils.FastByteComparisons;
 import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
 import org.tron.core.db.BlockStore;
@@ -34,6 +41,7 @@ import org.tron.core.services.jsonrpc.FullNodeJsonRpcHttpService;
 import org.tron.protos.Protocol;
 import org.tron.protos.contract.BalanceContract;
 import org.tron.protos.contract.Common;
+import org.tron.protos.contract.SmartContractOuterClass;
 
 @Slf4j(topic = "app")
 public class FullNode {
@@ -144,46 +152,44 @@ public class FullNode {
     long startNum = 51500000;
     long endNum = ChainBaseManager.getInstance().getHeadBlockNum();
     Wallet wallet = context.getBean(Wallet.class);
-    long energyDelegate = 0;
-    long bandwidthDelegate = 0;
-    long energyUnDelegate = 0;
-    long bandwidthUnDelegate = 0;
+    long level1 = 0;
+    long level2 = 0;
+    long level3 = 0;
+    long level4 = 0;
     String currentDate = "";
+    byte[] USDT = Hex.decode("41a614f803B6FD780986A42c78Ec9c7f77e6DeD13C");
+    byte[] TOPIC = Hex.decode("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
     for (long i = startNum; i < endNum; i++) {
-      Protocol.Block block = wallet.getBlockByNum(i);
-      String date = new SimpleDateFormat("yyyy-MM-dd")
-          .format(new Date(block.getBlockHeader().getRawData().getTimestamp()));
-      if (!currentDate.equals(date)) {
-        System.out.printf("%s %d %d %d %d\n", date, energyDelegate, bandwidthDelegate,
-            energyUnDelegate, bandwidthUnDelegate);
-        currentDate = date;
-        energyDelegate = 0;
-        bandwidthDelegate = 0;
-        energyUnDelegate = 0;
-        bandwidthUnDelegate = 0;
-      }
+      GrpcAPI.TransactionInfoList infoList = wallet.getTransactionInfoByBlockNum(i);
+      if (!infoList.getTransactionInfoList().isEmpty()) {
+        String date = new SimpleDateFormat("yyyy-MM-dd")
+            .format(new Date(infoList.getTransactionInfo(0).getBlockTimeStamp()));
+        if (!currentDate.equals(date)) {
+          System.out.printf("%s %d %d %d %d\n", currentDate, level1, level2,
+              level3, level4);
+          currentDate = date;
+          level1 = 0;
+          level2 = 0;
+          level3 = 0;
+          level4 = 0;
+        }
 
-      for (Protocol.Transaction tx : block.getTransactionsList()) {
-        try {
-          if (tx.getRawData().getContract(0).getType() == Protocol.Transaction.Contract.ContractType.DelegateResourceContract) {
-            BalanceContract.DelegateResourceContract contract =
-                tx.getRawData().getContract(0).getParameter().unpack(BalanceContract.DelegateResourceContract.class);
-            if (contract.getResource() == Common.ResourceCode.ENERGY) {
-              energyDelegate += 1;
+        for (Protocol.TransactionInfo info : infoList.getTransactionInfoList()) {
+          if (info.getResult() == Protocol.TransactionInfo.code.SUCESS
+              && FastByteComparisons.equalByte(info.getContractAddress().toByteArray(), USDT)
+              && info.getLogCount() == 1
+              && FastByteComparisons.equalByte(info.getLog(0).getTopics(0).toByteArray(), TOPIC)) {
+            BigInteger amount = new BigInteger(info.getLog(0).getData().toByteArray());
+            if (amount.compareTo(BigInteger.valueOf(500_000L)) <= 0) {
+              level1++;
+            } else if (amount.compareTo(BigInteger.valueOf(10_000_000L)) <= 0) {
+              level2++;
+            } else if (amount.compareTo(BigInteger.valueOf(10_000_000_000L)) <= 0) {
+              level3++;
             } else {
-              bandwidthDelegate += 1;
-            }
-          } else if (tx.getRawData().getContract(0).getType() == Protocol.Transaction.Contract.ContractType.UnDelegateResourceContract) {
-            BalanceContract.UnDelegateResourceContract contract =
-                tx.getRawData().getContract(0).getParameter().unpack(BalanceContract.UnDelegateResourceContract.class);
-            if (contract.getResource() == Common.ResourceCode.ENERGY) {
-              energyUnDelegate += 1;
-            } else {
-              bandwidthUnDelegate += 1;
+              level4++;
             }
           }
-        } catch (Exception e) {
-          e.printStackTrace();
         }
       }
     }
