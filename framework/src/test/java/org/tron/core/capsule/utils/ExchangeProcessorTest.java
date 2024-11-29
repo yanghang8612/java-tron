@@ -140,7 +140,7 @@ public class ExchangeProcessorTest extends BaseTest {
     long supply = 1_000_000_000_000_000_000L;
     ExchangeProcessor processor = new ExchangeProcessor(supply, false);
     long anotherTokenQuant = processor.exchange(4732214, 2202692725330L, 29218);
-   processor = new ExchangeProcessor(supply, true);
+    processor = new ExchangeProcessor(supply, true);
     long result = processor.exchange(4732214, 2202692725330L, 29218);
     Assert.assertNotEquals(anotherTokenQuant, result);
   }

@@ -1,7 +1,12 @@
 package org.tron.core.capsule;
 
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.Mockito;
+import org.tron.core.config.args.Args;
+import org.tron.core.store.DynamicPropertiesStore;
+import org.tron.core.vm.config.VMConfig;
 import org.tron.protos.contract.SmartContractOuterClass;
 
 public class ContractStateCapsuleTest {
@@ -151,11 +156,24 @@ public class ContractStateCapsuleTest {
             .setEnergyFactor(5000L)
             .setUpdateCycle(1000L)
             .build());
-
-    Assert.assertTrue(capsule.catchUpToCycle(1007L, 900_000L, 5000L, 10_000L, true));
+    Args.getInstance().setAllowStrictMath(1);
+    VMConfig.initAllowStrictMath(Args.getInstance().getAllowStrictMath());
+    DynamicPropertiesStore dps = Mockito.mock(DynamicPropertiesStore.class);
+    Mockito.when(dps.getCurrentCycleNumber()).thenReturn(1007L);
+    Mockito.when(dps.getDynamicEnergyThreshold()).thenReturn(900_000L);
+    Mockito.when(dps.getDynamicEnergyIncreaseFactor()).thenReturn(5000L);
+    Mockito.when(dps.getDynamicEnergyMaxFactor()).thenReturn(10_000L);
+    Mockito.when(dps.allowStrictMath()).thenReturn(VMConfig.allowStrictMath());
+    Assert.assertTrue(capsule.catchUpToCycle(dps));
     Assert.assertEquals(1007L, capsule.getUpdateCycle());
     Assert.assertEquals(0L, capsule.getEnergyUsage());
     Assert.assertEquals(0L, capsule.getEnergyFactor());
+
+  }
+
+  @After
+  public void reset() {
+    Args.clearParam();
 
   }
 
