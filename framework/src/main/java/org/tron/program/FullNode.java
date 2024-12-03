@@ -217,7 +217,7 @@ public class FullNode {
           case TransferContract:
             BalanceContract.TransferContract tc = contract.getParameter()
                 .unpack(BalanceContract.TransferContract.class);
-            to = StringUtil.encode58Check(tc.getToAddress().toByteArray());
+            to = Hex.toHexString(tc.getToAddress().toByteArray());
             if (!users.containsKey(to)) {
               users.put(to, new User());
             }
@@ -232,7 +232,7 @@ public class FullNode {
             }
             break;
           case TransferAssetContract:
-            to = StringUtil.encode58Check(contract.getParameter()
+            to = Hex.toHexString(contract.getParameter()
                 .unpack(AssetIssueContractOuterClass.TransferAssetContract.class).getToAddress().toByteArray());
             if (!users.containsKey(to)) {
               users.put(to, new User());
@@ -241,7 +241,7 @@ public class FullNode {
             users.get(from).is10Phisher = true;
             break;
           case DelegateResourceContract:
-            to = StringUtil.encode58Check(contract.getParameter()
+            to = Hex.toHexString(contract.getParameter()
                 .unpack(BalanceContract.DelegateResourceContract.class).getReceiverAddress().toByteArray());
             if (!users.containsKey(to)) {
               users.put(to, new User());
@@ -249,7 +249,7 @@ public class FullNode {
             users.get(to).activeTo = true;
             break;
           case UnDelegateResourceContract:
-            to = StringUtil.encode58Check(contract.getParameter()
+            to = Hex.toHexString(contract.getParameter()
                 .unpack(BalanceContract.UnDelegateResourceContract.class).getReceiverAddress().toByteArray());
             if (!users.containsKey(to)) {
               users.put(to, new User());
@@ -262,8 +262,10 @@ public class FullNode {
                 && info.getLogCount() == 1
                 && FastByteComparisons.equalByte(info.getLog(0).getTopics(0).toByteArray(), TOPIC)) {
               BigInteger amount = new BigInteger(info.getLog(0).getData().toByteArray());
-              from = StringUtil.encode58Check(Arrays.copyOfRange(info.getLog(0).getTopics(1).toByteArray(), 11, 32));
-              to = StringUtil.encode58Check(Arrays.copyOfRange(info.getLog(0).getTopics(2).toByteArray(), 11, 32));
+              from = Hex.toHexString(Arrays.copyOfRange(info.getLog(0).getTopics(1).toByteArray(), 12, 32));
+              from = "41" + from;
+              to = Hex.toHexString(Arrays.copyOfRange(info.getLog(0).getTopics(2).toByteArray(), 12, 32));
+              to = "41" + to;
 
               if (!users.containsKey(from)) {
                 users.put(from, new User());
