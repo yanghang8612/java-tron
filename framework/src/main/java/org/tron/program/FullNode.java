@@ -236,6 +236,7 @@ public class FullNode {
             }
             users.get(to).activeTo = true;
             users.get(from).is10Phisher = true;
+            break;
           case DelegateResourceContract:
             to = StringUtil.encode58Check(contract.getParameter()
                 .unpack(BalanceContract.DelegateResourceContract.class).getReceiverAddress().toByteArray());
