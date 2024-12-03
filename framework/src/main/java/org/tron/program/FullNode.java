@@ -173,20 +173,20 @@ public class FullNode {
         for (Map.Entry<String, User> e : users.entrySet()) {
           User user = e.getValue();
           activeTotal += 1;
-          if (!user.is10Phisher && (user.hasBig || !user.hasSmall)) {
+          if (!user.is10Phisher && (user.useFee || user.hasBig || !user.hasSmall)) {
             realActiveTotal += 1;
           }
 
           if (user.activeFrom) {
             activeFrom += 1;
-            if (!user.is10Phisher && (user.hasBig || !user.hasSmall)) {
+            if (!user.is10Phisher && (user.useFee || user.hasBig || !user.hasSmall)) {
               realActiveFrom += 1;
             }
           }
 
           if (user.activeTo) {
             activeTo += 1;
-            if (!user.is10Phisher && (user.hasBig || !user.hasSmall)) {
+            if (!user.is10Phisher && (user.useFee || user.hasBig || !user.hasSmall)) {
               realActiveTo += 1;
             }
           }
