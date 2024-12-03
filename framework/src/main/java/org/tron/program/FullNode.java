@@ -155,7 +155,8 @@ public class FullNode {
 //    appT.startup();
 //    appT.blockUntilShutdown();
 
-    long startNum = 51500000;
+//    long startNum = 51500000;
+    long startNum = 61000000;
     long endNum = ChainBaseManager.getInstance().getHeadBlockNum();
     Wallet wallet = context.getBean(Wallet.class);
     Map<String, User> users = new HashMap<>();
