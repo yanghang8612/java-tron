@@ -221,9 +221,11 @@ public class FullNode {
               users.put(to, new User());
             }
             users.get(to).activeTo = true;
+
             if (tc.getAmount() < 10) {
               users.get(from).hasSmall = true;
             }
+
             if (tc.getAmount() > 100_000_000L) {
               users.get(from).hasBig = true;
             }
@@ -261,9 +263,21 @@ public class FullNode {
               BigInteger amount = new BigInteger(info.getLog(0).getData().toByteArray());
               from = StringUtil.encode58Check(Arrays.copyOfRange(info.getLog(0).getTopics(1).toByteArray(), 11, 32));
               to = StringUtil.encode58Check(Arrays.copyOfRange(info.getLog(0).getTopics(2).toByteArray(), 11, 32));
+
+              if (!users.containsKey(from)) {
+                users.put(from, new User());
+              }
+              users.get(from).activeFrom = true;
+
+              if (!users.containsKey(to)) {
+                  users.put(to, new User());
+              }
+              users.get(to).activeTo = true;
+
               if (amount.compareTo(BigInteger.valueOf(100_000)) < 0) {
                 users.get(from).hasSmall = true;
               }
+
               if (amount.compareTo(BigInteger.valueOf(10_000_000L)) > 0) {
                 users.get(from).hasBig = true;
               }
