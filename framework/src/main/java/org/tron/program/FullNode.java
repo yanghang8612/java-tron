@@ -23,8 +23,6 @@ import org.tron.common.application.ApplicationFactory;
 import org.tron.common.application.TronApplicationContext;
 import org.tron.common.parameter.CommonParameter;
 import org.tron.common.prometheus.Metrics;
-import org.tron.common.utils.DecodeUtil;
-import org.tron.common.utils.StringUtil;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.Constant;
 import org.tron.core.Wallet;
@@ -32,8 +30,6 @@ import org.tron.core.capsule.TransactionCapsule;
 import org.tron.core.capsule.utils.FastByteComparisons;
 import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
-import org.tron.core.db.BlockStore;
-import org.tron.core.net.P2pEventHandlerImpl;
 import org.tron.core.services.RpcApiService;
 import org.tron.core.services.http.FullNodeHttpApiService;
 import org.tron.core.services.interfaceJsonRpcOnPBFT.JsonRpcServiceOnPBFT;
@@ -46,8 +42,6 @@ import org.tron.core.services.jsonrpc.FullNodeJsonRpcHttpService;
 import org.tron.protos.Protocol;
 import org.tron.protos.contract.AssetIssueContractOuterClass;
 import org.tron.protos.contract.BalanceContract;
-import org.tron.protos.contract.Common;
-import org.tron.protos.contract.SmartContractOuterClass;
 
 @Slf4j(topic = "app")
 public class FullNode {
@@ -203,7 +197,7 @@ public class FullNode {
         Protocol.TransactionInfo info = infoList.getTransactionInfo(j);
 
         TransactionCapsule txCap = new TransactionCapsule(tx);
-        String from = StringUtil.encode58Check(txCap.getOwnerAddress());
+        String from = Hex.toHexString(txCap.getOwnerAddress());
         if (!users.containsKey(from)) {
           users.put(from, new User());
         }
