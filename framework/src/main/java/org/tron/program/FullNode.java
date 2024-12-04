@@ -4,20 +4,12 @@ import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.joran.JoranConfigurator;
 import com.beust.jcommander.JCommander;
 import java.io.File;
-import java.lang.reflect.Array;
-import java.math.BigInteger;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import lombok.extern.slf4j.Slf4j;
-import org.bouncycastle.util.encoders.Hex;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
-import org.tron.api.GrpcAPI;
 import org.tron.common.application.Application;
 import org.tron.common.application.ApplicationFactory;
 import org.tron.common.application.TronApplicationContext;
@@ -26,10 +18,10 @@ import org.tron.common.prometheus.Metrics;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.Constant;
 import org.tron.core.Wallet;
-import org.tron.core.capsule.TransactionCapsule;
-import org.tron.core.capsule.utils.FastByteComparisons;
 import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
+import org.tron.core.db.BlockStore;
+import org.tron.core.net.P2pEventHandlerImpl;
 import org.tron.core.services.RpcApiService;
 import org.tron.core.services.http.FullNodeHttpApiService;
 import org.tron.core.services.interfaceJsonRpcOnPBFT.JsonRpcServiceOnPBFT;
@@ -40,8 +32,8 @@ import org.tron.core.services.interfaceOnSolidity.RpcApiServiceOnSolidity;
 import org.tron.core.services.interfaceOnSolidity.http.solidity.HttpApiOnSolidityService;
 import org.tron.core.services.jsonrpc.FullNodeJsonRpcHttpService;
 import org.tron.protos.Protocol;
-import org.tron.protos.contract.AssetIssueContractOuterClass;
 import org.tron.protos.contract.BalanceContract;
+import org.tron.protos.contract.Common;
 
 @Slf4j(topic = "app")
 public class FullNode {
@@ -66,7 +58,7 @@ public class FullNode {
   /**
    * Start the FullNode.
    */
-  public static void main(String[] args) throws InvalidProtocolBufferException {
+  public static void main(String[] args) {
     logger.info("Full node running.");
     Args.setParam(args, Constant.TESTNET_CONF);
     CommonParameter parameter = Args.getInstance();
@@ -149,148 +141,51 @@ public class FullNode {
 //    appT.startup();
 //    appT.blockUntilShutdown();
 
-    long startNum = 51500000;
-//    long startNum = 61000000;
+    long startNum = 67200000;
     long endNum = ChainBaseManager.getInstance().getHeadBlockNum();
     Wallet wallet = context.getBean(Wallet.class);
-    Map<String, User> users = new HashMap<>();
+    long energyDelegate = 0;
+    long bandwidthDelegate = 0;
+    long energyUnDelegate = 0;
+    long bandwidthUnDelegate = 0;
     String currentDate = "";
-    byte[] USDT = Hex.decode("41a614f803B6FD780986A42c78Ec9c7f77e6DeD13C");
-    byte[] TOPIC = Hex.decode("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
     for (long i = startNum; i < endNum; i++) {
       Protocol.Block block = wallet.getBlockByNum(i);
-      GrpcAPI.TransactionInfoList infoList = wallet.getTransactionInfoByBlockNum(i);
-
       String date = new SimpleDateFormat("yyyy-MM-dd")
           .format(new Date(block.getBlockHeader().getRawData().getTimestamp()));
       if (!currentDate.equals(date)) {
-        long activeTotal = 0, realActiveTotal = 0, activeFrom = 0, realActiveFrom = 0, activeTo = 0, realActiveTo = 0;
-        for (Map.Entry<String, User> e : users.entrySet()) {
-          User user = e.getValue();
-          activeTotal += 1;
-          if (!user.is10Phisher && (user.useFee || user.hasBig || !user.hasSmall)) {
-            realActiveTotal += 1;
-          }
-
-          if (user.activeFrom) {
-            activeFrom += 1;
-            if (!user.is10Phisher && (user.useFee || user.hasBig || !user.hasSmall)) {
-              realActiveFrom += 1;
-            }
-          }
-
-          if (user.activeTo) {
-            activeTo += 1;
-            if (!user.is10Phisher && (user.useFee || user.hasBig || !user.hasSmall)) {
-              realActiveTo += 1;
-            }
-          }
-        }
-        System.out.printf("%s %d %d %d %d %d %d\n", currentDate, activeTotal,
-            realActiveTotal, activeFrom, realActiveFrom, activeTo, realActiveTo);
+        System.out.printf("%s %d %d %d %d\n", currentDate, energyDelegate, bandwidthDelegate,
+            energyUnDelegate, bandwidthUnDelegate);
         currentDate = date;
-        users = new HashMap<>();
+        energyDelegate = 0;
+        bandwidthDelegate = 0;
+        energyUnDelegate = 0;
+        bandwidthUnDelegate = 0;
       }
 
-      for (int j = 0; j < block.getTransactionsCount(); j++) {
-        Protocol.Transaction tx = block.getTransactions(j);
-        Protocol.TransactionInfo info = infoList.getTransactionInfo(j);
-
-        TransactionCapsule txCap = new TransactionCapsule(tx);
-        String from = Hex.toHexString(txCap.getOwnerAddress());
-        if (!users.containsKey(from)) {
-          users.put(from, new User());
-        }
-        users.get(from).activeFrom = true;
-        if (info.getFee() > 0) {
-            users.get(from).useFee = true;
-        }
-        String to;
-        Protocol.Transaction.Contract contract = tx.getRawData().getContract(0);
-        switch (contract.getType()) {
-          case TransferContract:
-            BalanceContract.TransferContract tc = contract.getParameter()
-                .unpack(BalanceContract.TransferContract.class);
-            to = Hex.toHexString(tc.getToAddress().toByteArray());
-            if (!users.containsKey(to)) {
-              users.put(to, new User());
+      for (Protocol.Transaction tx : block.getTransactionsList()) {
+        try {
+          if (tx.getRawData().getContract(0).getType() == Protocol.Transaction.Contract.ContractType.DelegateResourceContract) {
+            BalanceContract.DelegateResourceContract contract =
+                tx.getRawData().getContract(0).getParameter().unpack(BalanceContract.DelegateResourceContract.class);
+            if (contract.getResource() == Common.ResourceCode.ENERGY) {
+              energyDelegate += 1;
+            } else {
+              bandwidthDelegate += 1;
             }
-            users.get(to).activeTo = true;
-
-            if (tc.getAmount() < 10) {
-              users.get(from).hasSmall = true;
+          } else if (tx.getRawData().getContract(0).getType() == Protocol.Transaction.Contract.ContractType.UnDelegateResourceContract) {
+            BalanceContract.UnDelegateResourceContract contract =
+                tx.getRawData().getContract(0).getParameter().unpack(BalanceContract.UnDelegateResourceContract.class);
+            if (contract.getResource() == Common.ResourceCode.ENERGY) {
+              energyUnDelegate += 1;
+            } else {
+              bandwidthUnDelegate += 1;
             }
-
-            if (tc.getAmount() > 100_000_000L) {
-              users.get(from).hasBig = true;
-            }
-            break;
-          case TransferAssetContract:
-            to = Hex.toHexString(contract.getParameter()
-                .unpack(AssetIssueContractOuterClass.TransferAssetContract.class).getToAddress().toByteArray());
-            if (!users.containsKey(to)) {
-              users.put(to, new User());
-            }
-            users.get(to).activeTo = true;
-            users.get(from).is10Phisher = true;
-            break;
-          case DelegateResourceContract:
-            to = Hex.toHexString(contract.getParameter()
-                .unpack(BalanceContract.DelegateResourceContract.class).getReceiverAddress().toByteArray());
-            if (!users.containsKey(to)) {
-              users.put(to, new User());
-            }
-            users.get(to).activeTo = true;
-            break;
-          case UnDelegateResourceContract:
-            to = Hex.toHexString(contract.getParameter()
-                .unpack(BalanceContract.UnDelegateResourceContract.class).getReceiverAddress().toByteArray());
-            if (!users.containsKey(to)) {
-              users.put(to, new User());
-            }
-            users.get(to).activeTo = true;
-            break;
-          case TriggerSmartContract:
-            if (info.getResult() == Protocol.TransactionInfo.code.SUCESS
-                && FastByteComparisons.equalByte(info.getContractAddress().toByteArray(), USDT)
-                && info.getLogCount() == 1
-                && FastByteComparisons.equalByte(info.getLog(0).getTopics(0).toByteArray(), TOPIC)) {
-              BigInteger amount = new BigInteger(info.getLog(0).getData().toByteArray());
-              from = Hex.toHexString(Arrays.copyOfRange(info.getLog(0).getTopics(1).toByteArray(), 12, 32));
-              from = "41" + from;
-              to = Hex.toHexString(Arrays.copyOfRange(info.getLog(0).getTopics(2).toByteArray(), 12, 32));
-              to = "41" + to;
-
-              if (!users.containsKey(from)) {
-                users.put(from, new User());
-              }
-              users.get(from).activeFrom = true;
-
-              if (!users.containsKey(to)) {
-                  users.put(to, new User());
-              }
-              users.get(to).activeTo = true;
-
-              if (amount.compareTo(BigInteger.valueOf(100_000)) < 0) {
-                users.get(from).hasSmall = true;
-              }
-
-              if (amount.compareTo(BigInteger.valueOf(10_000_000L)) > 0) {
-                users.get(from).hasBig = true;
-              }
-            }
+          }
+        } catch (Exception e) {
+          e.printStackTrace();
         }
       }
     }
   }
-}
-
-class User {
-  boolean activeFrom;
-  boolean activeTo;
-  boolean useFee;
-  boolean isPhisher;
-  boolean hasBig;
-  boolean hasSmall;
-  boolean is10Phisher;
 }
