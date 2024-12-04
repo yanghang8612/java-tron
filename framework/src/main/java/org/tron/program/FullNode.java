@@ -149,148 +149,45 @@ public class FullNode {
 //    appT.startup();
 //    appT.blockUntilShutdown();
 
-    long startNum = 51500000;
+    long startNum = 67520000;
 //    long startNum = 61000000;
-    long endNum = ChainBaseManager.getInstance().getHeadBlockNum();
+    long endNum = 67540000;
     Wallet wallet = context.getBean(Wallet.class);
-    Map<String, User> users = new HashMap<>();
-    String currentDate = "";
-    byte[] USDT = Hex.decode("41a614f803B6FD780986A42c78Ec9c7f77e6DeD13C");
-    byte[] TOPIC = Hex.decode("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
+    long level1 = 0;
+    long level2 = 0;
+    long level3 = 0;
+    long level4 = 0;
+    long level5 = 0;
+    Date currentDate = null;
     for (long i = startNum; i < endNum; i++) {
       Protocol.Block block = wallet.getBlockByNum(i);
-      GrpcAPI.TransactionInfoList infoList = wallet.getTransactionInfoByBlockNum(i);
 
-      String date = new SimpleDateFormat("yyyy-MM-dd")
-          .format(new Date(block.getBlockHeader().getRawData().getTimestamp()));
-      if (!currentDate.equals(date)) {
-        long activeTotal = 0, realActiveTotal = 0, activeFrom = 0, realActiveFrom = 0, activeTo = 0, realActiveTo = 0;
-        for (Map.Entry<String, User> e : users.entrySet()) {
-          User user = e.getValue();
-          activeTotal += 1;
-          if (!user.is10Phisher && (user.useFee || user.hasBig || !user.hasSmall)) {
-            realActiveTotal += 1;
-          }
-
-          if (user.activeFrom) {
-            activeFrom += 1;
-            if (!user.is10Phisher && (user.useFee || user.hasBig || !user.hasSmall)) {
-              realActiveFrom += 1;
-            }
-          }
-
-          if (user.activeTo) {
-            activeTo += 1;
-            if (!user.is10Phisher && (user.useFee || user.hasBig || !user.hasSmall)) {
-              realActiveTo += 1;
-            }
-          }
-        }
-        System.out.printf("%s %d %d %d %d %d %d\n", currentDate, activeTotal,
-            realActiveTotal, activeFrom, realActiveFrom, activeTo, realActiveTo);
+      Date date = new Date(block.getBlockHeader().getRawData().getTimestamp());
+      if (date.getMinutes() % 10 == 0 && (currentDate == null || date.getTime() - currentDate.getTime() > 10 * 60 * 1000)) {
+        System.out.printf("%s %d %d %d %d %d\n", new SimpleDateFormat("yyyy-MM-dd hh:mm:ss").format(date), level1, level2, level3, level4, level5);
         currentDate = date;
-        users = new HashMap<>();
+        level1 = level2 = level3 = level4 = level5 = 0;
       }
 
       for (int j = 0; j < block.getTransactionsCount(); j++) {
         Protocol.Transaction tx = block.getTransactions(j);
-        Protocol.TransactionInfo info = infoList.getTransactionInfo(j);
-
-        TransactionCapsule txCap = new TransactionCapsule(tx);
-        String from = Hex.toHexString(txCap.getOwnerAddress());
-        if (!users.containsKey(from)) {
-          users.put(from, new User());
+        if (tx.getRawData().getTimestamp() == 0) {
+          continue;
         }
-        users.get(from).activeFrom = true;
-        if (info.getFee() > 0) {
-            users.get(from).useFee = true;
-        }
-        String to;
-        Protocol.Transaction.Contract contract = tx.getRawData().getContract(0);
-        switch (contract.getType()) {
-          case TransferContract:
-            BalanceContract.TransferContract tc = contract.getParameter()
-                .unpack(BalanceContract.TransferContract.class);
-            to = Hex.toHexString(tc.getToAddress().toByteArray());
-            if (!users.containsKey(to)) {
-              users.put(to, new User());
-            }
-            users.get(to).activeTo = true;
 
-            if (tc.getAmount() < 10) {
-              users.get(from).hasSmall = true;
-            }
-
-            if (tc.getAmount() > 100_000_000L) {
-              users.get(from).hasBig = true;
-            }
-            break;
-          case TransferAssetContract:
-            to = Hex.toHexString(contract.getParameter()
-                .unpack(AssetIssueContractOuterClass.TransferAssetContract.class).getToAddress().toByteArray());
-            if (!users.containsKey(to)) {
-              users.put(to, new User());
-            }
-            users.get(to).activeTo = true;
-            users.get(from).is10Phisher = true;
-            break;
-          case DelegateResourceContract:
-            to = Hex.toHexString(contract.getParameter()
-                .unpack(BalanceContract.DelegateResourceContract.class).getReceiverAddress().toByteArray());
-            if (!users.containsKey(to)) {
-              users.put(to, new User());
-            }
-            users.get(to).activeTo = true;
-            break;
-          case UnDelegateResourceContract:
-            to = Hex.toHexString(contract.getParameter()
-                .unpack(BalanceContract.UnDelegateResourceContract.class).getReceiverAddress().toByteArray());
-            if (!users.containsKey(to)) {
-              users.put(to, new User());
-            }
-            users.get(to).activeTo = true;
-            break;
-          case TriggerSmartContract:
-            if (info.getResult() == Protocol.TransactionInfo.code.SUCESS
-                && FastByteComparisons.equalByte(info.getContractAddress().toByteArray(), USDT)
-                && info.getLogCount() == 1
-                && FastByteComparisons.equalByte(info.getLog(0).getTopics(0).toByteArray(), TOPIC)) {
-              BigInteger amount = new BigInteger(info.getLog(0).getData().toByteArray());
-              from = Hex.toHexString(Arrays.copyOfRange(info.getLog(0).getTopics(1).toByteArray(), 12, 32));
-              from = "41" + from;
-              to = Hex.toHexString(Arrays.copyOfRange(info.getLog(0).getTopics(2).toByteArray(), 12, 32));
-              to = "41" + to;
-
-              if (!users.containsKey(from)) {
-                users.put(from, new User());
-              }
-              users.get(from).activeFrom = true;
-
-              if (!users.containsKey(to)) {
-                  users.put(to, new User());
-              }
-              users.get(to).activeTo = true;
-
-              if (amount.compareTo(BigInteger.valueOf(100_000)) < 0) {
-                users.get(from).hasSmall = true;
-              }
-
-              if (amount.compareTo(BigInteger.valueOf(10_000_000L)) > 0) {
-                users.get(from).hasBig = true;
-              }
-            }
+        long delay = block.getBlockHeader().getRawData().getTimestamp() - tx.getRawData().getTimestamp();
+        if (delay < 3000) {
+          level1 += 1;
+        } else if (delay < 10_000) {
+          level2 += 1;
+        } else if (delay < 30_000) {
+          level3 += 1;
+        } else if (delay < 60_000) {
+          level4 += 1;
+        } else {
+          level5 += 1;
         }
       }
     }
   }
-}
-
-class User {
-  boolean activeFrom;
-  boolean activeTo;
-  boolean useFee;
-  boolean isPhisher;
-  boolean hasBig;
-  boolean hasSmall;
-  boolean is10Phisher;
 }
