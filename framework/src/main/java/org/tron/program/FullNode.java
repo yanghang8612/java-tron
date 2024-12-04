@@ -8,13 +8,16 @@ import java.lang.reflect.Array;
 import java.math.BigInteger;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.util.encoders.Hex;
+import org.checkerframework.checker.units.qual.C;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.tron.api.GrpcAPI;
@@ -163,8 +166,10 @@ public class FullNode {
       Protocol.Block block = wallet.getBlockByNum(i);
 
       Date date = new Date(block.getBlockHeader().getRawData().getTimestamp());
-      if (date.getMinutes() % 10 == 0 && (currentDate == null || date.getTime() - currentDate.getTime() > 10 * 60 * 1000)) {
-        System.out.printf("%s %d %d %d %d %d\n", new SimpleDateFormat("yyyy-MM-dd hh:mm:ss").format(date), level1, level2, level3, level4, level5);
+      Calendar dateCal = Calendar.getInstance(Locale.CHINA);
+      dateCal.setTime(date);
+      if (dateCal.get(Calendar.MINUTE) % 10 == 0 && (currentDate == null || date.getTime() - currentDate.getTime() > 9 * 60 * 1000)) {
+        System.out.printf("%s %d %d %d %d %d\n", new SimpleDateFormat("yyyy-MM-dd hh:mm:ss", Locale.CHINA).format(date), level1, level2, level3, level4, level5);
         currentDate = date;
         level1 = level2 = level3 = level4 = level5 = 0;
       }
