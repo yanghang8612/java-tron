@@ -165,6 +165,8 @@ public class FullNode {
     long level3 = 0;
     long level4 = 0;
     long level5 = 0;
+    long level6 = 0;
+    long level7 = 0;
     Date currentDate = null;
     SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.CHINA);
     sdf.setTimeZone(TimeZone.getTimeZone("Asia/Shanghai"));
@@ -190,9 +192,9 @@ public class FullNode {
       Calendar dateCal = Calendar.getInstance(Locale.CHINA);
       dateCal.setTime(date);
       if (dateCal.get(Calendar.MINUTE) == 0 && (currentDate == null || date.getTime() - currentDate.getTime() > 59 * 60 * 1000)) {
-        System.out.printf("%s %d %d %d %d %d\n", sdf.format(date), level1, level2, level3, level4, level5);
+        System.out.printf("%s %d %d %d %d %d\n", sdf.format(date), level1, level2, level3, level4, level5, level6, level7);
         currentDate = date;
-        level1 = level2 = level3 = level4 = level5 = 0;
+        level1 = level2 = level3 = level4 = level5 = level6 = level7 = 0;
       }
 
       for (int j = 0; j < block.getTransactionsCount(); j++) {
@@ -213,8 +215,12 @@ public class FullNode {
           level3 += 1;
         } else if (delay < 60_000) {
           level4 += 1;
-        } else {
+        } else if (delay < 2 * 60_000) {
           level5 += 1;
+        } else if (delay < 3 * 60_000) {
+          level6 += 1;
+        } else {
+          level7 += 1;
         }
       }
     }
