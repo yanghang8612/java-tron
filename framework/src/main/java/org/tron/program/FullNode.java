@@ -11,8 +11,10 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.TimeZone;
 
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -27,6 +29,7 @@ import org.tron.common.application.ApplicationFactory;
 import org.tron.common.application.TronApplicationContext;
 import org.tron.common.parameter.CommonParameter;
 import org.tron.common.prometheus.Metrics;
+import org.tron.common.utils.StringUtil;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.Constant;
 import org.tron.core.Wallet;
@@ -165,6 +168,21 @@ public class FullNode {
     Date currentDate = null;
     SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.CHINA);
     sdf.setTimeZone(TimeZone.getTimeZone("Asia/Shanghai"));
+    Set<String> ba = new HashSet<>();
+    ba.add("TJDENsfBJs4RFETt1X1W8wMDc8M5XnJhCe");
+    ba.add("TJCo98saj6WND61g1uuKwJ9GMWMT9WkJFo");
+    ba.add("TV6MuMXfmLbBqPZvBHdwFsDnQeVfnmiuSi");
+    ba.add("TCYDDPYUiq97JU1RwBMGdf7jWTUTZ8GmgT");
+    ba.add("TQrY8tryqsYVCYS3MFbtffiPp2ccyn4STm");
+    ba.add("TYASr5UV6HEcXatwdFQfmLVUqQQQMUxHLS");
+    ba.add("TDqSquXBgUCLYvYC4XZgrprLK589dkhSCf");
+    ba.add("TNXoiAJ3dct8Fjg4M9fkLFh9S2v9TXc32G");
+    ba.add("TCLgK89AnXbC9rewvhNb9UgXCc2qJJpBXh");
+    ba.add("TK4ykR48cQQoyFcZ5N4xZCbsBaHcg6n3gJ");
+    ba.add("TAzsQ9Gx8eqFNFSKbeXrbi45CuVPHzA8wr");
+    ba.add("TJqwA7SoZnERE4zW5uDEiPkbz4B66h9TFj");
+    ba.add("TAUN6FwrnwwmaEqYcckffC7wYmbaS6cBiX");
+    ba.add("TJ5usJLLwjwn7Pw3TPbdzreG7dvgKzfQ5y");
     for (long i = startNum; i < endNum; i++) {
       Protocol.Block block = wallet.getBlockByNum(i);
 
@@ -179,7 +197,10 @@ public class FullNode {
 
       for (int j = 0; j < block.getTransactionsCount(); j++) {
         Protocol.Transaction tx = block.getTransactions(j);
-        if (tx.getRawData().getTimestamp() == 0) {
+        TransactionCapsule txCap = new TransactionCapsule(tx);
+
+        String owner = StringUtil.encode58Check(txCap.getOwnerAddress());
+        if (!ba.contains(owner) || tx.getRawData().getTimestamp() == 0) {
           continue;
         }
 
