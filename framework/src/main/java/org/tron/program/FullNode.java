@@ -13,6 +13,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.TimeZone;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import lombok.extern.slf4j.Slf4j;
@@ -162,6 +163,8 @@ public class FullNode {
     long level4 = 0;
     long level5 = 0;
     Date currentDate = null;
+    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.CHINA);
+    sdf.setTimeZone(TimeZone.getTimeZone("Asia/Shanghai"));
     for (long i = startNum; i < endNum; i++) {
       Protocol.Block block = wallet.getBlockByNum(i);
 
@@ -169,7 +172,7 @@ public class FullNode {
       Calendar dateCal = Calendar.getInstance(Locale.CHINA);
       dateCal.setTime(date);
       if (dateCal.get(Calendar.MINUTE) % 5 == 0 && (currentDate == null || date.getTime() - currentDate.getTime() > 4 * 60 * 1000)) {
-        System.out.printf("%s %d %d %d %d %d\n", new SimpleDateFormat("yyyy-MM-dd hh:mm:ss", Locale.CHINA).format(date), level1, level2, level3, level4, level5);
+        System.out.printf("%s %d %d %d %d %d\n", sdf.format(date), level1, level2, level3, level4, level5);
         currentDate = date;
         level1 = level2 = level3 = level4 = level5 = 0;
       }
