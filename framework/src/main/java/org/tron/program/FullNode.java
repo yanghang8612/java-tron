@@ -156,7 +156,7 @@ public class FullNode {
 //    appT.startup();
 //    appT.blockUntilShutdown();
 
-    long startNum = 67520000;
+    long startNum = 67350000;
 //    long startNum = 61000000;
     long endNum = ChainBaseManager.getInstance().getHeadBlockNum();
     Wallet wallet = context.getBean(Wallet.class);
@@ -189,7 +189,7 @@ public class FullNode {
       Date date = new Date(block.getBlockHeader().getRawData().getTimestamp());
       Calendar dateCal = Calendar.getInstance(Locale.CHINA);
       dateCal.setTime(date);
-      if (dateCal.get(Calendar.MINUTE) % 5 == 0 && (currentDate == null || date.getTime() - currentDate.getTime() > 4 * 60 * 1000)) {
+      if (dateCal.get(Calendar.MINUTE) == 0 && (currentDate == null || date.getTime() - currentDate.getTime() > 59 * 60 * 1000)) {
         System.out.printf("%s %d %d %d %d %d\n", sdf.format(date), level1, level2, level3, level4, level5);
         currentDate = date;
         level1 = level2 = level3 = level4 = level5 = 0;
