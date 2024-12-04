@@ -168,7 +168,7 @@ public class FullNode {
       Date date = new Date(block.getBlockHeader().getRawData().getTimestamp());
       Calendar dateCal = Calendar.getInstance(Locale.CHINA);
       dateCal.setTime(date);
-      if (dateCal.get(Calendar.MINUTE) % 10 == 0 && (currentDate == null || date.getTime() - currentDate.getTime() > 9 * 60 * 1000)) {
+      if (dateCal.get(Calendar.MINUTE) % 5 == 0 && (currentDate == null || date.getTime() - currentDate.getTime() > 4 * 60 * 1000)) {
         System.out.printf("%s %d %d %d %d %d\n", new SimpleDateFormat("yyyy-MM-dd hh:mm:ss", Locale.CHINA).format(date), level1, level2, level3, level4, level5);
         currentDate = date;
         level1 = level2 = level3 = level4 = level5 = 0;
