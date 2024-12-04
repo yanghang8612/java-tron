@@ -156,7 +156,7 @@ public class FullNode {
 //    appT.startup();
 //    appT.blockUntilShutdown();
 
-    long startNum = 67350000;
+    long startNum = 67520000;
 //    long startNum = 61000000;
     long endNum = ChainBaseManager.getInstance().getHeadBlockNum();
     Wallet wallet = context.getBean(Wallet.class);
@@ -165,8 +165,6 @@ public class FullNode {
     long level3 = 0;
     long level4 = 0;
     long level5 = 0;
-    long level6 = 0;
-    long level7 = 0;
     Date currentDate = null;
     SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.CHINA);
     sdf.setTimeZone(TimeZone.getTimeZone("Asia/Shanghai"));
@@ -191,10 +189,10 @@ public class FullNode {
       Date date = new Date(block.getBlockHeader().getRawData().getTimestamp());
       Calendar dateCal = Calendar.getInstance(Locale.CHINA);
       dateCal.setTime(date);
-      if (dateCal.get(Calendar.MINUTE) == 0 && (currentDate == null || date.getTime() - currentDate.getTime() > 59 * 60 * 1000)) {
-        System.out.printf("%s %d %d %d %d %d\n", sdf.format(date), level1, level2, level3, level4, level5, level6, level7);
+      if (dateCal.get(Calendar.MINUTE) % 5 == 0 && (currentDate == null || date.getTime() - currentDate.getTime() > 4 * 60 * 1000)) {
+        System.out.printf("%s %d %d %d %d %d\n", sdf.format(date), level1, level2, level3, level4, level5);
         currentDate = date;
-        level1 = level2 = level3 = level4 = level5 = level6 = level7 = 0;
+        level1 = level2 = level3 = level4 = level5 = 0;
       }
 
       for (int j = 0; j < block.getTransactionsCount(); j++) {
@@ -207,6 +205,7 @@ public class FullNode {
         }
 
         long delay = block.getBlockHeader().getRawData().getTimestamp() - tx.getRawData().getTimestamp();
+        delay -= 60_000;
         if (delay < 3000) {
           level1 += 1;
         } else if (delay < 10_000) {
@@ -215,12 +214,8 @@ public class FullNode {
           level3 += 1;
         } else if (delay < 60_000) {
           level4 += 1;
-        } else if (delay < 2 * 60_000) {
-          level5 += 1;
-        } else if (delay < 3 * 60_000) {
-          level6 += 1;
         } else {
-          level7 += 1;
+          level5 += 1;
         }
       }
     }
