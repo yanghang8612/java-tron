@@ -271,6 +271,8 @@ public class FullNode {
                 if (isFakeUSDT(contractAddress, wallet)) {
                   fakeUSDTAddresses.add(contractAddress);
                   users.get(from).isFakeUSDTSender = true;
+                } else {
+                  safeAddresses.add(contractAddress);
                 }
               }
             }
