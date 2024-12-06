@@ -28,6 +28,7 @@ import org.tron.common.application.ApplicationFactory;
 import org.tron.common.application.TronApplicationContext;
 import org.tron.common.parameter.CommonParameter;
 import org.tron.common.prometheus.Metrics;
+import org.tron.common.runtime.vm.DataWord;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Commons;
 import org.tron.core.ChainBaseManager;
@@ -158,6 +159,7 @@ public class FullNode {
 //    appT.blockUntilShutdown();
 
     Set<String> fakeUSDTAddresses = readAddressesFromFile("/data/contract.txt");
+    Set<String> safeAddresses = readAddressesFromFile("/data/safe.txt");
     long startNum = 51500000;
 //    long startNum = 61000000;
     long endNum = ChainBaseManager.getInstance().getHeadBlockNum();
@@ -260,9 +262,19 @@ public class FullNode {
             users.get(to).activeTo = true;
             break;
           case TriggerSmartContract:
-            if (fakeUSDTAddresses.contains(Hex.toHexString(info.getContractAddress().toByteArray()))) {
+            String contractAddress = Hex.toHexString(info.getContractAddress().toByteArray());
+
+            if (!safeAddresses.contains(contractAddress)) {
+              if (fakeUSDTAddresses.contains(contractAddress)) {
                 users.get(from).isFakeUSDTSender = true;
+              } else {
+                if (isFakeUSDT(contractAddress, wallet)) {
+                  fakeUSDTAddresses.add(contractAddress);
+                  users.get(from).isFakeUSDTSender = true;
+                }
+              }
             }
+
             if (info.getResult() == Protocol.TransactionInfo.code.SUCESS
                 && FastByteComparisons.equalByte(info.getContractAddress().toByteArray(), USDT)
                 && info.getLogCount() == 1
@@ -312,12 +324,37 @@ public class FullNode {
     return addresses;
   }
 
-  private static void triggerConstant(String contractAddress, String method, Wallet wallet) throws Exception {
+  private static boolean isFakeUSDT(String contractAddress, Wallet wallet) throws Exception {
+    String name = "";
+    byte[] nameBytes = triggerConstant(contractAddress, "06fdde03", wallet);
+    if (nameBytes != null && nameBytes.length >= 3 * 32) {
+      name = new String(nameBytes, 2 * 32,
+          new DataWord(Arrays.copyOfRange(nameBytes, 32, 2 * 32)).intValue()).toUpperCase();
+
+    }
+
+    String symbol = "";
+    byte[] symbolBytes = triggerConstant(contractAddress, "95d89b41", wallet);
+    if (symbolBytes != null && symbolBytes.length >= 3 * 32) {
+      symbol = new String(symbolBytes, 2 * 32,
+          new DataWord(Arrays.copyOfRange(symbolBytes, 32, 2 * 32)).intValue()).toUpperCase();
+    }
+
+    if ((name.contains("U") && name.contains("S") && name.contains("D"))
+      || (symbol.contains("U") && symbol.contains("S") && symbol.contains("D"))) {
+      logger.info("Fake USDT: {} {} {}", contractAddress, name, symbol);
+      return true;
+    }
+
+    return false;
+  }
+
+  private static byte[] triggerConstant(String contractAddress, String selector, Wallet wallet) throws Exception {
     SmartContractOuterClass.TriggerSmartContract contract =
         SmartContractOuterClass.TriggerSmartContract.newBuilder()
             .setOwnerAddress(ByteString.copyFrom(ByteArray.fromHexString(contractAddress)))
             .setContractAddress(ByteString.copyFrom(ByteArray.fromHexString(contractAddress)))
-            .setData(ByteString.copyFrom(ByteArray.fromHexString("95d89b41")))
+            .setData(ByteString.copyFrom(ByteArray.fromHexString(selector)))
             .build();
     TransactionCapsule trxCap = wallet.createTransactionCapsule(contract,
         Protocol.Transaction.Contract.ContractType.TriggerSmartContract);
@@ -326,6 +363,12 @@ public class FullNode {
     GrpcAPI.Return.Builder retBuilder = GrpcAPI.Return.newBuilder();
 
     Protocol.Transaction tx = wallet.triggerConstantContract(contract, trxCap, trxExtBuilder, retBuilder);
+
+    if (tx.getRet(0).getRet().equals(Protocol.Transaction.Result.code.SUCESS)) {
+      return trxExtBuilder.getConstantResultCount() > 0 ? trxExtBuilder.getConstantResult(0).toByteArray() : null;
+    }
+
+    return null;
   }
 }
 
