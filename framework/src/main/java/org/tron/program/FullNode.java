@@ -3,16 +3,21 @@ package org.tron.program;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.joran.JoranConfigurator;
 import com.beust.jcommander.JCommander;
+
+import java.io.BufferedReader;
 import java.io.File;
-import java.lang.reflect.Array;
+import java.io.FileReader;
+import java.io.IOException;
 import java.math.BigInteger;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
-import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.ByteString;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.util.encoders.Hex;
 import org.slf4j.LoggerFactory;
@@ -23,6 +28,8 @@ import org.tron.common.application.ApplicationFactory;
 import org.tron.common.application.TronApplicationContext;
 import org.tron.common.parameter.CommonParameter;
 import org.tron.common.prometheus.Metrics;
+import org.tron.common.utils.ByteArray;
+import org.tron.common.utils.Commons;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.Constant;
 import org.tron.core.Wallet;
@@ -42,6 +49,7 @@ import org.tron.core.services.jsonrpc.FullNodeJsonRpcHttpService;
 import org.tron.protos.Protocol;
 import org.tron.protos.contract.AssetIssueContractOuterClass;
 import org.tron.protos.contract.BalanceContract;
+import org.tron.protos.contract.SmartContractOuterClass;
 
 @Slf4j(topic = "app")
 public class FullNode {
@@ -66,7 +74,7 @@ public class FullNode {
   /**
    * Start the FullNode.
    */
-  public static void main(String[] args) throws InvalidProtocolBufferException {
+  public static void main(String[] args) throws Exception {
     logger.info("Full node running.");
     Args.setParam(args, Constant.TESTNET_CONF);
     CommonParameter parameter = Args.getInstance();
@@ -149,6 +157,7 @@ public class FullNode {
 //    appT.startup();
 //    appT.blockUntilShutdown();
 
+    Set<String> fakeUSDTAddresses = readAddressesFromFile("/data/contract.txt");
     long startNum = 51500000;
 //    long startNum = 61000000;
     long endNum = ChainBaseManager.getInstance().getHeadBlockNum();
@@ -168,20 +177,20 @@ public class FullNode {
         for (Map.Entry<String, User> e : users.entrySet()) {
           User user = e.getValue();
           activeTotal += 1;
-          if (!user.is10Phisher && (user.useFee || user.hasBig || !user.hasSmall)) {
+          if (!user.is10Phisher && !user.isFakeUSDTSender && (user.useFee || user.hasBig || !user.hasSmall)) {
             realActiveTotal += 1;
           }
 
           if (user.activeFrom) {
             activeFrom += 1;
-            if (!user.is10Phisher && (user.useFee || user.hasBig || !user.hasSmall)) {
+            if (!user.is10Phisher && !user.isFakeUSDTSender && (user.useFee || user.hasBig || !user.hasSmall)) {
               realActiveFrom += 1;
             }
           }
 
           if (user.activeTo) {
             activeTo += 1;
-            if (!user.is10Phisher && (user.useFee || user.hasBig || !user.hasSmall)) {
+            if (!user.is10Phisher && !user.isFakeUSDTSender && (user.useFee || user.hasBig || !user.hasSmall)) {
               realActiveTo += 1;
             }
           }
@@ -251,6 +260,9 @@ public class FullNode {
             users.get(to).activeTo = true;
             break;
           case TriggerSmartContract:
+            if (fakeUSDTAddresses.contains(Hex.toHexString(info.getContractAddress().toByteArray()))) {
+                users.get(from).isFakeUSDTSender = true;
+            }
             if (info.getResult() == Protocol.TransactionInfo.code.SUCESS
                 && FastByteComparisons.equalByte(info.getContractAddress().toByteArray(), USDT)
                 && info.getLogCount() == 1
@@ -283,14 +295,47 @@ public class FullNode {
       }
     }
   }
+
+  public static Set<String> readAddressesFromFile(String filePath) {
+    Set<String> addresses = new HashSet<>();
+    try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+      String line;
+      while ((line = br.readLine()) != null) {
+        byte[] address = Commons.decode58Check(line);
+        if (address != null) {
+          addresses.add(Hex.toHexString(address));
+        }
+      }
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+    return addresses;
+  }
+
+  private static void triggerConstant(String contractAddress, String method, Wallet wallet) throws Exception {
+    SmartContractOuterClass.TriggerSmartContract contract =
+        SmartContractOuterClass.TriggerSmartContract.newBuilder()
+            .setOwnerAddress(ByteString.copyFrom(ByteArray.fromHexString(contractAddress)))
+            .setContractAddress(ByteString.copyFrom(ByteArray.fromHexString(contractAddress)))
+            .setData(ByteString.copyFrom(ByteArray.fromHexString("95d89b41")))
+            .build();
+    TransactionCapsule trxCap = wallet.createTransactionCapsule(contract,
+        Protocol.Transaction.Contract.ContractType.TriggerSmartContract);
+
+    GrpcAPI.TransactionExtention.Builder trxExtBuilder = GrpcAPI.TransactionExtention.newBuilder();
+    GrpcAPI.Return.Builder retBuilder = GrpcAPI.Return.newBuilder();
+
+    Protocol.Transaction tx = wallet.triggerConstantContract(contract, trxCap, trxExtBuilder, retBuilder);
+  }
 }
 
 class User {
   boolean activeFrom;
   boolean activeTo;
   boolean useFee;
-  boolean isPhisher;
   boolean hasBig;
   boolean hasSmall;
   boolean is10Phisher;
+  boolean isFakeUSDTSender;
 }
+
