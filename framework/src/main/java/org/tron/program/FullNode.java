@@ -31,6 +31,7 @@ import org.tron.common.prometheus.Metrics;
 import org.tron.common.runtime.vm.DataWord;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Commons;
+import org.tron.common.utils.StringUtil;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.Constant;
 import org.tron.core.Wallet;
@@ -335,7 +336,7 @@ public class FullNode {
     }
 
     if (symbol.contains("USDT") || symbol.contains("USTD") || symbol.contains("UTSD")) {
-      logger.info("Fake USDT: {} [{}]", contractAddress, symbol);
+      logger.info("Fake USDT: {} [{}]", StringUtil.encode58Check(contractAddress.toByteArray()), symbol);
       return true;
     }
 
