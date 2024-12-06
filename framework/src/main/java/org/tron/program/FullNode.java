@@ -158,8 +158,8 @@ public class FullNode {
 //    appT.startup();
 //    appT.blockUntilShutdown();
 
-    Set<String> fakeUSDTAddresses = readAddressesFromFile("/data/contract.txt");
-    Set<String> safeAddresses = readAddressesFromFile("/data/safe.txt");
+    Set<ByteString> fakeUSDTAddresses = readAddressesFromFile("/data/contract.txt");
+    Set<ByteString> safeAddresses = readAddressesFromFile("/data/safe.txt");
     long startNum = 51500000;
 //    long startNum = 61000000;
     long endNum = ChainBaseManager.getInstance().getHeadBlockNum();
@@ -262,7 +262,7 @@ public class FullNode {
             users.get(to).activeTo = true;
             break;
           case TriggerSmartContract:
-            String contractAddress = Hex.toHexString(info.getContractAddress().toByteArray());
+            ByteString contractAddress = info.getContractAddress();
 
             if (!safeAddresses.contains(contractAddress)) {
               if (fakeUSDTAddresses.contains(contractAddress)) {
@@ -310,14 +310,14 @@ public class FullNode {
     }
   }
 
-  public static Set<String> readAddressesFromFile(String filePath) {
-    Set<String> addresses = new HashSet<>();
+  public static Set<ByteString> readAddressesFromFile(String filePath) {
+    Set<ByteString> addresses = new HashSet<>();
     try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
       String line;
       while ((line = br.readLine()) != null) {
         byte[] address = Commons.decode58Check(line);
         if (address != null) {
-          addresses.add(Hex.toHexString(address));
+          addresses.add(ByteString.copyFrom(address));
         }
       }
     } catch (IOException e) {
@@ -326,15 +326,7 @@ public class FullNode {
     return addresses;
   }
 
-  private static boolean isFakeUSDT(String contractAddress, Wallet wallet) throws Exception {
-    String name = "";
-    byte[] nameBytes = triggerConstant(contractAddress, "06fdde03", wallet);
-    if (nameBytes != null && nameBytes.length >= 3 * 32) {
-      name = new String(nameBytes, 2 * 32,
-          new DataWord(Arrays.copyOfRange(nameBytes, 32, 2 * 32)).intValue()).toUpperCase();
-
-    }
-
+  private static boolean isFakeUSDT(ByteString contractAddress, Wallet wallet) throws Exception {
     String symbol = "";
     byte[] symbolBytes = triggerConstant(contractAddress, "95d89b41", wallet);
     if (symbolBytes != null && symbolBytes.length >= 3 * 32) {
@@ -342,20 +334,18 @@ public class FullNode {
           new DataWord(Arrays.copyOfRange(symbolBytes, 32, 2 * 32)).intValue()).toUpperCase();
     }
 
-    if (name.contains("USD") || name.contains("USTD") || name.contains("UTSD")
-        || symbol.contains("USD") || symbol.contains("USTD") || symbol.contains("UTSD")) {
-      logger.info("Fake USDT: {} [{}] [{}]", contractAddress, name, symbol);
+    if (symbol.contains("USDT") || symbol.contains("USTD") || symbol.contains("UTSD")) {
+      logger.info("Fake USDT: {} [{}]", contractAddress, symbol);
       return true;
     }
 
     return false;
   }
 
-  private static byte[] triggerConstant(String contractAddress, String selector, Wallet wallet) throws Exception {
+  private static byte[] triggerConstant(ByteString contractAddress, String selector, Wallet wallet) throws Exception {
     SmartContractOuterClass.TriggerSmartContract contract =
         SmartContractOuterClass.TriggerSmartContract.newBuilder()
-            .setOwnerAddress(ByteString.copyFrom(ByteArray.fromHexString(contractAddress)))
-            .setContractAddress(ByteString.copyFrom(ByteArray.fromHexString(contractAddress)))
+            .setContractAddress(contractAddress)
             .setData(ByteString.copyFrom(ByteArray.fromHexString(selector)))
             .build();
     TransactionCapsule trxCap = wallet.createTransactionCapsule(contract,
