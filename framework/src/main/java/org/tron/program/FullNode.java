@@ -342,9 +342,9 @@ public class FullNode {
           new DataWord(Arrays.copyOfRange(symbolBytes, 32, 2 * 32)).intValue()).toUpperCase();
     }
 
-    if ((name.contains("U") && name.contains("S") && name.contains("D"))
-      || (symbol.contains("U") && symbol.contains("S") && symbol.contains("D"))) {
-      logger.info("Fake USDT: {} {} {}", contractAddress, name, symbol);
+    if (name.contains("USD") || name.contains("USTD") || name.contains("UTSD")
+        || symbol.contains("USD") || symbol.contains("USTD") || symbol.contains("UTSD")) {
+      logger.info("Fake USDT: {} [{}] [{}]", contractAddress, name, symbol);
       return true;
     }
 
@@ -364,11 +364,13 @@ public class FullNode {
     GrpcAPI.TransactionExtention.Builder trxExtBuilder = GrpcAPI.TransactionExtention.newBuilder();
     GrpcAPI.Return.Builder retBuilder = GrpcAPI.Return.newBuilder();
 
-    Protocol.Transaction tx = wallet.triggerConstantContract(contract, trxCap, trxExtBuilder, retBuilder);
+    try {
+      Protocol.Transaction tx = wallet.triggerConstantContract(contract, trxCap, trxExtBuilder, retBuilder);
 
-    if (tx.getRet(0).getRet().equals(Protocol.Transaction.Result.code.SUCESS)) {
-      return trxExtBuilder.getConstantResultCount() > 0 ? trxExtBuilder.getConstantResult(0).toByteArray() : null;
-    }
+      if (tx.getRet(0).getRet().equals(Protocol.Transaction.Result.code.SUCESS)) {
+        return trxExtBuilder.getConstantResultCount() > 0 ? trxExtBuilder.getConstantResult(0).toByteArray() : null;
+      }
+    } catch (Exception ignored) { }
 
     return null;
   }
