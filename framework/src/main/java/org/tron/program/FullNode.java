@@ -180,6 +180,12 @@ public class FullNode {
 
     long totalTx = 0;
     long totalFee = 0;
+    long withdrawTx = 0;
+    long withdrawFee = 0;
+    long chargeTx = 0;
+    long chargeFee = 0;
+    long collectTx = 0;
+    long collectFee = 0;
 
     Wallet wallet = context.getBean(Wallet.class);
     for (long i = startNum; i < endNum; i++) {
@@ -192,12 +198,22 @@ public class FullNode {
               .toLocalDate();
 
       if (blockDate.isEqual(endDate)) {
-        System.out.printf("%s %d %d", startDate.format(dateFormatter), totalTx, totalFee);
+        System.out.printf("%s %d %d %d %d %d %d %d %d\n",
+            startDate.format(dateFormatter), totalTx, totalFee,
+            withdrawTx, withdrawFee,
+            chargeTx, chargeFee,
+            collectTx, collectFee);
 
         startDate = startDate.plusDays(7);
         endDate = endDate.plusDays(7);
         totalTx = 0;
         totalFee = 0;
+        withdrawTx = 0;
+        withdrawFee = 0;
+        chargeTx = 0;
+        chargeFee = 0;
+        collectTx = 0;
+        collectFee = 0;
         users = readAddressesFromFile("/data/tronlink/" + endDate.format(filenameFormatter));
 
         if (endDate.format(dateFormatter).compareTo("20240923") > 0) {
@@ -211,7 +227,13 @@ public class FullNode {
 
         TransactionCapsule txCap = new TransactionCapsule(tx);
         ByteString from = ByteString.copyFrom(txCap.getOwnerAddress());
-        if (!users.contains(from) || exchanges.contains(from)) {
+        if (exchanges.contains(from)) {
+          withdrawTx += 1;
+          withdrawFee += info.getFee();
+        } else if (chargers.contains(from)) {
+          collectTx += 1;
+          collectTx += info.getFee();
+        } else if (!users.contains(from)) {
           continue;
         }
 
@@ -248,8 +270,10 @@ public class FullNode {
         if (to.isEmpty() || !chargers.contains(to)) {
           totalTx += 1;
           totalFee += info.getFee();
+        } else {
+          chargeTx += 1;
+          chargeFee += info.getFee();
         }
-
       }
     }
   }
@@ -259,7 +283,10 @@ public class FullNode {
     try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
       String line;
       while ((line = br.readLine()) != null) {
-        byte[] address = Commons.decode58Check(line);
+        byte[] address = null;
+        try {
+          address = Commons.decode58Check(line);
+        } catch (Exception ignores) {}
         if (address != null) {
           addresses.add(ByteString.copyFrom(address));
         }
