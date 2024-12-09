@@ -232,7 +232,7 @@ public class FullNode {
           withdrawFee += info.getFee();
         } else if (chargers.contains(from)) {
           collectTx += 1;
-          collectTx += info.getFee();
+          collectFee += info.getFee();
         } else if (!users.contains(from)) {
           continue;
         }
