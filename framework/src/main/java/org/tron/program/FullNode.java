@@ -172,8 +172,8 @@ public class FullNode {
 
     DateTimeFormatter filenameFormatter = DateTimeFormatter.ofPattern("'week'yyyyMMdd'.txt'");
     DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
-    LocalDate startDate = LocalDate.parse("20231008", dateFormatter);
-    LocalDate endDate = LocalDate.parse("20231015", dateFormatter);
+    LocalDate startDate = LocalDate.parse("20231009", dateFormatter);
+    LocalDate endDate = LocalDate.parse("20231016", dateFormatter);
 
     byte[] USDT = Hex.decode("41a614f803B6FD780986A42c78Ec9c7f77e6DeD13C");
     byte[] TOPIC = Hex.decode("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
@@ -191,7 +191,7 @@ public class FullNode {
               .atZone(ZoneId.systemDefault())
               .toLocalDate();
 
-      if (blockDate.isAfter(startDate)) {
+      if (blockDate.isEqual(endDate)) {
         System.out.printf("%s %d %d", startDate.format(dateFormatter), totalTx, totalFee);
 
         startDate = startDate.plusDays(7);
