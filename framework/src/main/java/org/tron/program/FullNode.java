@@ -233,46 +233,44 @@ public class FullNode {
         } else if (chargers.contains(from)) {
           collectTx += 1;
           collectFee += info.getFee();
-        } else if (!users.contains(from)) {
-          continue;
-        }
-
-        ByteString to = ByteString.copyFrom(new byte[]{});
-        Protocol.Transaction.Contract contract = tx.getRawData().getContract(0);
-        switch (contract.getType()) {
-          case TransferContract:
-            BalanceContract.TransferContract tc = contract.getParameter()
-                .unpack(BalanceContract.TransferContract.class);
-            to = tc.getToAddress();
-            break;
-          case TransferAssetContract:
-            to = contract.getParameter()
-                .unpack(AssetIssueContractOuterClass.TransferAssetContract.class).getToAddress();
-            break;
-          case DelegateResourceContract:
-            to = contract.getParameter()
-                .unpack(BalanceContract.DelegateResourceContract.class).getReceiverAddress();
-            break;
-          case UnDelegateResourceContract:
-            to = contract.getParameter()
-                .unpack(BalanceContract.UnDelegateResourceContract.class).getReceiverAddress();
-            break;
-          case TriggerSmartContract:
-            if (info.getResult() == Protocol.TransactionInfo.code.SUCESS
-                && FastByteComparisons.equalByte(info.getContractAddress().toByteArray(), USDT)
-                && info.getLogCount() == 1
-                && FastByteComparisons.equalByte(info.getLog(0).getTopics(0).toByteArray(), TOPIC)) {
-              byte[] toBytes = Arrays.copyOfRange(info.getLog(0).getTopics(2).toByteArray(), 11, 32);
-              toBytes[0] = 0x41;
-              to = ByteString.copyFrom(toBytes);
-            }
-        }
-        if (to.isEmpty() || !chargers.contains(to)) {
-          totalTx += 1;
-          totalFee += info.getFee();
-        } else {
-          chargeTx += 1;
-          chargeFee += info.getFee();
+        } else if (users.contains(from)) {
+          ByteString to = ByteString.copyFrom(new byte[]{});
+          Protocol.Transaction.Contract contract = tx.getRawData().getContract(0);
+          switch (contract.getType()) {
+            case TransferContract:
+              BalanceContract.TransferContract tc = contract.getParameter()
+                  .unpack(BalanceContract.TransferContract.class);
+              to = tc.getToAddress();
+              break;
+            case TransferAssetContract:
+              to = contract.getParameter()
+                  .unpack(AssetIssueContractOuterClass.TransferAssetContract.class).getToAddress();
+              break;
+            case DelegateResourceContract:
+              to = contract.getParameter()
+                  .unpack(BalanceContract.DelegateResourceContract.class).getReceiverAddress();
+              break;
+            case UnDelegateResourceContract:
+              to = contract.getParameter()
+                  .unpack(BalanceContract.UnDelegateResourceContract.class).getReceiverAddress();
+              break;
+            case TriggerSmartContract:
+              if (info.getResult() == Protocol.TransactionInfo.code.SUCESS
+                  && FastByteComparisons.equalByte(info.getContractAddress().toByteArray(), USDT)
+                  && info.getLogCount() == 1
+                  && FastByteComparisons.equalByte(info.getLog(0).getTopics(0).toByteArray(), TOPIC)) {
+                byte[] toBytes = Arrays.copyOfRange(info.getLog(0).getTopics(2).toByteArray(), 11, 32);
+                toBytes[0] = 0x41;
+                to = ByteString.copyFrom(toBytes);
+              }
+          }
+          if (to.isEmpty() || !chargers.contains(to)) {
+            totalTx += 1;
+            totalFee += info.getFee();
+          } else {
+            chargeTx += 1;
+            chargeFee += info.getFee();
+          }
         }
       }
     }
