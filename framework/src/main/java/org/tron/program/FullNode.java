@@ -10,6 +10,10 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
@@ -159,49 +163,46 @@ public class FullNode {
 //    appT.startup();
 //    appT.blockUntilShutdown();
 
-    Set<ByteString> fakeUSDTAddresses = readAddressesFromFile("/data/contract.txt");
-    Set<ByteString> safeAddresses = readAddressesFromFile("/data/safe.txt");
-    long startNum = 51500000;
+    Set<ByteString> chargers = readAddressesFromFile("/data/chargers.txt");
+    Set<ByteString> exchanges = readAddressesFromFile("/data/exchanges.txt");
+    Set<ByteString> users = new HashSet<>();
+    long startNum = 55594335;
 //    long startNum = 61000000;
     long endNum = ChainBaseManager.getInstance().getHeadBlockNum();
-    Wallet wallet = context.getBean(Wallet.class);
-    Map<String, User> users = new HashMap<>();
-    String currentDate = "";
+
+    DateTimeFormatter filenameFormatter = DateTimeFormatter.ofPattern("'week'yyyyMMdd'.txt'");
+    DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+    LocalDate startDate = LocalDate.parse("20231008", dateFormatter);
+    LocalDate endDate = LocalDate.parse("20231015", dateFormatter);
+
     byte[] USDT = Hex.decode("41a614f803B6FD780986A42c78Ec9c7f77e6DeD13C");
     byte[] TOPIC = Hex.decode("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
+
+    long totalTx = 0;
+    long totalFee = 0;
+
+    Wallet wallet = context.getBean(Wallet.class);
     for (long i = startNum; i < endNum; i++) {
       Protocol.Block block = wallet.getBlockByNum(i);
       GrpcAPI.TransactionInfoList infoList = wallet.getTransactionInfoByBlockNum(i);
 
-      String date = new SimpleDateFormat("yyyy-MM-dd")
-          .format(new Date(block.getBlockHeader().getRawData().getTimestamp()));
-      if (!currentDate.equals(date)) {
-        long activeTotal = 0, realActiveTotal = 0, activeFrom = 0, realActiveFrom = 0, activeTo = 0, realActiveTo = 0;
-        for (Map.Entry<String, User> e : users.entrySet()) {
-          User user = e.getValue();
-          activeTotal += 1;
-          if (!user.is10Phisher && !user.isFakeUSDTSender && (user.useFee || user.hasBig || !user.hasSmall)) {
-            realActiveTotal += 1;
-          }
+      LocalDate blockDate =
+          Instant.ofEpochMilli(block.getBlockHeader().getRawData().getTimestamp())
+              .atZone(ZoneId.systemDefault())
+              .toLocalDate();
 
-          if (user.activeFrom) {
-            activeFrom += 1;
-            if (!user.is10Phisher && !user.isFakeUSDTSender && (user.useFee || user.hasBig || !user.hasSmall)) {
-              realActiveFrom += 1;
-            }
-          }
+      if (blockDate.isAfter(startDate)) {
+        System.out.printf("%s %d %d", startDate.format(dateFormatter), totalTx, totalFee);
 
-          if (user.activeTo) {
-            activeTo += 1;
-            if (!user.is10Phisher && !user.isFakeUSDTSender && (user.useFee || user.hasBig || !user.hasSmall)) {
-              realActiveTo += 1;
-            }
-          }
+        startDate = startDate.plusDays(7);
+        endDate = endDate.plusDays(7);
+        totalTx = 0;
+        totalFee = 0;
+        users = readAddressesFromFile(endDate.format(filenameFormatter));
+
+        if (endDate.format(dateFormatter).compareTo("20240923") > 0) {
+          break;
         }
-        System.out.printf("%s %d %d %d %d %d %d\n", currentDate, activeTotal,
-            realActiveTotal, activeFrom, realActiveFrom, activeTo, realActiveTo);
-        currentDate = date;
-        users = new HashMap<>();
       }
 
       for (int j = 0; j < block.getTransactionsCount(); j++) {
@@ -209,104 +210,48 @@ public class FullNode {
         Protocol.TransactionInfo info = infoList.getTransactionInfo(j);
 
         TransactionCapsule txCap = new TransactionCapsule(tx);
-        String from = Hex.toHexString(txCap.getOwnerAddress());
-        if (!users.containsKey(from)) {
-          users.put(from, new User());
+        ByteString from = ByteString.copyFrom(txCap.getOwnerAddress());
+        if (!users.contains(from) || exchanges.contains(from)) {
+          continue;
         }
-        users.get(from).activeFrom = true;
-        if (info.getFee() > 0) {
-            users.get(from).useFee = true;
-        }
-        String to;
+
+        ByteString to = ByteString.copyFrom(new byte[]{});
         Protocol.Transaction.Contract contract = tx.getRawData().getContract(0);
         switch (contract.getType()) {
           case TransferContract:
             BalanceContract.TransferContract tc = contract.getParameter()
                 .unpack(BalanceContract.TransferContract.class);
-            to = Hex.toHexString(tc.getToAddress().toByteArray());
-            if (!users.containsKey(to)) {
-              users.put(to, new User());
-            }
-            users.get(to).activeTo = true;
-
-            if (tc.getAmount() < 10) {
-              users.get(from).hasSmall = true;
-            }
-
-            if (tc.getAmount() > 100_000_000L) {
-              users.get(from).hasBig = true;
-            }
+            to = tc.getToAddress();
             break;
           case TransferAssetContract:
-            to = Hex.toHexString(contract.getParameter()
-                .unpack(AssetIssueContractOuterClass.TransferAssetContract.class).getToAddress().toByteArray());
-            if (!users.containsKey(to)) {
-              users.put(to, new User());
-            }
-            users.get(to).activeTo = true;
-            users.get(from).is10Phisher = true;
+            to = contract.getParameter()
+                .unpack(AssetIssueContractOuterClass.TransferAssetContract.class).getToAddress();
             break;
           case DelegateResourceContract:
-            to = Hex.toHexString(contract.getParameter()
-                .unpack(BalanceContract.DelegateResourceContract.class).getReceiverAddress().toByteArray());
-            if (!users.containsKey(to)) {
-              users.put(to, new User());
-            }
-            users.get(to).activeTo = true;
+            to = contract.getParameter()
+                .unpack(BalanceContract.DelegateResourceContract.class).getReceiverAddress();
             break;
           case UnDelegateResourceContract:
-            to = Hex.toHexString(contract.getParameter()
-                .unpack(BalanceContract.UnDelegateResourceContract.class).getReceiverAddress().toByteArray());
-            if (!users.containsKey(to)) {
-              users.put(to, new User());
-            }
-            users.get(to).activeTo = true;
+            to = contract.getParameter()
+                .unpack(BalanceContract.UnDelegateResourceContract.class).getReceiverAddress();
             break;
           case TriggerSmartContract:
-            ByteString contractAddress = info.getContractAddress();
-
-            if (!safeAddresses.contains(contractAddress)) {
-              if (fakeUSDTAddresses.contains(contractAddress)) {
-                users.get(from).isFakeUSDTSender = true;
-              } else {
-                if (isFakeUSDT(contractAddress, wallet)) {
-                  fakeUSDTAddresses.add(contractAddress);
-                  users.get(from).isFakeUSDTSender = true;
-                } else {
-                  safeAddresses.add(contractAddress);
-                }
-              }
-            }
-
-            if (info.getResult() == Protocol.TransactionInfo.code.SUCESS
-                && FastByteComparisons.equalByte(info.getContractAddress().toByteArray(), USDT)
+            if (info.getResult() != Protocol.TransactionInfo.code.SUCESS) {
+              totalTx += 1;
+              totalFee += info.getFee();
+            } else if (FastByteComparisons.equalByte(info.getContractAddress().toByteArray(), USDT)
                 && info.getLogCount() == 1
                 && FastByteComparisons.equalByte(info.getLog(0).getTopics(0).toByteArray(), TOPIC)) {
-              BigInteger amount = new BigInteger(info.getLog(0).getData().toByteArray());
-              from = Hex.toHexString(Arrays.copyOfRange(info.getLog(0).getTopics(1).toByteArray(), 12, 32));
-              from = "41" + from;
-              to = Hex.toHexString(Arrays.copyOfRange(info.getLog(0).getTopics(2).toByteArray(), 12, 32));
-              to = "41" + to;
-
-              if (!users.containsKey(from)) {
-                users.put(from, new User());
-              }
-              users.get(from).activeFrom = true;
-
-              if (!users.containsKey(to)) {
-                  users.put(to, new User());
-              }
-              users.get(to).activeTo = true;
-
-              if (amount.compareTo(BigInteger.valueOf(100_000)) < 0) {
-                users.get(from).hasSmall = true;
-              }
-
-              if (amount.compareTo(BigInteger.valueOf(10_000_000L)) > 0) {
-                users.get(from).hasBig = true;
-              }
+              byte[] toBytes = Arrays.copyOfRange(info.getLog(0).getTopics(2).toByteArray(), 11, 32);
+              toBytes[0] = 0x41;
+              to = ByteString.copyFrom(toBytes);
             }
         }
+        if (to.isEmpty() || !chargers.contains(to)) {
+          totalTx += 1;
+          totalFee += info.getFee();
+        }
+
       }
     }
   }
@@ -324,56 +269,7 @@ public class FullNode {
     } catch (IOException e) {
       e.printStackTrace();
     }
+    logger.info("Read {} addresses from file {}", addresses.size(), filePath);
     return addresses;
   }
-
-  private static boolean isFakeUSDT(ByteString contractAddress, Wallet wallet) throws Exception {
-    String symbol = "";
-    byte[] symbolBytes = triggerConstant(contractAddress, "95d89b41", wallet);
-    if (symbolBytes != null && symbolBytes.length >= 3 * 32) {
-      symbol = new String(symbolBytes, 2 * 32,
-          new DataWord(Arrays.copyOfRange(symbolBytes, 32, 2 * 32)).intValue()).toUpperCase();
-    }
-
-    if (symbol.contains("USDT") || symbol.contains("USTD") || symbol.contains("UTSD")) {
-      logger.info("Fake USDT: {} [{}]", StringUtil.encode58Check(contractAddress.toByteArray()), symbol);
-      return true;
-    }
-
-    return false;
-  }
-
-  private static byte[] triggerConstant(ByteString contractAddress, String selector, Wallet wallet) throws Exception {
-    SmartContractOuterClass.TriggerSmartContract contract =
-        SmartContractOuterClass.TriggerSmartContract.newBuilder()
-            .setContractAddress(contractAddress)
-            .setData(ByteString.copyFrom(ByteArray.fromHexString(selector)))
-            .build();
-    TransactionCapsule trxCap = wallet.createTransactionCapsule(contract,
-        Protocol.Transaction.Contract.ContractType.TriggerSmartContract);
-
-    GrpcAPI.TransactionExtention.Builder trxExtBuilder = GrpcAPI.TransactionExtention.newBuilder();
-    GrpcAPI.Return.Builder retBuilder = GrpcAPI.Return.newBuilder();
-
-    try {
-      Protocol.Transaction tx = wallet.triggerConstantContract(contract, trxCap, trxExtBuilder, retBuilder);
-
-      if (tx.getRet(0).getRet().equals(Protocol.Transaction.Result.code.SUCESS)) {
-        return trxExtBuilder.getConstantResultCount() > 0 ? trxExtBuilder.getConstantResult(0).toByteArray() : null;
-      }
-    } catch (Exception ignored) { }
-
-    return null;
-  }
 }
-
-class User {
-  boolean activeFrom;
-  boolean activeTo;
-  boolean useFee;
-  boolean hasBig;
-  boolean hasSmall;
-  boolean is10Phisher;
-  boolean isFakeUSDTSender;
-}
-
