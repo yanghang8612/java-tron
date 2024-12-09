@@ -198,7 +198,7 @@ public class FullNode {
         endDate = endDate.plusDays(7);
         totalTx = 0;
         totalFee = 0;
-        users = readAddressesFromFile(endDate.format(filenameFormatter));
+        users = readAddressesFromFile("/data/tronlink/" + endDate.format(filenameFormatter));
 
         if (endDate.format(dateFormatter).compareTo("20240923") > 0) {
           break;
