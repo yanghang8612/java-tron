@@ -152,10 +152,14 @@ public class FullNode {
     long startNum = 51500000;
     long endNum = ChainBaseManager.getInstance().getHeadBlockNum();
     Wallet wallet = context.getBean(Wallet.class);
-    long level1 = 0;
-    long level2 = 0;
-    long level3 = 0;
-    long level4 = 0;
+    long level1Tx = 0;
+    long level1Fee = 0;
+    long level2Tx = 0;
+    long level2Fee = 0;
+    long level3Tx = 0;
+    long level3Fee = 0;
+    long level4Tx = 0;
+    long level4Fee = 0;
     String currentDate = "";
     byte[] USDT = Hex.decode("41a614f803B6FD780986A42c78Ec9c7f77e6DeD13C");
     byte[] TOPIC = Hex.decode("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
@@ -165,13 +169,20 @@ public class FullNode {
         String date = new SimpleDateFormat("yyyy-MM-dd")
             .format(new Date(infoList.getTransactionInfo(0).getBlockTimeStamp()));
         if (!currentDate.equals(date)) {
-          System.out.printf("%s %d %d %d %d\n", currentDate, level1, level2,
-              level3, level4);
+          System.out.printf("%s %d %d %d %d %d %d %d %d\n",
+              currentDate, level1Tx, level1Fee,
+              level2Tx, level2Fee,
+              level3Tx, level3Fee,
+              level4Tx, level4Fee);
           currentDate = date;
-          level1 = 0;
-          level2 = 0;
-          level3 = 0;
-          level4 = 0;
+          level1Tx = 0;
+          level1Fee = 0;
+          level2Tx = 0;
+          level2Fee = 0;
+          level3Tx = 0;
+          level3Fee = 0;
+          level4Tx = 0;
+          level4Fee = 0;
         }
 
         for (Protocol.TransactionInfo info : infoList.getTransactionInfoList()) {
@@ -181,13 +192,17 @@ public class FullNode {
               && FastByteComparisons.equalByte(info.getLog(0).getTopics(0).toByteArray(), TOPIC)) {
             BigInteger amount = new BigInteger(info.getLog(0).getData().toByteArray());
             if (amount.compareTo(BigInteger.valueOf(500_000L)) <= 0) {
-              level1 += info.getFee();
+              level1Tx += 1;
+              level1Fee += info.getFee();
             } else if (amount.compareTo(BigInteger.valueOf(100_000_000L)) <= 0) {
-              level2 += info.getFee();
+              level2Tx += 1;
+              level2Fee += info.getFee();
             } else if (amount.compareTo(BigInteger.valueOf(10_000_000_000L)) <= 0) {
-              level3 += info.getFee();
+              level3Tx += 1;
+              level3Fee += info.getFee();
             } else {
-              level4 += info.getFee();
+              level4Tx += 1;
+              level4Fee += info.getFee();
             }
           }
         }
