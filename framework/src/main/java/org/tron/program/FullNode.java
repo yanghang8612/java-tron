@@ -6,8 +6,10 @@ import com.beust.jcommander.JCommander;
 import java.io.File;
 import java.math.BigInteger;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.util.encoders.Hex;
 import org.slf4j.LoggerFactory;
@@ -66,7 +68,7 @@ public class FullNode {
   /**
    * Start the FullNode.
    */
-  public static void main(String[] args) {
+  public static void main(String[] args) throws InvalidProtocolBufferException {
     logger.info("Full node running.");
     Args.setParam(args, Constant.TESTNET_CONF);
     CommonParameter parameter = Args.getInstance();
@@ -152,58 +154,33 @@ public class FullNode {
     long startNum = 51500000;
     long endNum = ChainBaseManager.getInstance().getHeadBlockNum();
     Wallet wallet = context.getBean(Wallet.class);
-    long level1Tx = 0;
-    long level1Fee = 0;
-    long level2Tx = 0;
-    long level2Fee = 0;
-    long level3Tx = 0;
-    long level3Fee = 0;
-    long level4Tx = 0;
-    long level4Fee = 0;
     String currentDate = "";
-    byte[] USDT = Hex.decode("41a614f803B6FD780986A42c78Ec9c7f77e6DeD13C");
-    byte[] TOPIC = Hex.decode("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
+    long maxTPS = 0;
+    long trc20 = 0;
+    long total = 0;
+    byte[] TRANSFER = Hex.decode("a9059cbb");
     for (long i = startNum; i < endNum; i++) {
-      GrpcAPI.TransactionInfoList infoList = wallet.getTransactionInfoByBlockNum(i);
-      if (!infoList.getTransactionInfoList().isEmpty()) {
-        String date = new SimpleDateFormat("yyyy-MM-dd")
-            .format(new Date(infoList.getTransactionInfo(0).getBlockTimeStamp()));
-        if (!currentDate.equals(date)) {
-          System.out.printf("%s %d %d %d %d %d %d %d %d\n",
-              currentDate, level1Tx, level1Fee,
-              level2Tx, level2Fee,
-              level3Tx, level3Fee,
-              level4Tx, level4Fee);
-          currentDate = date;
-          level1Tx = 0;
-          level1Fee = 0;
-          level2Tx = 0;
-          level2Fee = 0;
-          level3Tx = 0;
-          level3Fee = 0;
-          level4Tx = 0;
-          level4Fee = 0;
-        }
+      Protocol.Block block = wallet.getBlockByNum(i);
+      maxTPS = Math.max(maxTPS, block.getTransactionsCount());
+      String date = new SimpleDateFormat("yyyy-MM-dd")
+          .format(block.getBlockHeader().getRawData().getTimestamp());
+      if (!currentDate.equals(date)) {
+        System.out.printf("%s %d %d %d\n",
+            currentDate, trc20, total, maxTPS);
+        currentDate = date;
+        trc20 = total = 0;
+      }
 
-        for (Protocol.TransactionInfo info : infoList.getTransactionInfoList()) {
-          if (info.getResult() == Protocol.TransactionInfo.code.SUCESS
-              && FastByteComparisons.equalByte(info.getContractAddress().toByteArray(), USDT)
-              && info.getLogCount() == 1
-              && FastByteComparisons.equalByte(info.getLog(0).getTopics(0).toByteArray(), TOPIC)) {
-            BigInteger amount = new BigInteger(info.getLog(0).getData().toByteArray());
-            if (amount.compareTo(BigInteger.valueOf(500_000L)) <= 0) {
-              level1Tx += 1;
-              level1Fee += info.getFee();
-            } else if (amount.compareTo(BigInteger.valueOf(100_000_000L)) <= 0) {
-              level2Tx += 1;
-              level2Fee += info.getFee();
-            } else if (amount.compareTo(BigInteger.valueOf(10_000_000_000L)) <= 0) {
-              level3Tx += 1;
-              level3Fee += info.getFee();
-            } else {
-              level4Tx += 1;
-              level4Fee += info.getFee();
-            }
+      total += block.getTransactionsCount();
+
+      for (Protocol.Transaction tx : block.getTransactionsList()) {
+        Protocol.Transaction.Contract contract = tx.getRawData().getContract(0);
+        if (contract.getType() == Protocol.Transaction.Contract.ContractType.TriggerSmartContract) {
+          SmartContractOuterClass.TriggerSmartContract tsc =
+              contract.getParameter().unpack(SmartContractOuterClass.TriggerSmartContract.class);
+          byte[] data = tsc.toByteArray();
+          if (data.length > 4 && FastByteComparisons.equalByte(Arrays.copyOfRange(data, 0, 4), TRANSFER)) {
+            trc20++;
           }
         }
       }
