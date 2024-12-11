@@ -216,6 +216,7 @@ public class FullNode {
               break;
             case TriggerSmartContract:
               if (info.getResult() == Protocol.TransactionInfo.code.SUCESS
+                  && FastByteComparisons.equalByte(info.getContractAddress().toByteArray(), USDT)
                   && info.getLogCount() == 1
                   && FastByteComparisons.equalByte(info.getLog(0).getTopics(0).toByteArray(), TOPIC)) {
                 byte[] toBytes = Arrays.copyOfRange(info.getLog(0).getTopics(2).toByteArray(), 11, 32);
