@@ -10,15 +10,9 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.text.SimpleDateFormat;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 import com.google.protobuf.ByteString;
@@ -32,10 +26,7 @@ import org.tron.common.application.ApplicationFactory;
 import org.tron.common.application.TronApplicationContext;
 import org.tron.common.parameter.CommonParameter;
 import org.tron.common.prometheus.Metrics;
-import org.tron.common.runtime.vm.DataWord;
-import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Commons;
-import org.tron.common.utils.StringUtil;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.Constant;
 import org.tron.core.Wallet;
@@ -53,9 +44,7 @@ import org.tron.core.services.interfaceOnSolidity.RpcApiServiceOnSolidity;
 import org.tron.core.services.interfaceOnSolidity.http.solidity.HttpApiOnSolidityService;
 import org.tron.core.services.jsonrpc.FullNodeJsonRpcHttpService;
 import org.tron.protos.Protocol;
-import org.tron.protos.contract.AssetIssueContractOuterClass;
 import org.tron.protos.contract.BalanceContract;
-import org.tron.protos.contract.SmartContractOuterClass;
 
 @Slf4j(topic = "app")
 public class FullNode {
@@ -165,64 +154,41 @@ public class FullNode {
 
     Set<ByteString> chargers = readAddressesFromFile("/data/chargers.txt");
     Set<ByteString> exchanges = readAddressesFromFile("/data/exchanges.txt");
-    Set<ByteString> users = new HashSet<>();
-    long startNum = 65350000;
+    long startNum = 51500000;
 //    long startNum = 61000000;
     long endNum = ChainBaseManager.getInstance().getHeadBlockNum();
-
-    DateTimeFormatter filenameFormatter = DateTimeFormatter.ofPattern("'week'yyyyMMdd'.txt'");
-    DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
-    LocalDate startDate = LocalDate.parse("20240912", dateFormatter);
-    LocalDate endDate = LocalDate.parse("20240919", dateFormatter);
 
     byte[] USDT = Hex.decode("41a614f803B6FD780986A42c78Ec9c7f77e6DeD13C");
     byte[] TOPIC = Hex.decode("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
 
-    long totalTx = 0;
-    long totalFee = 0;
     long withdrawTx = 0;
     long withdrawFee = 0;
     long chargeTx = 0;
     long chargeFee = 0;
     long collectTx = 0;
     long collectFee = 0;
+    String currentDate = "";
 
     Wallet wallet = context.getBean(Wallet.class);
     for (long i = startNum; i < endNum; i++) {
       Protocol.Block block = wallet.getBlockByNum(i);
       GrpcAPI.TransactionInfoList infoList = wallet.getTransactionInfoByBlockNum(i);
 
-      LocalDate blockDate =
-          Instant.ofEpochMilli(block.getBlockHeader().getRawData().getTimestamp())
-              .atZone(ZoneId.systemDefault())
-              .toLocalDate();
-
-      if (blockDate.isEqual(endDate)) {
-        System.out.printf("%s %d %d %d %d %d %d %d %d\n",
-            startDate.format(dateFormatter), totalTx, totalFee,
+      String date = new SimpleDateFormat("yyyyMMdd").format(new Date(block.getBlockHeader().getRawData().getTimestamp()));
+      if (!date.equals(currentDate)) {
+        System.out.printf("%s %d %d %d %d %d %d\n",
+            currentDate,
             withdrawTx, withdrawFee,
             chargeTx, chargeFee,
             collectTx, collectFee);
 
-        startDate = startDate.plusDays(7);
-        endDate = endDate.plusDays(7);
-        totalTx = 0;
-        totalFee = 0;
+        currentDate = date;
         withdrawTx = 0;
         withdrawFee = 0;
         chargeTx = 0;
         chargeFee = 0;
         collectTx = 0;
         collectFee = 0;
-        users = readAddressesFromFile("/data/tronlink/" + endDate.format(filenameFormatter));
-
-        if (endDate.format(dateFormatter).compareTo("20241010") > 0) {
-          break;
-        }
-      }
-
-      if (users.isEmpty()) {
-        continue;
       }
 
       for (int j = 0; j < block.getTransactionsCount(); j++) {
@@ -237,41 +203,30 @@ public class FullNode {
         } else if (chargers.contains(from)) {
           collectTx += 1;
           collectFee += info.getFee();
-        } else if (users.contains(from)) {
+        } else {
           ByteString to = ByteString.copyFrom(new byte[]{});
           Protocol.Transaction.Contract contract = tx.getRawData().getContract(0);
           switch (contract.getType()) {
             case TransferContract:
               BalanceContract.TransferContract tc = contract.getParameter()
                   .unpack(BalanceContract.TransferContract.class);
-              to = tc.getToAddress();
-              break;
-            case TransferAssetContract:
-              to = contract.getParameter()
-                  .unpack(AssetIssueContractOuterClass.TransferAssetContract.class).getToAddress();
-              break;
-            case DelegateResourceContract:
-              to = contract.getParameter()
-                  .unpack(BalanceContract.DelegateResourceContract.class).getReceiverAddress();
-              break;
-            case UnDelegateResourceContract:
-              to = contract.getParameter()
-                  .unpack(BalanceContract.UnDelegateResourceContract.class).getReceiverAddress();
+              if (tc.getAmount() >= 1_000_000L) {
+                to = tc.getToAddress();
+              }
               break;
             case TriggerSmartContract:
               if (info.getResult() == Protocol.TransactionInfo.code.SUCESS
-                  && FastByteComparisons.equalByte(info.getContractAddress().toByteArray(), USDT)
                   && info.getLogCount() == 1
                   && FastByteComparisons.equalByte(info.getLog(0).getTopics(0).toByteArray(), TOPIC)) {
                 byte[] toBytes = Arrays.copyOfRange(info.getLog(0).getTopics(2).toByteArray(), 11, 32);
                 toBytes[0] = 0x41;
-                to = ByteString.copyFrom(toBytes);
+                BigInteger amount = new BigInteger(info.getLog(0).getData().toByteArray());
+                if (amount.compareTo(BigInteger.valueOf(1_000_000L)) >= 0) {
+                  to = ByteString.copyFrom(toBytes);
+                }
               }
           }
-          if (to.isEmpty() || !chargers.contains(to)) {
-            totalTx += 1;
-            totalFee += info.getFee();
-          } else {
+          if (chargers.contains(to)) {
             chargeTx += 1;
             chargeFee += info.getFee();
           }
