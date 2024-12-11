@@ -178,7 +178,7 @@ public class FullNode {
         if (contract.getType() == Protocol.Transaction.Contract.ContractType.TriggerSmartContract) {
           SmartContractOuterClass.TriggerSmartContract tsc =
               contract.getParameter().unpack(SmartContractOuterClass.TriggerSmartContract.class);
-          byte[] data = tsc.toByteArray();
+          byte[] data = tsc.getData().toByteArray();
           if (data.length > 4 && FastByteComparisons.equalByte(Arrays.copyOfRange(data, 0, 4), TRANSFER)) {
             trc20++;
           }
