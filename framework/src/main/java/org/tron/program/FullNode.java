@@ -161,8 +161,15 @@ public class FullNode {
     long NormalTRXBurning = 0;
     long NormalTRXStaking = 0;
     long USDTTotal = 0;
-    long USDTBurning = 0;
-    long USDTStaking = 0;
+    long USDTBandwidthBurning = 0;
+    long USDTEnergyBurning = 0;
+    long USDTBandwidthStaking = 0;
+    long USDTEnergyStaking = 0;
+    long Total = 0;
+    long TotalBandwidthBurning = 0;
+    long TotalEnergyBurning = 0;
+    long TotalBandwidthStaking = 0;
+    long TotalEnergyStaking = 0;
     long energyPrice = 420;
 
     String currentDate = "";
@@ -181,10 +188,11 @@ public class FullNode {
           .format(new Date(block.getBlockHeader().getRawData().getTimestamp()));
 
       if (!currentDate.equals(date)) {
-        System.out.printf("%s %d %d %d %d %d %d %d %d %d\n",
+        System.out.printf("%s %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n",
             currentDate, SmallTRXTotal, SmallTRXBurning, SmallTRXStaking,
             NormalTRXTotal, NormalTRXBurning, NormalTRXStaking,
-            USDTTotal, USDTBurning, USDTStaking);
+            USDTTotal, USDTBandwidthBurning, USDTEnergyBurning, USDTBandwidthStaking, USDTEnergyStaking,
+            Total, TotalBandwidthBurning, TotalEnergyBurning, TotalBandwidthStaking, TotalEnergyStaking);
         currentDate = date;
         SmallTRXTotal = 0;
         SmallTRXBurning = 0;
@@ -193,13 +201,28 @@ public class FullNode {
         NormalTRXBurning = 0;
         NormalTRXStaking = 0;
         USDTTotal = 0;
-        USDTBurning = 0;
-        USDTStaking = 0;
+        USDTBandwidthBurning = 0;
+        USDTEnergyBurning = 0;
+        USDTBandwidthStaking = 0;
+        USDTEnergyStaking = 0;
+        Total = 0;
+        TotalBandwidthBurning = 0;
+        TotalEnergyBurning = 0;
+        TotalBandwidthStaking = 0;
+        TotalEnergyStaking = 0;
       }
 
       for (int j = 0; j < block.getTransactionsCount(); j++) {
         Protocol.TransactionInfo info = infoList.getTransactionInfo(j);
         Protocol.Transaction.Contract contract = block.getTransactions(j).getRawData().getContract(0);
+
+        Total += 1;
+        TotalBandwidthBurning += info.getReceipt().getNetFee();
+        TotalEnergyBurning += info.getReceipt().getEnergyFee();
+        TotalBandwidthStaking += info.getReceipt().getNetUsage() * 1000;
+        TotalEnergyStaking += (info.getReceipt().getEnergyUsage()
+            + info.getReceipt().getOriginEnergyUsage()) * energyPrice;
+
         switch (contract.getType()) {
           case TransferContract:
             BalanceContract.TransferContract transferContract = contract.getParameter()
@@ -217,9 +240,11 @@ public class FullNode {
           case TriggerSmartContract:
             if (FastByteComparisons.equalByte(info.getContractAddress().toByteArray(), USDT)) {
               USDTTotal += 1;
-              USDTBurning += info.getFee();
-              USDTStaking += info.getReceipt().getNetUsage() * 1000
-                  + (info.getReceipt().getEnergyUsage() + info.getReceipt().getOriginEnergyUsage()) * energyPrice;
+              USDTBandwidthBurning += info.getReceipt().getNetFee();
+              USDTEnergyBurning += info.getReceipt().getEnergyFee();
+              USDTBandwidthStaking += info.getReceipt().getNetUsage() * 1000;
+              USDTEnergyStaking += (info.getReceipt().getEnergyUsage()
+                  + info.getReceipt().getOriginEnergyUsage()) * energyPrice;
             }
         }
       }
