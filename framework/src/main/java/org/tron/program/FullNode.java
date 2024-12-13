@@ -8,6 +8,7 @@ import java.math.BigInteger;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.util.encoders.Hex;
 import org.slf4j.LoggerFactory;
@@ -66,7 +67,7 @@ public class FullNode {
   /**
    * Start the FullNode.
    */
-  public static void main(String[] args) {
+  public static void main(String[] args) throws InvalidProtocolBufferException {
     logger.info("Full node running.");
     Args.setParam(args, Constant.TESTNET_CONF);
     CommonParameter parameter = Args.getInstance();
@@ -152,59 +153,74 @@ public class FullNode {
     long startNum = 51500000;
     long endNum = ChainBaseManager.getInstance().getHeadBlockNum();
     Wallet wallet = context.getBean(Wallet.class);
-    long level1Tx = 0;
-    long level1Fee = 0;
-    long level2Tx = 0;
-    long level2Fee = 0;
-    long level3Tx = 0;
-    long level3Fee = 0;
-    long level4Tx = 0;
-    long level4Fee = 0;
+
+    long SmallTRXTotal = 0;
+    long SmallTRXBurning = 0;
+    long SmallTRXStaking = 0;
+    long NormalTRXTotal = 0;
+    long NormalTRXBurning = 0;
+    long NormalTRXStaking = 0;
+    long USDTTotal = 0;
+    long USDTBurning = 0;
+    long USDTStaking = 0;
+    long energyPrice = 420;
+
     String currentDate = "";
     byte[] USDT = Hex.decode("41a614f803B6FD780986A42c78Ec9c7f77e6DeD13C");
     byte[] TOPIC = Hex.decode("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
-    for (long i = startNum; i < endNum; i++) {
-      GrpcAPI.TransactionInfoList infoList = wallet.getTransactionInfoByBlockNum(i);
-      if (!infoList.getTransactionInfoList().isEmpty()) {
-        String date = new SimpleDateFormat("yyyy-MM-dd")
-            .format(new Date(infoList.getTransactionInfo(0).getBlockTimeStamp()));
-        if (!currentDate.equals(date)) {
-          System.out.printf("%s %d %d %d %d %d %d %d %d\n",
-              currentDate, level1Tx, level1Fee,
-              level2Tx, level2Fee,
-              level3Tx, level3Fee,
-              level4Tx, level4Fee);
-          currentDate = date;
-          level1Tx = 0;
-          level1Fee = 0;
-          level2Tx = 0;
-          level2Fee = 0;
-          level3Tx = 0;
-          level3Fee = 0;
-          level4Tx = 0;
-          level4Fee = 0;
-        }
 
-        for (Protocol.TransactionInfo info : infoList.getTransactionInfoList()) {
-          if (info.getResult() == Protocol.TransactionInfo.code.SUCESS
-              && FastByteComparisons.equalByte(info.getContractAddress().toByteArray(), USDT)
-              && info.getLogCount() == 1
-              && FastByteComparisons.equalByte(info.getLog(0).getTopics(0).toByteArray(), TOPIC)) {
-            BigInteger amount = new BigInteger(info.getLog(0).getData().toByteArray());
-            if (amount.compareTo(BigInteger.valueOf(500_000L)) <= 0) {
-              level1Tx += 1;
-              level1Fee += info.getFee();
-            } else if (amount.compareTo(BigInteger.valueOf(100_000_000L)) <= 0) {
-              level2Tx += 1;
-              level2Fee += info.getFee();
-            } else if (amount.compareTo(BigInteger.valueOf(10_000_000_000L)) <= 0) {
-              level3Tx += 1;
-              level3Fee += info.getFee();
+    for (long i = startNum; i < endNum; i++) {
+      Protocol.Block block = wallet.getBlockByNum(i);
+      GrpcAPI.TransactionInfoList infoList = wallet.getTransactionInfoByBlockNum(i);
+
+      if (block.getBlockHeader().getRawData().getTimestamp() >= 1726747200000L) {
+        energyPrice = 210;
+      }
+
+      String date = new SimpleDateFormat("yyyy-MM-dd")
+          .format(new Date(block.getBlockHeader().getRawData().getTimestamp()));
+
+      if (!currentDate.equals(date)) {
+        System.out.printf("%s %d %d %d %d %d %d %d %d %d\n",
+            currentDate, SmallTRXTotal, SmallTRXBurning, SmallTRXStaking,
+            NormalTRXTotal, NormalTRXBurning, NormalTRXStaking,
+            USDTTotal, USDTBurning, USDTStaking);
+        currentDate = date;
+        SmallTRXTotal = 0;
+        SmallTRXBurning = 0;
+        SmallTRXStaking = 0;
+        NormalTRXTotal = 0;
+        NormalTRXBurning = 0;
+        NormalTRXStaking = 0;
+        USDTTotal = 0;
+        USDTBurning = 0;
+        USDTStaking = 0;
+      }
+
+      for (int j = 0; j < block.getTransactionsCount(); j++) {
+        Protocol.TransactionInfo info = infoList.getTransactionInfo(j);
+        Protocol.Transaction.Contract contract = block.getTransactions(j).getRawData().getContract(0);
+        switch (contract.getType()) {
+          case TransferContract:
+            BalanceContract.TransferContract transferContract = contract.getParameter()
+                .unpack(BalanceContract.TransferContract.class);
+            if (transferContract.getAmount() < 100_000) {
+              SmallTRXTotal += 1;
+              SmallTRXBurning += info.getFee();
+              SmallTRXStaking += info.getReceipt().getNetUsage() * 1000;
             } else {
-              level4Tx += 1;
-              level4Fee += info.getFee();
+              NormalTRXTotal += 1;
+              NormalTRXBurning += info.getFee();
+              NormalTRXStaking += info.getReceipt().getNetUsage() * 1000;
             }
-          }
+            break;
+          case TriggerSmartContract:
+            if (FastByteComparisons.equalByte(info.getContractAddress().toByteArray(), USDT)) {
+              USDTTotal += 1;
+              USDTBurning += info.getFee();
+              USDTStaking += info.getReceipt().getNetUsage() * 1000
+                  + (info.getReceipt().getEnergyUsage() + info.getReceipt().getOriginEnergyUsage()) * energyPrice;
+            }
         }
       }
     }
