@@ -177,15 +177,21 @@ public class FullNode {
     byte[] TOPIC = Hex.decode("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
 
     for (long i = startNum; i < endNum; i++) {
-      Protocol.Block block = wallet.getBlockByNum(i);
+//      Protocol.Block block = wallet.getBlockByNum(i);
       GrpcAPI.TransactionInfoList infoList = wallet.getTransactionInfoByBlockNum(i);
 
-      if (block.getBlockHeader().getRawData().getTimestamp() >= 1726747200000L) {
+      if (infoList.getTransactionInfoList().isEmpty()) {
+        continue;
+      }
+
+      long timestamp = infoList.getTransactionInfo(0).getBlockTimeStamp();
+
+      if (timestamp >= 1726747200000L) {
         energyPrice = 210;
       }
 
       String date = new SimpleDateFormat("yyyy-MM-dd")
-          .format(new Date(block.getBlockHeader().getRawData().getTimestamp()));
+          .format(new Date(timestamp));
 
       if (!currentDate.equals(date)) {
         System.out.printf("%s %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n",
@@ -212,9 +218,9 @@ public class FullNode {
         TotalEnergyStaking = 0;
       }
 
-      for (int j = 0; j < block.getTransactionsCount(); j++) {
+      for (int j = 0; j < infoList.getTransactionInfoCount(); j++) {
         Protocol.TransactionInfo info = infoList.getTransactionInfo(j);
-        Protocol.Transaction.Contract contract = block.getTransactions(j).getRawData().getContract(0);
+//        Protocol.Transaction.Contract contract = block.getTransactions(j).getRawData().getContract(0);
 
         Total += 1;
         TotalBandwidthBurning += info.getReceipt().getNetFee();
@@ -223,30 +229,39 @@ public class FullNode {
         TotalEnergyStaking += (info.getReceipt().getEnergyUsage()
             + info.getReceipt().getOriginEnergyUsage()) * energyPrice;
 
-        switch (contract.getType()) {
-          case TransferContract:
-            BalanceContract.TransferContract transferContract = contract.getParameter()
-                .unpack(BalanceContract.TransferContract.class);
-            if (transferContract.getAmount() < 100_000) {
-              SmallTRXTotal += 1;
-              SmallTRXBurning += info.getFee();
-              SmallTRXStaking += info.getReceipt().getNetUsage() * 1000;
-            } else {
-              NormalTRXTotal += 1;
-              NormalTRXBurning += info.getFee();
-              NormalTRXStaking += info.getReceipt().getNetUsage() * 1000;
-            }
-            break;
-          case TriggerSmartContract:
-            if (FastByteComparisons.equalByte(info.getContractAddress().toByteArray(), USDT)) {
-              USDTTotal += 1;
-              USDTBandwidthBurning += info.getReceipt().getNetFee();
-              USDTEnergyBurning += info.getReceipt().getEnergyFee();
-              USDTBandwidthStaking += info.getReceipt().getNetUsage() * 1000;
-              USDTEnergyStaking += (info.getReceipt().getEnergyUsage()
-                  + info.getReceipt().getOriginEnergyUsage()) * energyPrice;
-            }
+        if (FastByteComparisons.equalByte(info.getContractAddress().toByteArray(), USDT)) {
+          USDTTotal += 1;
+          USDTBandwidthBurning += info.getReceipt().getNetFee();
+          USDTEnergyBurning += info.getReceipt().getEnergyFee();
+          USDTBandwidthStaking += info.getReceipt().getNetUsage() * 1000;
+          USDTEnergyStaking += (info.getReceipt().getEnergyUsage()
+              + info.getReceipt().getOriginEnergyUsage()) * energyPrice;
         }
+
+//        switch (contract.getType()) {
+//          case TransferContract:
+//            BalanceContract.TransferContract transferContract = contract.getParameter()
+//                .unpack(BalanceContract.TransferContract.class);
+//            if (transferContract.getAmount() < 100_000) {
+//              SmallTRXTotal += 1;
+//              SmallTRXBurning += info.getFee();
+//              SmallTRXStaking += info.getReceipt().getNetUsage() * 1000;
+//            } else {
+//              NormalTRXTotal += 1;
+//              NormalTRXBurning += info.getFee();
+//              NormalTRXStaking += info.getReceipt().getNetUsage() * 1000;
+//            }
+//            break;
+//          case TriggerSmartContract:
+//            if (FastByteComparisons.equalByte(info.getContractAddress().toByteArray(), USDT)) {
+//              USDTTotal += 1;
+//              USDTBandwidthBurning += info.getReceipt().getNetFee();
+//              USDTEnergyBurning += info.getReceipt().getEnergyFee();
+//              USDTBandwidthStaking += info.getReceipt().getNetUsage() * 1000;
+//              USDTEnergyStaking += (info.getReceipt().getEnergyUsage()
+//                  + info.getReceipt().getOriginEnergyUsage()) * energyPrice;
+//            }
+//        }
       }
     }
   }
