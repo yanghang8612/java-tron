@@ -166,31 +166,40 @@ public class FullNode {
     Set<ByteString> chargers = readAddressesFromFile("/data/chargers.txt");
     Set<ByteString> exchanges = readAddressesFromFile("/data/exchanges.txt");
     Set<ByteString> users = new HashSet<>();
-    long startNum = 65350000;
+    long startNum = 55594335;
 //    long startNum = 61000000;
     long endNum = ChainBaseManager.getInstance().getHeadBlockNum();
 
     DateTimeFormatter filenameFormatter = DateTimeFormatter.ofPattern("'week'yyyyMMdd'.txt'");
     DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
-    LocalDate startDate = LocalDate.parse("20240912", dateFormatter);
-    LocalDate endDate = LocalDate.parse("20240919", dateFormatter);
+    LocalDate startDate = LocalDate.parse("20231009", dateFormatter);
+    LocalDate endDate = LocalDate.parse("20231016", dateFormatter);
 
     byte[] USDT = Hex.decode("41a614f803B6FD780986A42c78Ec9c7f77e6DeD13C");
     byte[] TOPIC = Hex.decode("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
 
-    long totalTx = 0;
-    long totalFee = 0;
+    long userTx = 0;
+    long userBurning = 0;
+    long userStaking = 0;
     long withdrawTx = 0;
-    long withdrawFee = 0;
+    long withdrawBurning = 0;
+    long withdrawStaking = 0;
     long chargeTx = 0;
-    long chargeFee = 0;
+    long chargeBurning = 0;
+    long chargeStaking = 0;
     long collectTx = 0;
-    long collectFee = 0;
+    long collectBurning = 0;
+    long collectStaking = 0;
+    long energyPrice = 420;
 
     Wallet wallet = context.getBean(Wallet.class);
     for (long i = startNum; i < endNum; i++) {
       Protocol.Block block = wallet.getBlockByNum(i);
       GrpcAPI.TransactionInfoList infoList = wallet.getTransactionInfoByBlockNum(i);
+
+      if (block.getBlockHeader().getRawData().getTimestamp() >= 1726747200000L) {
+        energyPrice = 210;
+      }
 
       LocalDate blockDate =
           Instant.ofEpochMilli(block.getBlockHeader().getRawData().getTimestamp())
@@ -198,22 +207,26 @@ public class FullNode {
               .toLocalDate();
 
       if (blockDate.isEqual(endDate)) {
-        System.out.printf("%s %d %d %d %d %d %d %d %d\n",
-            startDate.format(dateFormatter), totalTx, totalFee,
-            withdrawTx, withdrawFee,
-            chargeTx, chargeFee,
-            collectTx, collectFee);
+        System.out.printf("%s %d %d %d %d %d %d %d %d %d %d %d %d\n",
+            startDate.format(dateFormatter), userTx, userBurning, userStaking,
+            withdrawTx, withdrawBurning, withdrawStaking,
+            chargeTx, chargeBurning, chargeStaking,
+            collectTx, collectBurning, collectStaking);
 
         startDate = startDate.plusDays(7);
         endDate = endDate.plusDays(7);
-        totalTx = 0;
-        totalFee = 0;
+        userTx = 0;
+        userBurning = 0;
+        userStaking = 0;
         withdrawTx = 0;
-        withdrawFee = 0;
+        withdrawBurning = 0;
+        withdrawStaking = 0;
         chargeTx = 0;
-        chargeFee = 0;
+        chargeBurning = 0;
+        chargeStaking = 0;
         collectTx = 0;
-        collectFee = 0;
+        collectBurning = 0;
+        collectStaking = 0;
         users = readAddressesFromFile("/data/tronlink/" + endDate.format(filenameFormatter));
 
         if (endDate.format(dateFormatter).compareTo("20241010") > 0) {
@@ -229,15 +242,20 @@ public class FullNode {
         Protocol.Transaction tx = block.getTransactions(j);
         Protocol.TransactionInfo info = infoList.getTransactionInfo(j);
 
+        long stakingRevenue = info.getReceipt().getNetUsage() * 1000
+            + (info.getReceipt().getEnergyUsage() + info.getReceipt().getOriginEnergyUsage()) * energyPrice;
+
         TransactionCapsule txCap = new TransactionCapsule(tx);
         ByteString from = ByteString.copyFrom(txCap.getOwnerAddress());
         if (exchanges.contains(from)) {
           withdrawTx += 1;
-          withdrawFee += info.getFee();
+          withdrawBurning += info.getFee();
+          withdrawStaking += stakingRevenue;
         } else if (chargers.contains(from)) {
           collectTx += 1;
-          collectFee += info.getFee();
-        } else if (users.contains(from)) {
+          collectBurning += info.getFee();
+          collectStaking += stakingRevenue;
+        } else {
           ByteString to = ByteString.copyFrom(new byte[]{});
           Protocol.Transaction.Contract contract = tx.getRawData().getContract(0);
           switch (contract.getType()) {
@@ -267,13 +285,19 @@ public class FullNode {
                 toBytes[0] = 0x41;
                 to = ByteString.copyFrom(toBytes);
               }
+              break;
           }
+
           if (to.isEmpty() || !chargers.contains(to)) {
-            totalTx += 1;
-            totalFee += info.getFee();
+            if (users.contains(from)) {
+              userTx += 1;
+              userBurning += info.getFee();
+              userStaking += stakingRevenue;
+            }
           } else {
             chargeTx += 1;
-            chargeFee += info.getFee();
+            chargeBurning += info.getFee();
+            chargeStaking += stakingRevenue;
           }
         }
       }
