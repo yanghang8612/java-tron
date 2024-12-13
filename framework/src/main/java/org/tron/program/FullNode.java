@@ -160,45 +160,23 @@ public class FullNode {
     long NormalTRXTotal = 0;
     long NormalTRXBurning = 0;
     long NormalTRXStaking = 0;
-    long USDTTotal = 0;
-    long USDTBandwidthBurning = 0;
-    long USDTEnergyBurning = 0;
-    long USDTBandwidthStaking = 0;
-    long USDTEnergyStaking = 0;
-    long Total = 0;
-    long TotalBandwidthBurning = 0;
-    long TotalEnergyBurning = 0;
-    long TotalBandwidthStaking = 0;
-    long TotalEnergyStaking = 0;
-    long energyPrice = 420;
+    long TRC20Total = 0;
 
     String currentDate = "";
-    byte[] USDT = Hex.decode("41a614f803B6FD780986A42c78Ec9c7f77e6DeD13C");
-    byte[] TOPIC = Hex.decode("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
+    byte[] TRANSFER = Hex.decode("a9059cbb");
+    byte[] TRANSFER_FROM = Hex.decode("23b872dd");
 
     for (long i = startNum; i < endNum; i++) {
-//      Protocol.Block block = wallet.getBlockByNum(i);
+      Protocol.Block block = wallet.getBlockByNum(i);
       GrpcAPI.TransactionInfoList infoList = wallet.getTransactionInfoByBlockNum(i);
 
-      if (infoList.getTransactionInfoList().isEmpty()) {
-        continue;
-      }
-
-      long timestamp = infoList.getTransactionInfo(0).getBlockTimeStamp();
-
-      if (timestamp >= 1726747200000L) {
-        energyPrice = 210;
-      }
-
       String date = new SimpleDateFormat("yyyy-MM-dd")
-          .format(new Date(timestamp));
+          .format(new Date(block.getBlockHeader().getRawData().getTimestamp()));
 
       if (!currentDate.equals(date)) {
-        System.out.printf("%s %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n",
+        System.out.printf("%s %d %d %d %d %d %d %d\n",
             currentDate, SmallTRXTotal, SmallTRXBurning, SmallTRXStaking,
-            NormalTRXTotal, NormalTRXBurning, NormalTRXStaking,
-            USDTTotal, USDTBandwidthBurning, USDTEnergyBurning, USDTBandwidthStaking, USDTEnergyStaking,
-            Total, TotalBandwidthBurning, TotalEnergyBurning, TotalBandwidthStaking, TotalEnergyStaking);
+            NormalTRXTotal, NormalTRXBurning, NormalTRXStaking, TRC20Total);
         currentDate = date;
         SmallTRXTotal = 0;
         SmallTRXBurning = 0;
@@ -206,62 +184,36 @@ public class FullNode {
         NormalTRXTotal = 0;
         NormalTRXBurning = 0;
         NormalTRXStaking = 0;
-        USDTTotal = 0;
-        USDTBandwidthBurning = 0;
-        USDTEnergyBurning = 0;
-        USDTBandwidthStaking = 0;
-        USDTEnergyStaking = 0;
-        Total = 0;
-        TotalBandwidthBurning = 0;
-        TotalEnergyBurning = 0;
-        TotalBandwidthStaking = 0;
-        TotalEnergyStaking = 0;
+        TRC20Total = 0;
       }
 
       for (int j = 0; j < infoList.getTransactionInfoCount(); j++) {
+        Protocol.Transaction.Contract contract = block.getTransactions(j).getRawData().getContract(0);
         Protocol.TransactionInfo info = infoList.getTransactionInfo(j);
-//        Protocol.Transaction.Contract contract = block.getTransactions(j).getRawData().getContract(0);
 
-        Total += 1;
-        TotalBandwidthBurning += info.getReceipt().getNetFee();
-        TotalEnergyBurning += info.getReceipt().getEnergyFee();
-        TotalBandwidthStaking += info.getReceipt().getNetUsage() * 1000;
-        TotalEnergyStaking += (info.getReceipt().getEnergyUsage()
-            + info.getReceipt().getOriginEnergyUsage()) * energyPrice;
-
-        if (FastByteComparisons.equalByte(info.getContractAddress().toByteArray(), USDT)) {
-          USDTTotal += 1;
-          USDTBandwidthBurning += info.getReceipt().getNetFee();
-          USDTEnergyBurning += info.getReceipt().getEnergyFee();
-          USDTBandwidthStaking += info.getReceipt().getNetUsage() * 1000;
-          USDTEnergyStaking += (info.getReceipt().getEnergyUsage()
-              + info.getReceipt().getOriginEnergyUsage()) * energyPrice;
+        switch (contract.getType()) {
+          case TransferContract:
+            long amount = contract.getParameter()
+                .unpack(BalanceContract.TransferContract.class).getAmount();
+            if (amount < 100_000) {
+              SmallTRXTotal += 1;
+              SmallTRXBurning += info.getFee();
+              SmallTRXStaking += info.getReceipt().getNetUsage() * 1000;
+            } else {
+              NormalTRXTotal += 1;
+              NormalTRXBurning += info.getFee();
+              NormalTRXStaking += info.getReceipt().getNetUsage() * 1000;
+            }
+            break;
+          case TriggerSmartContract:
+            byte[] data = contract.getParameter()
+                .unpack(SmartContractOuterClass.TriggerSmartContract.class).getData().toByteArray();
+            if (data.length > 4 && (FastByteComparisons.compareTo(data, 0, 4, TRANSFER, 0, 4) == 0
+                || FastByteComparisons.compareTo(data, 0, 4, TRANSFER_FROM, 0, 4) == 0)) {
+              TRC20Total += 1;
+            }
+            break;
         }
-
-//        switch (contract.getType()) {
-//          case TransferContract:
-//            BalanceContract.TransferContract transferContract = contract.getParameter()
-//                .unpack(BalanceContract.TransferContract.class);
-//            if (transferContract.getAmount() < 100_000) {
-//              SmallTRXTotal += 1;
-//              SmallTRXBurning += info.getFee();
-//              SmallTRXStaking += info.getReceipt().getNetUsage() * 1000;
-//            } else {
-//              NormalTRXTotal += 1;
-//              NormalTRXBurning += info.getFee();
-//              NormalTRXStaking += info.getReceipt().getNetUsage() * 1000;
-//            }
-//            break;
-//          case TriggerSmartContract:
-//            if (FastByteComparisons.equalByte(info.getContractAddress().toByteArray(), USDT)) {
-//              USDTTotal += 1;
-//              USDTBandwidthBurning += info.getReceipt().getNetFee();
-//              USDTEnergyBurning += info.getReceipt().getEnergyFee();
-//              USDTBandwidthStaking += info.getReceipt().getNetUsage() * 1000;
-//              USDTEnergyStaking += (info.getReceipt().getEnergyUsage()
-//                  + info.getReceipt().getOriginEnergyUsage()) * energyPrice;
-//            }
-//        }
       }
     }
   }
