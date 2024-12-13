@@ -165,19 +165,53 @@ public class FullNode {
 //    long startNum = 61000000;
     long endNum = ChainBaseManager.getInstance().getHeadBlockNum();
     Wallet wallet = context.getBean(Wallet.class);
-    Map<String, User> users = new HashMap<>();
+
+    long[][] SegUSDTStats = new long[9][3];
+    long[] trxStats = new long[3];
+    long[] trc10Stats = new long[3];
+    long[] delegateStats = new long[3];
+    long[] smallUSDTStats = new long[3];
+    long[] USDTStats = new long[3];
+    long[] SunSwapV2Stats = new long[3];
+    long[] SunSwapV3Stats = new long[3];
+    long[] SunPumpStats = new long[3];
+    long[] otherContractStats = new long[3];
+    long[] otherStats = new long[3];
+
+    Map<ByteString, Integer> contracts = new HashMap<>();
+    contracts.put(ByteString.copyFrom(Commons.decode58Check("TKzxdSv2FZKQrEqkKVgp5DcwEXBEKMg2Ax")), 0);
+    contracts.put(ByteString.copyFrom(Commons.decode58Check("TXF1xDbVGdxFGbovmmmXvBGu8ZiE3Lq4mR")), 0);
+
+    contracts.put(ByteString.copyFrom(Commons.decode58Check("TFVisXFaijZfeyeSjCEVkHfex7HGdTxzF9")), 1);
+    contracts.put(ByteString.copyFrom(Commons.decode58Check("TJ4NNy8xZEqsowCBhLvZ45LCqPdGjkET5j")), 1);
+
+    contracts.put(ByteString.copyFrom(Commons.decode58Check("TG9nDZMUtC4LBmrWSdNXNi8xrKzXTMMSKT")), 2);
+    contracts.put(ByteString.copyFrom(Commons.decode58Check("TQHj5QZA8PaHBcAGkYdi8QxdtuNabuVx5r")), 2);
+    contracts.put(ByteString.copyFrom(Commons.decode58Check("TTfvyrAz86hbZk5iDpKD78pqLGgi8C7AAw")), 2);
+    contracts.put(ByteString.copyFrom(Commons.decode58Check("TZFs5ch1R1C4mmjwrrmZqeqbUgGpxY1yWB")), 2);
+    contracts.put(ByteString.copyFrom(Commons.decode58Check("TSiiYf1b1PV1fpT9T7V4wy11btsNVajw1g")), 2);
+    contracts.put(ByteString.copyFrom(Commons.decode58Check("TRs4TG1vizrtkVXAM1CsuWvxtXat3J7nTu")), 2);
+
+    Map<ByteString, User> users = new HashMap<>();
     String currentDate = "";
+    long energyPrice = 420;
+
     byte[] USDT = Hex.decode("41a614f803B6FD780986A42c78Ec9c7f77e6DeD13C");
     byte[] TOPIC = Hex.decode("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
+
     for (long i = startNum; i < endNum; i++) {
       Protocol.Block block = wallet.getBlockByNum(i);
       GrpcAPI.TransactionInfoList infoList = wallet.getTransactionInfoByBlockNum(i);
+
+      if (block.getBlockHeader().getRawData().getTimestamp() >= 1726747200000L) {
+        energyPrice = 210;
+      }
 
       String date = new SimpleDateFormat("yyyy-MM-dd")
           .format(new Date(block.getBlockHeader().getRawData().getTimestamp()));
       if (!currentDate.equals(date)) {
         long activeTotal = 0, realActiveTotal = 0, activeFrom = 0, realActiveFrom = 0, activeTo = 0, realActiveTo = 0;
-        for (Map.Entry<String, User> e : users.entrySet()) {
+        for (Map.Entry<ByteString, User> e : users.entrySet()) {
           User user = e.getValue();
           activeTotal += 1;
           if (!user.is10Phisher && !user.isFakeUSDTSender && (user.useFee || user.hasBig || !user.hasSmall)) {
@@ -198,9 +232,27 @@ public class FullNode {
             }
           }
         }
-        System.out.printf("%s %d %d %d %d %d %d\n", currentDate, activeTotal,
-            realActiveTotal, activeFrom, realActiveFrom, activeTo, realActiveTo);
+        System.out.printf("Active %s %d %d %d %d %d %d\n", currentDate,
+            activeTotal, realActiveTotal, activeFrom, realActiveFrom, activeTo, realActiveTo);
+        System.out.printf("USDT %s %s %s %s %s %s %s %s %s %s\n", currentDate,
+            format(SegUSDTStats[0]), format(SegUSDTStats[1]), format(SegUSDTStats[2]), format(SegUSDTStats[3]),
+            format(SegUSDTStats[4]), format(SegUSDTStats[5]), format(SegUSDTStats[6]), format(SegUSDTStats[7]),
+            format(SegUSDTStats[8]));
+        System.out.printf("Revenue %s %s %s %s %s %s %s %s %s %s %s\n", currentDate,
+            format(trxStats), format(trc10Stats), format(delegateStats), format(smallUSDTStats), format(USDTStats),
+            format(SunSwapV2Stats), format(SunSwapV3Stats), format(SunPumpStats), format(otherContractStats), format(otherStats));
         currentDate = date;
+        SegUSDTStats = new long[9][3];
+        trxStats = new long[3];
+        trc10Stats = new long[3];
+        delegateStats = new long[3];
+        smallUSDTStats = new long[3];
+        USDTStats = new long[3];
+        SunSwapV2Stats = new long[3];
+        SunSwapV3Stats = new long[3];
+        SunPumpStats = new long[3];
+        otherContractStats = new long[3];
+        otherStats = new long[3];
         users = new HashMap<>();
       }
 
@@ -209,7 +261,7 @@ public class FullNode {
         Protocol.TransactionInfo info = infoList.getTransactionInfo(j);
 
         TransactionCapsule txCap = new TransactionCapsule(tx);
-        String from = Hex.toHexString(txCap.getOwnerAddress());
+        ByteString from = ByteString.copyFrom(txCap.getOwnerAddress());
         if (!users.containsKey(from)) {
           users.put(from, new User());
         }
@@ -217,13 +269,14 @@ public class FullNode {
         if (info.getFee() > 0) {
             users.get(from).useFee = true;
         }
-        String to;
+        ByteString to;
         Protocol.Transaction.Contract contract = tx.getRawData().getContract(0);
         switch (contract.getType()) {
           case TransferContract:
+            // Active address stats
             BalanceContract.TransferContract tc = contract.getParameter()
                 .unpack(BalanceContract.TransferContract.class);
-            to = Hex.toHexString(tc.getToAddress().toByteArray());
+            to = tc.getToAddress();
             if (!users.containsKey(to)) {
               users.put(to, new User());
             }
@@ -236,31 +289,54 @@ public class FullNode {
             if (tc.getAmount() > 100_000_000L) {
               users.get(from).hasBig = true;
             }
+
+            // Revenue stats
+            trxStats[0] += 1;
+            trxStats[1] += info.getFee();
+            trxStats[2] += info.getReceipt().getNetUsage() * 1000;
             break;
           case TransferAssetContract:
-            to = Hex.toHexString(contract.getParameter()
-                .unpack(AssetIssueContractOuterClass.TransferAssetContract.class).getToAddress().toByteArray());
+            // Active address stats
+            to = contract.getParameter()
+                .unpack(AssetIssueContractOuterClass.TransferAssetContract.class).getToAddress();
             if (!users.containsKey(to)) {
               users.put(to, new User());
             }
             users.get(to).activeTo = true;
             users.get(from).is10Phisher = true;
+
+            // Revenue stats
+            trc10Stats[0] += 1;
+            trc10Stats[1] += info.getFee();
+            trc10Stats[2] += info.getReceipt().getNetUsage() * 1000;
             break;
           case DelegateResourceContract:
-            to = Hex.toHexString(contract.getParameter()
-                .unpack(BalanceContract.DelegateResourceContract.class).getReceiverAddress().toByteArray());
+            // Active address stats
+            to = contract.getParameter()
+                .unpack(BalanceContract.DelegateResourceContract.class).getReceiverAddress();
             if (!users.containsKey(to)) {
               users.put(to, new User());
             }
             users.get(to).activeTo = true;
+
+            // Revenue stats
+            delegateStats[0] += 1;
+            delegateStats[1] += info.getFee();
+            delegateStats[2] += info.getReceipt().getNetUsage() * 1000;
             break;
           case UnDelegateResourceContract:
-            to = Hex.toHexString(contract.getParameter()
-                .unpack(BalanceContract.UnDelegateResourceContract.class).getReceiverAddress().toByteArray());
+            // Active address stats
+            to = contract.getParameter()
+                .unpack(BalanceContract.UnDelegateResourceContract.class).getReceiverAddress();
             if (!users.containsKey(to)) {
               users.put(to, new User());
             }
             users.get(to).activeTo = true;
+
+            // Revenue stats
+            delegateStats[0] += 1;
+            delegateStats[1] += info.getFee();
+            delegateStats[2] += info.getReceipt().getNetUsage() * 1000;
             break;
           case TriggerSmartContract:
             ByteString contractAddress = info.getContractAddress();
@@ -278,15 +354,17 @@ public class FullNode {
               }
             }
 
-            if (info.getResult() == Protocol.TransactionInfo.code.SUCESS
-                && FastByteComparisons.equalByte(info.getContractAddress().toByteArray(), USDT)
+            long stakingRevenue = info.getReceipt().getNetUsage() * 1000
+                + (info.getReceipt().getEnergyUsage() + info.getReceipt().getOriginEnergyUsage()) * energyPrice;
+
+            boolean isUSDT = FastByteComparisons.equalByte(info.getContractAddress().toByteArray(), USDT);
+
+            if (isUSDT && info.getResult() == Protocol.TransactionInfo.code.SUCESS
                 && info.getLogCount() == 1
                 && FastByteComparisons.equalByte(info.getLog(0).getTopics(0).toByteArray(), TOPIC)) {
               BigInteger amount = new BigInteger(info.getLog(0).getData().toByteArray());
-              from = Hex.toHexString(Arrays.copyOfRange(info.getLog(0).getTopics(1).toByteArray(), 12, 32));
-              from = "41" + from;
-              to = Hex.toHexString(Arrays.copyOfRange(info.getLog(0).getTopics(2).toByteArray(), 12, 32));
-              to = "41" + to;
+              from = ByteString.copyFrom(new byte[]{0x41}).concat(info.getLog(0).getTopics(1).substring(12));
+              to = ByteString.copyFrom(new byte[]{0x41}).concat(info.getLog(0).getTopics(2).substring(12));
 
               if (!users.containsKey(from)) {
                 users.put(from, new User());
@@ -300,18 +378,92 @@ public class FullNode {
 
               if (amount.compareTo(BigInteger.valueOf(100_000)) < 0) {
                 users.get(from).hasSmall = true;
-              }
-
-              if (amount.compareTo(BigInteger.valueOf(10_000_000L)) > 0) {
+              } else if (amount.compareTo(BigInteger.valueOf(10_000_000L)) > 0) {
                 users.get(from).hasBig = true;
               }
+
+              if (amount.compareTo(BigInteger.valueOf(500_000L)) <= 0) {
+                SegUSDTStats[0][0] += 1;
+                SegUSDTStats[0][1] += info.getFee();
+                SegUSDTStats[0][2] += stakingRevenue;
+
+                smallUSDTStats[0] += 1;
+                smallUSDTStats[1] += info.getFee();
+                smallUSDTStats[2] += stakingRevenue;
+              } else {
+                int amountLen = amount.toString().length();
+                if (amountLen < 13) {
+                  SegUSDTStats[amountLen - 5][0] += 1;
+                  SegUSDTStats[amountLen - 5][1] += info.getFee();
+                  SegUSDTStats[amountLen - 5][2] += stakingRevenue;
+                } else {
+                  SegUSDTStats[8][0] += 1;
+                  SegUSDTStats[8][1] += info.getFee();
+                  SegUSDTStats[8][2] += stakingRevenue;
+                }
+
+                USDTStats[0] += 1;
+                USDTStats[1] += info.getFee();
+                USDTStats[2] += stakingRevenue;
+              }
             }
+
+            if (!isUSDT) {
+              otherContractStats[0] += 1;
+              otherContractStats[1] += info.getFee();
+              otherContractStats[2] += stakingRevenue;
+
+              for(Protocol.TransactionInfo.Log log : info.getLogList()) {
+                ByteString address = ByteString.copyFrom(new byte[]{0x41}).concat(log.getAddress());
+                if (!fakeUSDTAddresses.contains(address) && log.getTopicsCount() == 3 && log.getData().size() == 32
+                    && FastByteComparisons.equalByte(log.getTopics(0).toByteArray(), TOPIC)) {
+                  from = ByteString.copyFrom(new byte[]{0x41}).concat(info.getLog(0).getTopics(1).substring(12));
+                  to = ByteString.copyFrom(new byte[]{0x41}).concat(info.getLog(0).getTopics(2).substring(12));
+
+                  if (!users.containsKey(from)) {
+                    users.put(from, new User());
+                  }
+                  users.get(from).activeFrom = true;
+
+                  if (!users.containsKey(to)) {
+                    users.put(to, new User());
+                  }
+                  users.get(to).activeTo = true;
+                }
+              }
+            }
+
+            if (contracts.containsKey(info.getContractAddress())) {
+              int type = contracts.get(info.getContractAddress());
+              if (type == 0) {
+                SunSwapV2Stats[0] += 1;
+                SunSwapV2Stats[1] += info.getFee();
+                SunSwapV2Stats[2] += stakingRevenue;
+              } else if (type == 1) {
+                SunSwapV3Stats[0] += 1;
+                SunSwapV3Stats[1] += info.getFee();
+                SunSwapV3Stats[2] += stakingRevenue;
+              } else if (type == 2) {
+                SunPumpStats[0] += 1;
+                SunPumpStats[1] += info.getFee();
+                SunPumpStats[2] += stakingRevenue;
+              }
+            }
+            break;
+          default:
+            otherStats[0] += 1;
+            otherStats[1] += info.getFee();
+            otherStats[2] += info.getReceipt().getNetUsage() * 1000;
         }
       }
     }
   }
 
-  public static Set<ByteString> readAddressesFromFile(String filePath) {
+  private static String format(long[] stats) {
+    return String.format("%d %d %d", stats[0], stats[1], stats[2]);
+  }
+
+  private static Set<ByteString> readAddressesFromFile(String filePath) {
     Set<ByteString> addresses = new HashSet<>();
     try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
       String line;
