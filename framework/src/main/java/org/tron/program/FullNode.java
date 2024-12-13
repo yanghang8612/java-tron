@@ -417,8 +417,8 @@ public class FullNode {
                 ByteString address = ByteString.copyFrom(new byte[]{0x41}).concat(log.getAddress());
                 if (!fakeUSDTAddresses.contains(address) && log.getTopicsCount() == 3 && log.getData().size() == 32
                     && FastByteComparisons.equalByte(log.getTopics(0).toByteArray(), TOPIC)) {
-                  from = ByteString.copyFrom(new byte[]{0x41}).concat(info.getLog(0).getTopics(1).substring(12));
-                  to = ByteString.copyFrom(new byte[]{0x41}).concat(info.getLog(0).getTopics(2).substring(12));
+                  from = ByteString.copyFrom(new byte[]{0x41}).concat(log.getTopics(1).substring(12));
+                  to = ByteString.copyFrom(new byte[]{0x41}).concat(log.getTopics(2).substring(12));
 
                   if (!users.containsKey(from)) {
                     users.put(from, new User());
