@@ -166,14 +166,14 @@ public class FullNode {
     Set<ByteString> chargers = readAddressesFromFile("/data/chargers.txt");
     Set<ByteString> exchanges = readAddressesFromFile("/data/exchanges.txt");
     Set<ByteString> users = new HashSet<>();
-    long startNum = 65350000;
+    long startNum = 65980000;
 //    long startNum = 61000000;
     long endNum = ChainBaseManager.getInstance().getHeadBlockNum();
 
     DateTimeFormatter filenameFormatter = DateTimeFormatter.ofPattern("'week'yyyyMMdd'.txt'");
     DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
-    LocalDate startDate = LocalDate.parse("20240912", dateFormatter);
-    LocalDate endDate = LocalDate.parse("20240919", dateFormatter);
+    LocalDate startDate = LocalDate.parse("20241004", dateFormatter);
+    LocalDate endDate = LocalDate.parse("20241011", dateFormatter);
 
     byte[] USDT = Hex.decode("41a614f803B6FD780986A42c78Ec9c7f77e6DeD13C");
     byte[] TOPIC = Hex.decode("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
@@ -229,7 +229,7 @@ public class FullNode {
         collectStaking = 0;
         users = readAddressesFromFile("/data/tronlink/" + endDate.format(filenameFormatter));
 
-        if (endDate.format(dateFormatter).compareTo("20241010") > 0) {
+        if (endDate.format(dateFormatter).compareTo("20241206") > 0) {
           break;
         }
       }
