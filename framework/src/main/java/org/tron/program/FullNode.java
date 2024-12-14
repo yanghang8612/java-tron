@@ -166,14 +166,14 @@ public class FullNode {
     Set<ByteString> chargers = readAddressesFromFile("/data/chargers.txt");
     Set<ByteString> exchanges = readAddressesFromFile("/data/exchanges.txt");
     Set<ByteString> users = new HashSet<>();
-    long startNum = 55594335;
+    long startNum = 65350000;
 //    long startNum = 61000000;
     long endNum = ChainBaseManager.getInstance().getHeadBlockNum();
 
     DateTimeFormatter filenameFormatter = DateTimeFormatter.ofPattern("'week'yyyyMMdd'.txt'");
     DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
-    LocalDate startDate = LocalDate.parse("20231009", dateFormatter);
-    LocalDate endDate = LocalDate.parse("20231016", dateFormatter);
+    LocalDate startDate = LocalDate.parse("20240912", dateFormatter);
+    LocalDate endDate = LocalDate.parse("20240919", dateFormatter);
 
     byte[] USDT = Hex.decode("41a614f803B6FD780986A42c78Ec9c7f77e6DeD13C");
     byte[] TOPIC = Hex.decode("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
