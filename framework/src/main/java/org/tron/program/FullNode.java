@@ -151,38 +151,27 @@ public class FullNode {
 //    appT.startup();
 //    appT.blockUntilShutdown();
 
-    long startNum = 51500000;
+    long startNum = 26000000;
     long endNum = ChainBaseManager.getInstance().getHeadBlockNum();
     Wallet wallet = context.getBean(Wallet.class);
-    String currentDate = "";
-    long maxTPS = 0;
-    long trc20 = 0;
-    long total = 0;
-    byte[] TRANSFER = Hex.decode("a9059cbb");
+    String currentDate = "2020-12-19";
+    long totalBurn = 0;
+    long totalGenerate = 0;
     for (long i = startNum; i < endNum; i++) {
       Protocol.Block block = wallet.getBlockByNum(i);
-      maxTPS = Math.max(maxTPS, block.getTransactionsCount());
-      String date = new SimpleDateFormat("yyyy-MM-dd")
-          .format(block.getBlockHeader().getRawData().getTimestamp());
+      GrpcAPI.TransactionInfoList infoList = wallet.getTransactionInfoByBlockNum(i);
+      String date = new SimpleDateFormat("yyyy-MM-dd").format(new Date(block.getBlockHeader().getRawData().getTimestamp()));
+
       if (!currentDate.equals(date)) {
-        System.out.printf("%s %d %d %d\n",
-            currentDate, trc20, total, maxTPS);
+        System.out.printf("%s %d %d\n", currentDate, totalBurn, totalGenerate);
         currentDate = date;
-        trc20 = total = 0;
+        totalBurn = 0;
+        totalGenerate = 0;
       }
 
-      total += block.getTransactionsCount();
-
-      for (Protocol.Transaction tx : block.getTransactionsList()) {
-        Protocol.Transaction.Contract contract = tx.getRawData().getContract(0);
-        if (contract.getType() == Protocol.Transaction.Contract.ContractType.TriggerSmartContract) {
-          SmartContractOuterClass.TriggerSmartContract tsc =
-              contract.getParameter().unpack(SmartContractOuterClass.TriggerSmartContract.class);
-          byte[] data = tsc.getData().toByteArray();
-          if (data.length > 4 && FastByteComparisons.equalByte(Arrays.copyOfRange(data, 0, 4), TRANSFER)) {
-            trc20++;
-          }
-        }
+      totalGenerate += 1;
+      for (Protocol.TransactionInfo tx : infoList.getTransactionInfoList()) {
+        totalBurn += tx.getFee();
       }
     }
   }
