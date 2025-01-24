@@ -2242,7 +2242,8 @@ public class Program {
           contractState.getDynamicPropertiesStore().getCurrentCycleNumber(),
           VMConfig.getDynamicEnergyThreshold(),
           VMConfig.getDynamicEnergyIncreaseFactor(),
-          VMConfig.getDynamicEnergyMaxFactor())) {
+          VMConfig.getDynamicEnergyMaxFactor(),
+          VMConfig.allowStrictMath())) {
         contractState.updateContractState(getContextAddress(), contractStateCapsule
         );
       }
