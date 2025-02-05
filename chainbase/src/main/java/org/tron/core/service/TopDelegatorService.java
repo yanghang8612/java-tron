@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicLong;
 @Slf4j(topic = "TopDelegatorService")
 public class TopDelegatorService {
 
-    private final AccountStore accountStore;
+    private AccountStore accountStore;
 
     private final DelegatedResourceStore delegatedResourceStore;
 
@@ -37,19 +37,18 @@ public class TopDelegatorService {
     private final Set<ByteString> stakers = new HashSet<>();
 
     @Autowired
-    public TopDelegatorService(AccountStore accountStore,
-                               DelegatedResourceStore delegatedResourceStore,
+    public TopDelegatorService(DelegatedResourceStore delegatedResourceStore,
                                DelegatedResourceAccountIndexStore delegatedResourceAccountIndexStore,
                                DynamicPropertiesStore dynamicPropertiesStore) {
-        this.accountStore = accountStore;
         this.delegatedResourceStore = delegatedResourceStore;
         this.delegatedResourceAccountIndexStore = delegatedResourceAccountIndexStore;
         this.dynamicPropertiesStore = dynamicPropertiesStore;
     }
 
-    public void init() {
+    public void init(AccountStore accountStore) {
         logger.info("TopDelegatorService init");
 
+        this.accountStore = accountStore;
         AtomicLong count = new AtomicLong(0);
         accountStore.forEach(e -> {
             if (e.getValue().getAllStakedTRXForEnergy() > 0) {
