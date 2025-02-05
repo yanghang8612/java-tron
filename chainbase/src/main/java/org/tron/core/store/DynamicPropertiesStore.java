@@ -26,6 +26,7 @@ import java.util.stream.IntStream;
 
 import static org.tron.core.config.Parameter.ChainConstant.BLOCK_PRODUCED_INTERVAL;
 import static org.tron.core.config.Parameter.ChainConstant.DELEGATE_PERIOD;
+import static org.tron.core.config.Parameter.ChainConstant.TRX_PRECISION;
 
 @Slf4j(topic = "DB")
 @Component
@@ -51,7 +52,7 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
 
   private long calcMaxEnergyUtilization(AccountCapsule accountCap) {
     long currentUsage = accountCap.getRealEnergyUsage();
-    long availableEnergy = (long) ((double) accountCap.getAllFrozenBalanceForEnergy()
+    long availableEnergy = (long) ((double) accountCap.getAllFrozenBalanceForEnergy() / TRX_PRECISION
         * getTotalEnergyCurrentLimit() / getTotalEnergyWeight());
     if (availableEnergy == 0) {
       return -1;
