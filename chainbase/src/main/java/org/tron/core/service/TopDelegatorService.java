@@ -85,6 +85,8 @@ public class TopDelegatorService {
 
         for (int i = 0; i < 1000 && i < stakerCaps.size(); i++) {
             byte[] staker = stakerCaps.get(i).getAddress().toByteArray();
+            logger.info("TopDelegatorService doStats, Staker: {}, Staked TRX for Energy: {}",
+                ByteString.copyFrom(staker).toStringUtf8(), stakerCaps.get(i).getAllStakedTRXForEnergy());
             Map<ByteString, Long> delegateAmountMap = new HashMap<>();
 
             DelegatedResourceAccountIndexCapsule v1IndexCap = delegatedResourceAccountIndexStore.getIndex(staker);
