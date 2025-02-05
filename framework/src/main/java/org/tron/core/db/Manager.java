@@ -410,7 +410,7 @@ public class Manager {
     revokingStore.check();
     transactionCache.initCache();
     rewardViCalService.init();
-    topDelegatorService.init();
+    topDelegatorService.init(chainBaseManager.getAccountStore());
     topDelegatorService.doStats();
     this.setProposalController(ProposalController.createInstance(this));
     this.setMerkleContainer(
