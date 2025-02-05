@@ -1,11 +1,15 @@
 package org.tron.core.services.http.tracker;
 
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 import org.tron.common.utils.StringUtil;
 import org.tron.protos.Protocol;
 
 import java.io.IOException;
 import java.util.List;
 
+@Component
+@Slf4j(topic = "API")
 public class StakerStatsServlet extends BaseTrackerServlet {
 
     @Override

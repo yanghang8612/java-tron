@@ -4,6 +4,7 @@ import com.google.protobuf.ByteString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.tron.common.utils.StringUtil;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.DelegatedResourceAccountIndexCapsule;
 import org.tron.core.capsule.DelegatedResourceCapsule;
@@ -96,7 +97,7 @@ public class TopDelegatorService {
         for (int i = 0; i < 1000 && i < stakerList.size(); i++) {
             byte[] staker = stakerList.get(i).getAddress().toByteArray();
             logger.info("TopDelegatorService doStats, Staker: {}, Staked TRX for Energy: {}",
-                ByteString.copyFrom(staker).toStringUtf8(), stakerList.get(i).getAllStakedTRXForEnergy());
+                StringUtil.encode58Check(staker), stakerList.get(i).getAllStakedTRXForEnergy());
             Map<ByteString, Long> delegateAmountMap = new HashMap<>();
 
             DelegatedResourceAccountIndexCapsule v1IndexCap = delegatedResourceAccountIndexStore.getIndex(staker);
