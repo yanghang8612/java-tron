@@ -20,8 +20,11 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
+import org.tron.common.parameter.CommonParameter;
 import org.tron.common.utils.ByteArray;
+import org.tron.core.ChainBaseManager;
 import org.tron.core.capsule.utils.AssetUtil;
+import org.tron.core.config.Parameter;
 import org.tron.core.store.AssetIssueStore;
 import org.tron.core.store.DynamicPropertiesStore;
 import org.tron.protos.Protocol.Account;
@@ -37,6 +40,7 @@ import org.tron.protos.Protocol.Permission.PermissionType;
 import org.tron.protos.Protocol.Vote;
 import org.tron.protos.contract.AccountContract.AccountCreateContract;
 import org.tron.protos.contract.AccountContract.AccountUpdateContract;
+import org.tron.protos.contract.Common;
 
 import java.util.List;
 import java.util.Map;
@@ -1151,6 +1155,60 @@ public class AccountCapsule implements ProtoCapsule<Account>, Comparable<Account
     return this.account.getAccountResource().getEnergyUsage();
   }
 
+  public long getRealEnergyUsage() {
+    long now = getHeadSlot();
+    long energyUsage = getEnergyUsage();
+    long latestConsumeTime = getAccountResource().getLatestConsumeTimeForEnergy();
+
+    long accountWindowSize = getWindowSize(Common.ResourceCode.ENERGY);
+
+    return recover(energyUsage, latestConsumeTime, now, accountWindowSize);
+  }
+
+  public long getHeadSlot() {
+    return getSlotByTimestampMs(ChainBaseManager.getChainBaseManager()
+        .getDynamicPropertiesStore().getLatestBlockHeaderTimestamp());
+  }
+
+  public long getSlotByTimestampMs(long timestamp) {
+    return (timestamp - Long.parseLong(CommonParameter.getInstance()
+        .getGenesisBlock().getTimestamp()))
+        / BLOCK_PRODUCED_INTERVAL;
+  }
+
+  // new recover method, use personal window size.
+  private long recover(long lastUsage, long lastTime, long now, long personalWindowSize) {
+    return increase(lastUsage, 0, lastTime, now, personalWindowSize);
+  }
+
+  private long increase(long lastUsage, long usage, long lastTime, long now, long windowSize) {
+    long averageLastUsage = divideCeil(lastUsage * precision, windowSize);
+    long averageUsage = divideCeil(usage * precision, windowSize);
+
+    if (lastTime != now) {
+      assert now > lastTime;
+      if (lastTime + windowSize > now) {
+        long delta = now - lastTime;
+        double decay = (windowSize - delta) / (double) windowSize;
+        averageLastUsage = Math.round(averageLastUsage * decay);
+      } else {
+        averageLastUsage = 0;
+      }
+    }
+    averageLastUsage += averageUsage;
+    return getUsage(averageLastUsage, windowSize);
+  }
+
+  private final long precision = Parameter.ChainConstant.PRECISION;
+
+  private long divideCeil(long numerator, long denominator) {
+    return (numerator / denominator) + ((numerator % denominator) > 0 ? 1 : 0);
+  }
+
+  private long getUsage(long usage, long windowSize) {
+    return usage * windowSize / precision;
+  }
+
   public void setEnergyUsage(long energyUsage) {
     this.account = this.account.toBuilder()
         .setAccountResource(
@@ -1161,6 +1219,11 @@ public class AccountCapsule implements ProtoCapsule<Account>, Comparable<Account
   public long getAllFrozenBalanceForEnergy() {
     return getEnergyFrozenBalance() + getAcquiredDelegatedFrozenBalanceForEnergy()
         + getFrozenV2BalanceForEnergy() + getAcquiredDelegatedFrozenV2BalanceForEnergy();
+  }
+
+  public long getAllStakedTRXForEnergy() {
+    return getEnergyFrozenBalance() + getFrozenV2BalanceForEnergy()
+        + getTotalDelegatedFrozenBalanceForEnergy();
   }
 
   public long getLatestConsumeTimeForEnergy() {

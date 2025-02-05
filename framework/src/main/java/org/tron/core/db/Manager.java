@@ -69,6 +69,7 @@ import org.tron.core.metrics.MetricsKey;
 import org.tron.core.metrics.MetricsUtil;
 import org.tron.core.service.MortgageService;
 import org.tron.core.service.RewardViCalService;
+import org.tron.core.service.TopDelegatorService;
 import org.tron.core.store.*;
 import org.tron.core.utils.TransactionRegister;
 import org.tron.protos.Protocol.AccountType;
@@ -199,6 +200,9 @@ public class Manager {
 
   @Autowired
   private RewardViCalService rewardViCalService;
+
+  @Autowired
+  private TopDelegatorService topDelegatorService;
 
   /**
    * Cycle thread to rePush Transactions
@@ -406,6 +410,8 @@ public class Manager {
     revokingStore.check();
     transactionCache.initCache();
     rewardViCalService.init();
+    topDelegatorService.init();
+    topDelegatorService.doStats();
     this.setProposalController(ProposalController.createInstance(this));
     this.setMerkleContainer(
         merkleContainer.createInstance(chainBaseManager.getMerkleTreeStore(),
@@ -1948,6 +1954,9 @@ public class Manager {
         doDynamicEnergyDayStats(cycleNum, true);
 //        doDynamicEnergyCycleStats(cycleNum, false);
       }).start();
+
+      // Do staker stats
+      topDelegatorService.doStats();
     }
 
     if (!consensus.applyBlock(block)) {

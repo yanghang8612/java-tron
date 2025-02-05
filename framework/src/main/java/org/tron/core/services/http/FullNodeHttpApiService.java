@@ -41,6 +41,8 @@ public class FullNodeHttpApiService extends HttpService {
   @Autowired
   private DelegateStatsServlet delegateStatsServlet;
   @Autowired
+  private StakerStatsServlet stakerStatsServlet;
+  @Autowired
   private HeHeServlet heheServlet;
   @Autowired
   private HeiHeiServlet heiheiServlet;
@@ -343,6 +345,7 @@ public class FullNodeHttpApiService extends HttpService {
       context.addServlet(new ServletHolder(topStakeServlet), "/top_stake");
       context.addServlet(new ServletHolder(topDelegateServlet), "/top_delegate");
       context.addServlet(new ServletHolder(delegateStatsServlet), "/delegate_stats");
+      context.addServlet(new ServletHolder(stakerStatsServlet), "/staker_stats");
       context.addServlet(new ServletHolder(heheServlet), "/hehe");
       context.addServlet(new ServletHolder(heiheiServlet), "/stats");
       context.addServlet(new ServletHolder(slackServlet), "/slack");

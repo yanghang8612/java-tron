@@ -10,13 +10,17 @@ import org.springframework.stereotype.Component;
 import org.tron.common.parameter.CommonParameter;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Sha256Hash;
+import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.BytesCapsule;
 import org.tron.core.config.Parameter.ChainConstant;
 import org.tron.core.db.TronStoreWithRevoking;
 import org.tron.core.exception.BadItemException;
 import org.tron.core.exception.ItemNotFoundException;
+import org.tron.protos.Protocol;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
@@ -26,6 +30,55 @@ import static org.tron.core.config.Parameter.ChainConstant.DELEGATE_PERIOD;
 @Slf4j(topic = "DB")
 @Component
 public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> {
+
+  public void recordMaxEnergyUtilization(AccountCapsule accountCap) {
+    long cycleNumber = getCurrentCycleNumber();
+    long currentEnergyUtilization = calcMaxEnergyUtilization(accountCap);
+    this.put(generateMaxEnergyUtilizationKey(accountCap.getAddress().toByteArray(), cycleNumber),
+        new BytesCapsule(ByteArray.fromLong(currentEnergyUtilization)));
+  }
+
+  public long getMaxEnergyUtilization(AccountCapsule accountCapsule) {
+    return getMaxEnergyUtilization(accountCapsule, getCurrentCycleNumber());
+  }
+
+  public long getMaxEnergyUtilization(AccountCapsule accountCapsule, long cycleNumber) {
+    return Optional.ofNullable(getUnchecked(generateMaxEnergyUtilizationKey(accountCapsule.createDbKey(), cycleNumber)))
+        .map(BytesCapsule::getData)
+        .map(ByteArray::toLong)
+        .orElse(calcMaxEnergyUtilization(accountCapsule));
+  }
+
+  private long calcMaxEnergyUtilization(AccountCapsule accountCap) {
+    long currentUsage = accountCap.getRealEnergyUsage();
+    long availableEnergy = (long) ((double) accountCap.getAllFrozenBalanceForEnergy()
+        * getTotalEnergyCurrentLimit() / getTotalEnergyWeight());
+    return currentUsage * 10_000 / availableEnergy;
+  }
+
+  private byte[] generateMaxEnergyUtilizationKey(byte[] address, long cycleNumber) {
+    return String.format("MEU_%d_%s", cycleNumber, ByteArray.toHexString(address)).getBytes();
+  }
+
+  public void recordStakerStat(byte[] staker, byte[] stats) {
+    this.put(generateStakerStatKey(staker, getCurrentCycleNumber()), new BytesCapsule(stats));
+  }
+
+  public List<Protocol.StakerStat> getStakerStat(long cycleNumber) {
+    List<Protocol.StakerStat> stats = new ArrayList<>();
+    prefixQuery(("SS_" + cycleNumber).getBytes()).forEach((k, v) -> {
+      try {
+        stats.add(Protocol.StakerStat.parseFrom(v.getData()));
+      } catch (Exception e) {
+        logger.error("Failed to parse StakerStat", e);
+      }
+    });
+    return stats;
+  }
+
+  private byte[] generateStakerStatKey(byte[] address, long cycleNumber) {
+    return String.format("SS_%d_%s", cycleNumber, ByteArray.toHexString(address)).getBytes();
+  }
 
   private static final byte[] LATEST_BLOCK_HEADER_TIMESTAMP = "latest_block_header_timestamp"
       .getBytes();

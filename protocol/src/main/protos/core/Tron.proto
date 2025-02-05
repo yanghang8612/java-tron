@@ -254,6 +254,18 @@ message DelegatedResource {
   int64 expire_time_for_energy = 6;
 }
 
+message StakerStat {
+  bytes address = 1;
+  int64 staked_trx_for_energy = 2;
+  int64 meu = 3;
+  message DelegateStat {
+    bytes to = 1;
+    int64 amount = 2;
+    int64 meu = 3;
+  }
+  repeated DelegateStat delegate_stats = 4;
+}
+
 message authority {
   AccountId account = 1;
   bytes permission_name = 2;

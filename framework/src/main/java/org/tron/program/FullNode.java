@@ -3,7 +3,6 @@ package org.tron.program;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.joran.JoranConfigurator;
 import com.beust.jcommander.JCommander;
-import com.google.protobuf.ByteString;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
@@ -22,8 +21,6 @@ import org.tron.core.store.AccountStore;
 import org.tron.core.store.DynamicPropertiesStore;
 
 import java.io.File;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Slf4j(topic = "app")
@@ -127,25 +124,6 @@ public class FullNode {
       System.out.println("Stake for bandwidth: " + dynamicPropertiesStore.getTotalNetWeight2());
       System.out.println("Stake for energy: " + dynamicPropertiesStore.getTotalEnergyWeight2());
     }
-
-    System.out.println("Start to init stakers, now " + System.currentTimeMillis());
-    final Map<ByteString, Long> stakers = new HashMap<>();
-    AtomicLong count = new AtomicLong(0);
-    accountStore.forEach(e -> {
-      long stakedBalanceForEnergy = e.getValue().getEnergyFrozenBalance()
-          + e.getValue().getFrozenV2BalanceForEnergy()
-          + e.getValue().getTotalDelegatedFrozenBalanceForEnergy();
-
-      if (stakedBalanceForEnergy > 0) {
-        stakers.put(ByteString.copyFrom(e.getKey()), stakedBalanceForEnergy);
-      }
-
-        if (count.incrementAndGet() % 1_000_000 == 0) {
-            System.out.println("Init stakers, processed " + count.get());
-        }
-    });
-    System.out.println("Stakers size: " + stakers.size());
-    System.out.println("End to init stakers, now " + System.currentTimeMillis());
 
     appT.startup();
     appT.blockUntilShutdown();

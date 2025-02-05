@@ -10,8 +10,10 @@ import org.tron.common.parameter.CommonParameter;
 import org.tron.common.utils.Commons;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.BlockCapsule;
+import org.tron.core.db.EnergyProcessor;
 import org.tron.core.db.TronStoreWithRevoking;
 import org.tron.core.db.accountstate.AccountStateCallBackUtils;
+import org.tron.core.service.TopDelegatorService;
 import org.tron.protos.contract.BalanceContract.TransactionBalanceTrace;
 import org.tron.protos.contract.BalanceContract.TransactionBalanceTrace.Operation;
 
@@ -36,6 +38,9 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
 
   @Autowired
   private DynamicPropertiesStore dynamicPropertiesStore;
+
+  @Autowired
+  private TopDelegatorService topDelegatorService;
 
   @Autowired
   private AccountStore(@Value("account") String dbName) {
@@ -78,6 +83,24 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
         }
       }
     }
+
+    AccountCapsule preItem = super.getUnchecked(key);
+    long preStakedTRXForEnergy = preItem == null ? 0 : preItem.getAllStakedTRXForEnergy();
+    long curStakedTRXForEnergy = item == null ? 0 : item.getAllStakedTRXForEnergy();
+    if (preStakedTRXForEnergy != curStakedTRXForEnergy) {
+      if (curStakedTRXForEnergy == 0) {
+        topDelegatorService.removeStaker(ByteString.copyFrom(key));
+      }
+      if (preStakedTRXForEnergy == 0) {
+        topDelegatorService.addStaker(ByteString.copyFrom(key));
+      }
+    }
+
+    long now = EnergyProcessor.getHeadSlot(dynamicPropertiesStore);
+    if (item != null && item.getLatestConsumeTimeForEnergy() == now) {
+      dynamicPropertiesStore.recordMaxEnergyUtilization(item);
+    }
+
     super.put(key, item);
     accountStateCallBackUtils.accountCallBack(key, item);
   }
