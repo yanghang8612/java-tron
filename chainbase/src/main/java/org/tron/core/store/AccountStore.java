@@ -89,10 +89,11 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
     long curStakedTRXForEnergy = item == null ? 0 : item.getAllStakedTRXForEnergy();
     if (preStakedTRXForEnergy != curStakedTRXForEnergy) {
       if (curStakedTRXForEnergy == 0) {
-        topDelegatorService.removeStaker(ByteString.copyFrom(key));
-      }
-      if (preStakedTRXForEnergy == 0) {
-        topDelegatorService.addStaker(ByteString.copyFrom(key));
+        topDelegatorService.removeStaker(preItem);
+      } else if (preStakedTRXForEnergy == 0) {
+        topDelegatorService.addStaker(item);
+      } else {
+        topDelegatorService.updateStaker(item);
       }
     }
 

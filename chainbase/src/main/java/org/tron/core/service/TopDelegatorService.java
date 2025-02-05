@@ -36,6 +36,8 @@ public class TopDelegatorService {
 
     private final Set<ByteString> stakers = new HashSet<>();
 
+    private final Map<ByteString, AccountCapsule> stakerCaps = new HashMap<>();
+
     @Autowired
     public TopDelegatorService(DelegatedResourceStore delegatedResourceStore,
                                DelegatedResourceAccountIndexStore delegatedResourceAccountIndexStore,
@@ -53,6 +55,7 @@ public class TopDelegatorService {
         accountStore.forEach(e -> {
             if (e.getValue().getAllStakedTRXForEnergy() > 0) {
                 stakers.add(ByteString.copyFrom(e.getKey()));
+                stakerCaps.put(ByteString.copyFrom(e.getKey()), e.getValue());
 
                 if (count.incrementAndGet() % 10_000 == 0) {
                     logger.info("TopDelegatorService initializing, Staker size: {}", count.get());
@@ -62,40 +65,38 @@ public class TopDelegatorService {
         logger.info("TopDelegatorService init finish, Staker size: {}", count.get());
     }
 
-    public void addStaker(ByteString address) {
-        stakers.add(address);
+    public void addStaker(AccountCapsule accountCap) {
+        stakers.add(accountCap.getAddress());
+        stakerCaps.put(accountCap.getAddress(), accountCap);
     }
 
-    public void removeStaker(ByteString address) {
-        stakers.remove(address);
+    public void removeStaker(AccountCapsule accountCap) {
+        stakers.remove(accountCap.getAddress());
+        stakerCaps.remove(accountCap.getAddress());
+    }
+
+    public void updateStaker(AccountCapsule accountCapsule) {
+        stakerCaps.put(accountCapsule.getAddress(), accountCapsule);
     }
 
     public void doStats() {
         logger.info("TopDelegatorService doStats, Staker size: {}", stakers.size());
 
-        List<AccountCapsule> stakerCaps = new ArrayList<>();
-        long count = 0;
+        List<AccountCapsule> stakerList = new ArrayList<>();
         for (ByteString address : stakers) {
-            AccountCapsule accountCapsule = accountStore.get(address.toByteArray());
-            if (accountCapsule != null) {
-                stakerCaps.add(accountCapsule);
-            }
-            count++;
-            if (count % 1_000 == 0) {
-                logger.info("TopDelegatorService get staker, current queried: {}", count);
-            }
+            stakerList.add(stakerCaps.get(address));
         }
 
-        logger.info("TopDelegatorService finish get stakerCaps, Staker size: {}", stakerCaps.size());
+        logger.info("TopDelegatorService finish get stakerCaps, Staker size: {}", stakerList.size());
 
-        stakerCaps.sort(Comparator.comparingLong(AccountCapsule::getAllStakedTRXForEnergy).reversed());
+        stakerList.sort(Comparator.comparingLong(AccountCapsule::getAllStakedTRXForEnergy).reversed());
 
         logger.info("TopDelegatorService finish sort stakerCaps");
 
-        for (int i = 0; i < 1000 && i < stakerCaps.size(); i++) {
-            byte[] staker = stakerCaps.get(i).getAddress().toByteArray();
+        for (int i = 0; i < 1000 && i < stakerList.size(); i++) {
+            byte[] staker = stakerList.get(i).getAddress().toByteArray();
             logger.info("TopDelegatorService doStats, Staker: {}, Staked TRX for Energy: {}",
-                ByteString.copyFrom(staker).toStringUtf8(), stakerCaps.get(i).getAllStakedTRXForEnergy());
+                ByteString.copyFrom(staker).toStringUtf8(), stakerList.get(i).getAllStakedTRXForEnergy());
             Map<ByteString, Long> delegateAmountMap = new HashMap<>();
 
             DelegatedResourceAccountIndexCapsule v1IndexCap = delegatedResourceAccountIndexStore.getIndex(staker);
@@ -128,8 +129,8 @@ public class TopDelegatorService {
 
             Protocol.StakerStat.Builder stakerStatBuilder = Protocol.StakerStat.newBuilder();
             stakerStatBuilder.setAddress(ByteString.copyFrom(staker));
-            stakerStatBuilder.setStakedTrxForEnergy(stakerCaps.get(i).getAllStakedTRXForEnergy());
-            stakerStatBuilder.setMeu(dynamicPropertiesStore.getMaxEnergyUtilization(stakerCaps.get(i)));
+            stakerStatBuilder.setStakedTrxForEnergy(stakerList.get(i).getAllStakedTRXForEnergy());
+            stakerStatBuilder.setMeu(dynamicPropertiesStore.getMaxEnergyUtilization(stakerList.get(i)));
             for (Map.Entry<ByteString, Long> entry : delegateAmountMap.entrySet()) {
                 stakerStatBuilder.addDelegateStats(
                     Protocol.StakerStat.DelegateStat.newBuilder()
