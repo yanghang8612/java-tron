@@ -74,10 +74,15 @@ public class TopDelegatorService {
         logger.info("TopDelegatorService doStats, Staker size: {}", stakers.size());
 
         List<AccountCapsule> stakerCaps = new ArrayList<>();
+        long count = 0;
         for (ByteString address : stakers) {
             AccountCapsule accountCapsule = accountStore.get(address.toByteArray());
             if (accountCapsule != null) {
                 stakerCaps.add(accountCapsule);
+            }
+            count++;
+            if (count % 1_000 == 0) {
+                logger.info("TopDelegatorService get staker, current queried: {}", count);
             }
         }
 
