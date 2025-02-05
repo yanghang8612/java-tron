@@ -53,6 +53,9 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
     long currentUsage = accountCap.getRealEnergyUsage();
     long availableEnergy = (long) ((double) accountCap.getAllFrozenBalanceForEnergy()
         * getTotalEnergyCurrentLimit() / getTotalEnergyWeight());
+    if (availableEnergy == 0) {
+      return -1;
+    }
     return currentUsage * 10_000 / availableEnergy;
   }
 
