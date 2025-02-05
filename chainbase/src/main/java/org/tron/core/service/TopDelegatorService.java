@@ -81,7 +81,11 @@ public class TopDelegatorService {
             }
         }
 
+        logger.info("TopDelegatorService finish get stakerCaps, Staker size: {}", stakerCaps.size());
+
         stakerCaps.sort(Comparator.comparingLong(AccountCapsule::getAllStakedTRXForEnergy).reversed());
+
+        logger.info("TopDelegatorService finish sort stakerCaps");
 
         for (int i = 0; i < 1000 && i < stakerCaps.size(); i++) {
             byte[] staker = stakerCaps.get(i).getAddress().toByteArray();
