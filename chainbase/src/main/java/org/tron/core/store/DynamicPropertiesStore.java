@@ -10,7 +10,6 @@ import org.springframework.stereotype.Component;
 import org.tron.common.parameter.CommonParameter;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Sha256Hash;
-import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.BytesCapsule;
 import org.tron.core.config.Parameter.ChainConstant;
 import org.tron.core.db.TronStoreWithRevoking;
@@ -26,11 +25,16 @@ import java.util.stream.IntStream;
 
 import static org.tron.core.config.Parameter.ChainConstant.BLOCK_PRODUCED_INTERVAL;
 import static org.tron.core.config.Parameter.ChainConstant.DELEGATE_PERIOD;
-import static org.tron.core.config.Parameter.ChainConstant.TRX_PRECISION;
 
 @Slf4j(topic = "DB")
 @Component
 public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> {
+
+  public void removeMEUs() {
+    this.prefixQuery("MEU_".getBytes()).forEach((k, v) -> {
+      this.delete(k.getBytes());
+    });
+  }
 
   public void recordStakerStat(byte[] staker, byte[] stats) {
     this.put(generateStakerStatKey(staker, getCurrentCycleNumber()), new BytesCapsule(stats));

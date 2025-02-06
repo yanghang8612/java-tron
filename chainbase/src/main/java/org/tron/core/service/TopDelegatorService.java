@@ -56,6 +56,8 @@ public class TopDelegatorService {
         logger.info("TopDelegatorService init");
 
         this.accountStore = accountStore;
+        this.dynamicPropertiesStore.removeMEUs();
+
         AtomicLong count = new AtomicLong(0);
         accountStore.forEach(e -> {
             if (e.getValue().getAllStakedTRXForEnergy() > 0) {
