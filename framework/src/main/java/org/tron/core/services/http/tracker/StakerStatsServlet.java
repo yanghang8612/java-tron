@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.tron.common.utils.Commons;
 import org.tron.common.utils.StringUtil;
-import org.tron.consensus.dpos.StateManager;
 import org.tron.protos.Protocol;
 
 import java.io.IOException;

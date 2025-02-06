@@ -411,7 +411,6 @@ public class Manager {
     transactionCache.initCache();
     rewardViCalService.init();
     topDelegatorService.init(chainBaseManager.getAccountStore());
-    topDelegatorService.doStats();
     this.setProposalController(ProposalController.createInstance(this));
     this.setMerkleContainer(
         merkleContainer.createInstance(chainBaseManager.getMerkleTreeStore(),

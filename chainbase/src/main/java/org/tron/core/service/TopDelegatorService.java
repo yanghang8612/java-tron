@@ -23,6 +23,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static org.tron.core.config.Parameter.ChainConstant.TRX_PRECISION;
+
 @Component
 @Slf4j(topic = "TopDelegatorService")
 public class TopDelegatorService {
@@ -38,6 +40,8 @@ public class TopDelegatorService {
     private final Set<ByteString> stakers = new HashSet<>();
 
     private final Map<ByteString, AccountCapsule> stakerCaps = new HashMap<>();
+
+    private final Map<ByteString, Long> accountMEUs = new HashMap<>();
 
     @Autowired
     public TopDelegatorService(DelegatedResourceStore delegatedResourceStore,
@@ -78,6 +82,31 @@ public class TopDelegatorService {
 
     public void updateStaker(AccountCapsule accountCapsule) {
         stakerCaps.put(accountCapsule.getAddress(), accountCapsule);
+    }
+
+    public long getMEU(ByteString address) {
+        if (!accountMEUs.containsKey(address)) {
+            AccountCapsule accountCap = accountStore.get(address.toByteArray());
+            return calcMaxEnergyUtilization(accountCap);
+        }
+        return accountMEUs.get(address);
+    }
+
+    public void updateMEU(AccountCapsule accountCap) {
+        long meu = calcMaxEnergyUtilization(accountCap);
+        if (meu > accountMEUs.getOrDefault(accountCap.getAddress(), 0L)) {
+            accountMEUs.put(accountCap.getAddress(), meu);
+        }
+    }
+
+    private long calcMaxEnergyUtilization(AccountCapsule accountCap) {
+        long currentUsage = accountCap.getRealEnergyUsage();
+        long availableEnergy = (long) ((double) accountCap.getAllFrozenBalanceForEnergy() / TRX_PRECISION
+            * dynamicPropertiesStore.getTotalEnergyCurrentLimit() / dynamicPropertiesStore.getTotalEnergyWeight());
+        if (availableEnergy == 0) {
+            return -1;
+        }
+        return currentUsage * 10_000 / availableEnergy;
     }
 
     public void doStats() {
@@ -131,13 +160,13 @@ public class TopDelegatorService {
             Protocol.StakerStat.Builder stakerStatBuilder = Protocol.StakerStat.newBuilder();
             stakerStatBuilder.setAddress(ByteString.copyFrom(staker));
             stakerStatBuilder.setStakedTrxForEnergy(stakerList.get(i).getAllStakedTRXForEnergy());
-            stakerStatBuilder.setMeu(dynamicPropertiesStore.getMaxEnergyUtilization(stakerList.get(i)));
+            stakerStatBuilder.setMeu(getMEU(ByteString.copyFrom(staker)));
             for (Map.Entry<ByteString, Long> entry : delegateAmountMap.entrySet()) {
                 stakerStatBuilder.addDelegateStats(
                     Protocol.StakerStat.DelegateStat.newBuilder()
                         .setTo(entry.getKey())
                         .setAmount(entry.getValue())
-                        .setMeu(dynamicPropertiesStore.getMaxEnergyUtilization(accountStore.get(entry.getKey().toByteArray())))
+                        .setMeu(getMEU(entry.getKey()))
                         .build()
                 );
             }
@@ -145,5 +174,6 @@ public class TopDelegatorService {
         }
 
         logger.info("TopDelegatorService doStats finish");
+        accountMEUs.clear();
     }
 }

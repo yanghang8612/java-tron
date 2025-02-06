@@ -99,7 +99,7 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
 
     long now = EnergyProcessor.getHeadSlot(dynamicPropertiesStore);
     if (item != null && item.getLatestConsumeTimeForEnergy() == now) {
-      dynamicPropertiesStore.recordMaxEnergyUtilization(item);
+      topDelegatorService.updateMEU(item);
     }
 
     super.put(key, item);

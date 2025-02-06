@@ -32,38 +32,6 @@ import static org.tron.core.config.Parameter.ChainConstant.TRX_PRECISION;
 @Component
 public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> {
 
-  public void recordMaxEnergyUtilization(AccountCapsule accountCap) {
-    long cycleNumber = getCurrentCycleNumber();
-    long currentEnergyUtilization = calcMaxEnergyUtilization(accountCap);
-    this.put(generateMaxEnergyUtilizationKey(accountCap.getAddress().toByteArray(), cycleNumber),
-        new BytesCapsule(ByteArray.fromLong(currentEnergyUtilization)));
-  }
-
-  public long getMaxEnergyUtilization(AccountCapsule accountCapsule) {
-    return getMaxEnergyUtilization(accountCapsule, getCurrentCycleNumber());
-  }
-
-  public long getMaxEnergyUtilization(AccountCapsule accountCapsule, long cycleNumber) {
-    return Optional.ofNullable(getUnchecked(generateMaxEnergyUtilizationKey(accountCapsule.createDbKey(), cycleNumber)))
-        .map(BytesCapsule::getData)
-        .map(ByteArray::toLong)
-        .orElse(calcMaxEnergyUtilization(accountCapsule));
-  }
-
-  private long calcMaxEnergyUtilization(AccountCapsule accountCap) {
-    long currentUsage = accountCap.getRealEnergyUsage();
-    long availableEnergy = (long) ((double) accountCap.getAllFrozenBalanceForEnergy() / TRX_PRECISION
-        * getTotalEnergyCurrentLimit() / getTotalEnergyWeight());
-    if (availableEnergy == 0) {
-      return -1;
-    }
-    return currentUsage * 10_000 / availableEnergy;
-  }
-
-  private byte[] generateMaxEnergyUtilizationKey(byte[] address, long cycleNumber) {
-    return String.format("MEU_%d_%s", cycleNumber, ByteArray.toHexString(address)).getBytes();
-  }
-
   public void recordStakerStat(byte[] staker, byte[] stats) {
     this.put(generateStakerStatKey(staker, getCurrentCycleNumber()), new BytesCapsule(stats));
   }
