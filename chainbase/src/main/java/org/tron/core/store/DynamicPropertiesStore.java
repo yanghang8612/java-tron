@@ -34,26 +34,9 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
     this.prefixQuery("MEU_".getBytes()).forEach((k, v) -> {
       this.delete(k.getBytes());
     });
-  }
-
-  public void recordStakerStat(byte[] staker, byte[] stats) {
-    this.put(generateStakerStatKey(staker, getCurrentCycleNumber()), new BytesCapsule(stats));
-  }
-
-  public List<Protocol.StakerStat> getStakerStat(long cycleNumber) {
-    List<Protocol.StakerStat> stats = new ArrayList<>();
-    prefixQuery(("SS_" + cycleNumber).getBytes()).forEach((k, v) -> {
-      try {
-        stats.add(Protocol.StakerStat.parseFrom(v.getData()));
-      } catch (Exception e) {
-        logger.error("Failed to parse StakerStat", e);
-      }
+    this.prefixQuery("SS_".getBytes()).forEach((k, v) -> {
+      this.delete(k.getBytes());
     });
-    return stats;
-  }
-
-  private byte[] generateStakerStatKey(byte[] address, long cycleNumber) {
-    return String.format("SS_%d_%s", cycleNumber, ByteArray.toHexString(address)).getBytes();
   }
 
   private static final byte[] LATEST_BLOCK_HEADER_TIMESTAMP = "latest_block_header_timestamp"

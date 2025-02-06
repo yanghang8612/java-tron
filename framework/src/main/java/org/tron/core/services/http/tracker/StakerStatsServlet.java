@@ -2,9 +2,11 @@ package org.tron.core.services.http.tracker;
 
 import com.google.protobuf.ByteString;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.tron.common.utils.Commons;
 import org.tron.common.utils.StringUtil;
+import org.tron.core.store.StakerStatStore;
 import org.tron.protos.Protocol;
 
 import java.io.IOException;
@@ -16,9 +18,12 @@ import java.util.List;
 @Slf4j(topic = "API")
 public class StakerStatsServlet extends BaseTrackerServlet {
 
+    @Autowired
+    private StakerStatStore stakerStatStore;
+
     @Override
     void responseGet() throws IOException, MissingParameterException {
-        List<Protocol.StakerStat> stats = dps.getStakerStat(cycleNumber);
+        List<Protocol.StakerStat> stats = stakerStatStore.getStakerStat(cycleNumber);
         stats.sort(Comparator.comparingLong(Protocol.StakerStat::getStakedTrxForEnergy).reversed());
 
         String addressStr = mayGetParameter("address", "");

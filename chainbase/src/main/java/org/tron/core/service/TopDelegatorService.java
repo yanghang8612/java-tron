@@ -12,6 +12,7 @@ import org.tron.core.store.AccountStore;
 import org.tron.core.store.DelegatedResourceAccountIndexStore;
 import org.tron.core.store.DelegatedResourceStore;
 import org.tron.core.store.DynamicPropertiesStore;
+import org.tron.core.store.StakerStatStore;
 import org.tron.protos.Protocol;
 
 import java.util.ArrayList;
@@ -31,6 +32,8 @@ public class TopDelegatorService {
 
     private AccountStore accountStore;
 
+    private final StakerStatStore stakerStatStore;
+
     private final DelegatedResourceStore delegatedResourceStore;
 
     private final DelegatedResourceAccountIndexStore delegatedResourceAccountIndexStore;
@@ -44,9 +47,11 @@ public class TopDelegatorService {
     private final Map<ByteString, Long> accountMEUs = new HashMap<>();
 
     @Autowired
-    public TopDelegatorService(DelegatedResourceStore delegatedResourceStore,
+    public TopDelegatorService(StakerStatStore stakerStatStore,
+                               DelegatedResourceStore delegatedResourceStore,
                                DelegatedResourceAccountIndexStore delegatedResourceAccountIndexStore,
                                DynamicPropertiesStore dynamicPropertiesStore) {
+        this.stakerStatStore = stakerStatStore;
         this.delegatedResourceStore = delegatedResourceStore;
         this.delegatedResourceAccountIndexStore = delegatedResourceAccountIndexStore;
         this.dynamicPropertiesStore = dynamicPropertiesStore;
@@ -172,7 +177,7 @@ public class TopDelegatorService {
                         .build()
                 );
             }
-            dynamicPropertiesStore.recordStakerStat(staker, stakerStatBuilder.build().toByteArray());
+            stakerStatStore.recordStakerStat(staker, stakerStatBuilder.build().toByteArray());
         }
 
         logger.info("TopDelegatorService doStats finish");
