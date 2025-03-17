@@ -1,11 +1,13 @@
 package org.tron.core.capsule;
 
+import static org.tron.common.math.Maths.max;
+import static org.tron.common.math.Maths.min;
+import static org.tron.common.math.Maths.pow;
 import static org.tron.core.Constant.DYNAMIC_ENERGY_DECREASE_DIVISION;
 import static org.tron.core.Constant.DYNAMIC_ENERGY_FACTOR_DECIMAL;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import lombok.extern.slf4j.Slf4j;
-import org.tron.common.math.Maths;
 import org.tron.core.store.DynamicPropertiesStore;
 import org.tron.protos.contract.SmartContractOuterClass;
 import org.tron.protos.contract.SmartContractOuterClass.ContractState;
@@ -79,7 +81,8 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
         dps.getDynamicEnergyThreshold(),
         dps.getDynamicEnergyIncreaseFactor(),
         dps.getDynamicEnergyMaxFactor(),
-        dps.allowStrictMath()
+        dps.allowStrictMath(),
+        dps.disableJavaLangMath()
     );
   }
 
@@ -88,7 +91,8 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
    * need {@link DynamicPropertiesStore} to be initialized by spring before calling this method.
    */
   public boolean catchUpToCycle(
-      long newCycle, long threshold, long increaseFactor, long maxFactor, boolean useStrictMath
+      long newCycle, long threshold, long increaseFactor, long maxFactor,
+      boolean useStrictMath, boolean disableMath
   ) {
     long lastCycle = getUpdateCycle();
 
@@ -112,9 +116,10 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
       double increasePercent = 1 + (double) increaseFactor / precisionFactor;
       this.contractState = ContractState.newBuilder()
           .setUpdateCycle(lastCycle)
-          .setEnergyFactor(Math.min(
+          .setEnergyFactor(min(
               maxFactor,
-              (long) ((getEnergyFactor() + precisionFactor) * increasePercent) - precisionFactor))
+              (long) ((getEnergyFactor() + precisionFactor) * increasePercent) - precisionFactor,
+              disableMath))
           .build();
     }
 
@@ -125,7 +130,7 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
     }
 
     // Calc the decrease percent (decrease factor [75% ~ 100%])
-    double decreasePercent = Maths.pow(
+    double decreasePercent = pow(
         1 - (double) increaseFactor / DYNAMIC_ENERGY_DECREASE_DIVISION / precisionFactor,
         cycleCount, useStrictMath
     );
@@ -136,9 +141,10 @@ public class ContractStateCapsule implements ProtoCapsule<ContractState> {
     //  That means we merge this special case to normal cases)
     this.contractState = ContractState.newBuilder()
         .setUpdateCycle(newCycle)
-        .setEnergyFactor(Math.max(
+        .setEnergyFactor(max(
             0,
-            (long) ((getEnergyFactor() + precisionFactor) * decreasePercent) - precisionFactor))
+            (long) ((getEnergyFactor() + precisionFactor) * decreasePercent) - precisionFactor,
+            disableMath))
         .build();
 
     return true;
