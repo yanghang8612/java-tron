@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.util.encoders.Hex;
 import org.pf4j.CompoundPluginDescriptorFinder;
@@ -26,6 +28,8 @@ import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger;
 public class EventPluginLoader {
 
   private static EventPluginLoader instance;
+
+  private long MAX_PENDING_SIZE = 50000;
 
   private PluginManager pluginManager = null;
 
@@ -88,6 +92,7 @@ public class EventPluginLoader {
 
   private FilterQuery filterQuery;
 
+  @Getter
   private boolean useNativeQueue = false;
 
   public static EventPluginLoader getInstance() {
@@ -746,6 +751,21 @@ public class EventPluginLoader {
       eventListeners.forEach(listener ->
           listener.handleMultiAuthTrigger(toJsonString(trigger)));
     }
+  }
+
+  public boolean isBusy() {
+    if (useNativeQueue) {
+      return false;
+    }
+    int queueSize = 0;
+    for (IPluginEventListener listener : eventListeners) {
+      try {
+        queueSize += listener.getPendingSize();
+      } catch (AbstractMethodError error) {
+        break;
+      }
+    }
+    return queueSize >= MAX_PENDING_SIZE;
   }
 
   private String toJsonString(Object data) {
