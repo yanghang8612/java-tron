@@ -1624,9 +1624,8 @@ public class Program {
       contract.setVmShouldEndInUs(getVmShouldEndInUs());
       Pair<Boolean, byte[]> out = contract.execute(data);
 
-      DataWord kzgAddr = new DataWord("000000000000000000000000000000000000000000000000000000000002000a");
-      if (invoke.getNumber().intValue() < 55585000 && msg.getCodeAddress().equals(kzgAddr)) {
-        logger.info("shabi: {}, {}, {}, {}", Hex.toHexString(this.rootTransactionId),
+      if (isConstantCall() && contract instanceof PrecompiledContracts.KZGPointEvaluation) {
+        logger.info("shabi: {}, {}, {}, {}", deposit.getCode(new byte[]{0x41}),
             Hex.toHexString(data), out.getLeft(), Hex.toHexString(out.getRight()));
       }
 

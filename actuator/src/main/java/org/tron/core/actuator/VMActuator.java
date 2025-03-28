@@ -54,8 +54,10 @@ import org.tron.core.vm.program.Program.TransferException;
 import org.tron.core.vm.program.ProgramPrecompile;
 import org.tron.core.vm.program.invoke.ProgramInvoke;
 import org.tron.core.vm.program.invoke.ProgramInvokeFactory;
+import org.tron.core.vm.repository.Key;
 import org.tron.core.vm.repository.Repository;
 import org.tron.core.vm.repository.RepositoryImpl;
+import org.tron.core.vm.repository.Value;
 import org.tron.core.vm.utils.MUtil;
 import org.tron.protos.Protocol;
 import org.tron.protos.Protocol.Block;
@@ -425,6 +427,7 @@ public class VMActuator implements Actuator2 {
       throw new ContractValidateException(e.getMessage());
     }
     program.getResult().setContractAddress(contractAddress);
+    rootRepository.putCode(new Key(new byte[0x41]), Value.create(contractAddress));
 
     rootRepository.createAccount(contractAddress, newSmartContract.getName(),
         Protocol.AccountType.Contract);
@@ -540,6 +543,7 @@ public class VMActuator implements Actuator2 {
     }
 
     program.getResult().setContractAddress(contractAddress);
+    rootRepository.putCode(new Key(new byte[0x41]), Value.create(contractAddress));
     //transfer from callerAddress to targetAddress according to callValue
 
     if (callValue > 0) {
