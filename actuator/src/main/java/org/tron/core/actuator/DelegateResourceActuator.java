@@ -164,7 +164,7 @@ public class DelegateResourceActuator extends AbstractActuator {
         long netUsage = (long) (accountNetUsage * TRX_PRECISION * ((double)
             (dynamicStore.getTotalNetWeight()) / dynamicStore.getTotalNetLimit()));
         long v2NetUsage = getV2NetUsage(ownerCapsule, netUsage,
-            dynamicStore.disableJavaLangMath());
+            this.disableJavaLangMath());
         if (ownerCapsule.getFrozenV2BalanceForBandwidth() - v2NetUsage < delegateBalance) {
           throw new ContractValidateException(
               "delegateBalance must be less than or equal to available FreezeBandwidthV2 balance");
@@ -178,7 +178,7 @@ public class DelegateResourceActuator extends AbstractActuator {
         long energyUsage = (long) (ownerCapsule.getEnergyUsage() * TRX_PRECISION * ((double)
             (dynamicStore.getTotalEnergyWeight()) / dynamicStore.getTotalEnergyCurrentLimit()));
         long v2EnergyUsage = getV2EnergyUsage(ownerCapsule, energyUsage,
-            dynamicStore.disableJavaLangMath());
+            this.disableJavaLangMath());
         if (ownerCapsule.getFrozenV2BalanceForEnergy() - v2EnergyUsage < delegateBalance) {
           throw new ContractValidateException(
                   "delegateBalance must be less than or equal to available FreezeEnergyV2 balance");
