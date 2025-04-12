@@ -64,6 +64,7 @@ public class FullNode {
         System.out.println("AccountStore: " + size.get());
       }
     });
+    AccountStore.size = size.get();
     System.out.println("Final AccountStore: " + size.get());
 
     context.registerShutdownHook();
