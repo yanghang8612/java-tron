@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.tron.common.parameter.CommonParameter;
 import org.tron.common.utils.Commons;
+import org.tron.common.utils.StringUtil;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.db.TronStoreWithRevoking;
@@ -77,6 +78,9 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
           accountTraceStore.recordBalanceWithBlock(key, blockId.getNum(), item.getBalance());
         }
       }
+    }
+    if (super.getUnchecked(key) == null && item != null) {
+      System.out.printf("No.%d account [%s]\n", super.size(), StringUtil.encode58Check(key));
     }
     super.put(key, item);
     accountStateCallBackUtils.accountCallBack(key, item);

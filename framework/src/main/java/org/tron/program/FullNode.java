@@ -13,6 +13,7 @@ import org.tron.common.prometheus.Metrics;
 import org.tron.core.Constant;
 import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
+import org.tron.core.store.AccountStore;
 
 @Slf4j(topic = "app")
 public class FullNode {
@@ -51,6 +52,10 @@ public class FullNode {
     context.register(DefaultConfig.class);
     context.refresh();
     Application appT = ApplicationFactory.create(context);
+
+    AccountStore accountStore = context.getBean(AccountStore.class);
+    System.out.println("AccountStore: " + accountStore.size());
+
     context.registerShutdownHook();
     appT.startup();
     appT.blockUntilShutdown();
