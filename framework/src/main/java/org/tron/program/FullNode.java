@@ -15,6 +15,8 @@ import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
 import org.tron.core.store.AccountStore;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 @Slf4j(topic = "app")
 public class FullNode {
 
@@ -54,7 +56,15 @@ public class FullNode {
     Application appT = ApplicationFactory.create(context);
 
     AccountStore accountStore = context.getBean(AccountStore.class);
-    System.out.println("AccountStore: " + accountStore.size());
+    AtomicLong size = new AtomicLong();
+    accountStore.forEach(e -> {
+      size.getAndIncrement();
+
+      if (size.get() % 10_000_000 == 0) {
+        System.out.println("AccountStore: " + size.get());
+      }
+    });
+    System.out.println("Final AccountStore: " + size.get());
 
     context.registerShutdownHook();
     appT.startup();

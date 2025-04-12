@@ -24,6 +24,8 @@ import java.util.OptionalLong;
 @Component
 public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
 
+  public static long size;
+
   private static Map<String, byte[]> assertsAddress = new HashMap<>(); // key = name , value = address
 
   @Autowired
@@ -80,7 +82,8 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
       }
     }
     if (super.getUnchecked(key) == null && item != null) {
-      System.out.printf("No.%d account [%s]\n", super.size(), StringUtil.encode58Check(key));
+      size += 1;
+      System.out.printf("No.%d account [%s]\n", size, StringUtil.encode58Check(key));
     }
     super.put(key, item);
     accountStateCallBackUtils.accountCallBack(key, item);
@@ -99,6 +102,7 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
         accountTraceStore.recordBalanceWithBlock(key, blockId.getNum(), 0);
       }
     }
+    size -= 1;
     super.delete(key);
   }
 
