@@ -163,14 +163,19 @@ public class FullNode {
     long startNum = 45000000;
     long endNum = 65000000;
 
-    Map<Long, Long[]> stats = new HashMap<>();
+    Map<Long, long[]> stats = new HashMap<>();
     Map<Long, Set<String>> accounts = new HashMap<>();
+    BigInteger precision = BigInteger.valueOf(1_000_000L);
 
     Wallet wallet = context.getBean(Wallet.class);
     String currentDate = "2022-10-12";
     byte[] USDT = Hex.decode("41a614f803B6FD780986A42c78Ec9c7f77e6DeD13C");
     byte[] TOPIC = Hex.decode("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
     for (long i = startNum; i < endNum; i++) {
+      if (i % 1000 == 0) {
+        System.out.println("Processing block: " + i);
+      }
+
       Protocol.Block block = wallet.getBlockByNum(i);
       GrpcAPI.TransactionInfoList infoList = wallet.getTransactionInfoByBlockNum(i);
 
@@ -178,15 +183,15 @@ public class FullNode {
           .format(new Date(block.getBlockHeader().getRawData().getTimestamp()));
 
       if (!currentDate.equals(date)) {
-        List<Map.Entry<Long, Long[]>> sortedStats = new ArrayList<>(stats.entrySet());
+        List<Map.Entry<Long, long[]>> sortedStats = new ArrayList<>(stats.entrySet());
         sortedStats.sort((e1, e2) -> Long.compare(e2.getValue()[0], e1.getValue()[0]));
 
         try {
           File outputFile = new File(currentDate.replace("-", "") + ".txt");
           try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile))) {
-            for (Map.Entry<Long, Long[]> entry : sortedStats) {
-              Long key = entry.getKey();
-              Long[] values = entry.getValue();
+            for (Map.Entry<Long, long[]> entry : sortedStats) {
+              long key = entry.getKey();
+              long[] values = entry.getValue();
               writer.write(String.format("%d %d %d %d %d %d%n",
                   key, values[0], accounts.get(key).size(), values[1], values[2], values[3]));
             }
@@ -210,9 +215,9 @@ public class FullNode {
             && info.getLogCount() == 1
             && FastByteComparisons.equalByte(info.getLog(0).getTopics(0).toByteArray(), TOPIC)) {
           BigInteger amount = new BigInteger(info.getLog(0).getData().toByteArray());
-          long category = amount.divide(BigInteger.valueOf(1_000_000)).longValue();
+          long category = amount.divide(precision).longValue();
           if (!stats.containsKey(category)) {
-            stats.put(category, new Long[4]);
+            stats.put(category, new long[4]);
             accounts.put(category, new HashSet<>());
           }
           stats.get(category)[0] += 1;
