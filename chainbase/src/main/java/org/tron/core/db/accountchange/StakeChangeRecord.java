@@ -52,15 +52,18 @@ public class StakeChangeRecord {
     result.add(stakeInfo);
   }
 
+
   public static void withdrawUnfreeze(byte[] ownerAddress,
                                       List<Protocol.Account.UnFreezeV2> totalWithdrawList) {
     if (!record || CollectionUtils.isEmpty(totalWithdrawList)) {
       return;
     }
 
+    final String address58 = StringUtil.encode58Check(ownerAddress);
+
     totalWithdrawList.stream().forEach(item -> {
       StakeBalanceTrigger.StakeInfo stakeInfo = new StakeBalanceTrigger.StakeInfo();
-      stakeInfo.setOwnerAddress(StringUtil.encode58Check(ownerAddress));
+      stakeInfo.setOwnerAddress(address58);
       stakeInfo.setReceiverAddress("");
       stakeInfo.setStakeType(4);
       stakeInfo.setResource(item.getType().getNumber());
