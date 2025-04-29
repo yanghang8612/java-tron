@@ -8,7 +8,9 @@ import static org.tron.protos.contract.Common.ResourceCode.BANDWIDTH;
 import static org.tron.protos.contract.Common.ResourceCode.ENERGY;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.tron.common.utils.DecodeUtil;
@@ -17,6 +19,7 @@ import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.db.accountchange.StakeChangeRecord;
 import org.tron.core.exception.ContractExeException;
 import org.tron.core.exception.ContractValidateException;
+import org.tron.core.vm.VMConstant;
 import org.tron.core.vm.nativecontract.param.CancelAllUnfreezeV2Param;
 import org.tron.core.vm.repository.Repository;
 import org.tron.protos.Protocol;
@@ -41,7 +44,8 @@ public class CancelAllUnfreezeV2Processor {
     }
   }
 
-  public long execute(CancelAllUnfreezeV2Param param, Repository repo) throws ContractExeException {
+  public Map<String, Long> execute(CancelAllUnfreezeV2Param param, Repository repo) throws ContractExeException {
+    Map<String, Long> result = new HashMap<>();
     byte[] ownerAddress = param.getOwnerAddress();
     AccountCapsule ownerCapsule = repo.getAccount(ownerAddress);
     long now = repo.getDynamicPropertiesStore().getLatestBlockHeaderTimestamp();
@@ -51,6 +55,9 @@ public class CancelAllUnfreezeV2Processor {
       totalWithdrawList.add(unFreezeV2);
 
       if (unFreezeV2.getUnfreezeExpireTime() > now) {
+        String resourceName = unFreezeV2.getType().name();
+        result.put(resourceName, result.getOrDefault(resourceName, 0L) + unFreezeV2.getUnfreezeAmount());
+
         updateFrozenInfoAndTotalResourceWeight(ownerCapsule, unFreezeV2, repo);
       } else {
         // withdraw
@@ -64,7 +71,9 @@ public class CancelAllUnfreezeV2Processor {
     StakeChangeRecord.withdrawUnfreeze(ownerAddress, totalWithdrawList);
 
     repo.updateAccount(ownerCapsule.createDbKey(), ownerCapsule);
-    return withdrawExpireBalance;
+
+    result.put(VMConstant.WITHDRAW_EXPIRE_BALANCE, withdrawExpireBalance);
+    return result;
   }
 
   public void updateFrozenInfoAndTotalResourceWeight(
