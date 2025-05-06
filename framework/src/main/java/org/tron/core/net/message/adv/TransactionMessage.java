@@ -2,6 +2,7 @@ package org.tron.core.net.message.adv;
 
 import org.tron.common.overlay.message.Message;
 import org.tron.common.utils.Sha256Hash;
+import org.tron.common.utils.StringUtil;
 import org.tron.core.capsule.TransactionCapsule;
 import org.tron.core.net.message.MessageTypes;
 import org.tron.core.net.message.TronMessage;
@@ -31,7 +32,8 @@ public class TransactionMessage extends TronMessage {
   @Override
   public String toString() {
     return new StringBuilder().append(super.toString())
-        .append("messageId: ").append(super.getMessageId()).toString();
+        .append("txid: ").append(super.getMessageId())
+        .append(", owner: ").append(StringUtil.encode58Check(this.transactionCapsule.getOwnerAddress())).toString();
   }
 
   @Override
