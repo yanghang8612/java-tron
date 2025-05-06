@@ -567,6 +567,10 @@ public class Manager {
       startEventSubscribing();
       triggerEs = ExecutorServiceManager.newSingleThreadExecutor(triggerEsName, true);
       ExecutorServiceManager.submit(triggerEs, triggerCapsuleProcessLoop);
+    } else {
+//       if has no --es, close self.
+      logger.info(" >>>>>>>>>>> has no --es , to close!!!!!!!!!!!!");
+      ApplicationHandler.closeSelf();
     }
 
     // start json rpc filter process
