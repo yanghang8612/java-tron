@@ -89,7 +89,7 @@
 
   <appender name="METRICS" class="org.tron.common.prometheus.InstrumentedAppender" />
 
-  <root level="INFO">
+  <root level="WARN">
     <appender-ref ref="METRICS" />
   </root>
 
@@ -115,10 +115,9 @@
     <appender-ref ref="CONSOLE"/>
   </logger>
 
-  <logger level="INFO" name="eventPlugin" additivity="false">
+  <logger level="WARN" name="eventPlugin" additivity="false">
     <appender-ref ref="eventPluginFILE"/>
   </logger>
-
 
 </configuration>
 

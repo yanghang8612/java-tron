@@ -33,7 +33,7 @@ public class TransferTrackerCapsule extends TriggerCapsule {
   private TransferTrackerTrigger transferTrackerTrigger;
 
   public TransferTrackerCapsule(BlockCapsule block) {
-    logger.info("TransferTrackerCapsule start, blocKNum={}", block.getNum());
+//    logger.info("TransferTrackerCapsule start, blocKNum={}", block.getNum());
     transferTrackerTrigger = new TransferTrackerTrigger();
     transferTrackerTrigger.setBlockHash(block.getBlockId().toString());
     transferTrackerTrigger.setParentHash(block.getParentHash().toString());
@@ -146,7 +146,7 @@ public class TransferTrackerCapsule extends TriggerCapsule {
         assetTransferInfo.setTokenAddress(transferAssetContract.getAssetName().toStringUtf8());
         assetTransferInfo.setIsSuccess(true);
 
-        logger.info("handlerTrc10Transfer isTvm={}, isTrc10={}, assetTransfer={}", false, isTrc10, JSON.toJSONString(assetTransferInfo));
+//        logger.info("handlerTrc10Transfer isTvm={}, isTrc10={}, assetTransfer={}", false, isTrc10, JSON.toJSONString(assetTransferInfo));
         assetTransferInfoList.add(assetTransferInfo);
       }
     }  catch (Exception ex) {
@@ -278,7 +278,7 @@ public class TransferTrackerCapsule extends TriggerCapsule {
       //trx失败不上链
       assetTransferInfo.setIsSuccess(true);
 
-      logger.info("handlerTrxTransfer assetTransfer={}", JSON.toJSONString(assetTransferInfo));
+//      logger.info("handlerTrxTransfer assetTransfer={}", JSON.toJSONString(assetTransferInfo));
       assetTransferInfoList.add(assetTransferInfo);
     } catch (Exception ex) {
       logger.error("", ex);
