@@ -1,57 +1,36 @@
 package org.tron.program;
 
-import ch.qos.logback.classic.LoggerContext;
-import ch.qos.logback.classic.joran.JoranConfigurator;
 import com.beust.jcommander.JCommander;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.tron.common.application.Application;
 import org.tron.common.application.ApplicationFactory;
 import org.tron.common.application.TronApplicationContext;
+import org.tron.common.exit.ExitManager;
+import org.tron.common.log.LogService;
 import org.tron.common.parameter.CommonParameter;
 import org.tron.common.prometheus.Metrics;
 import org.tron.core.Constant;
 import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
-import org.tron.core.services.RpcApiService;
-import org.tron.core.services.http.FullNodeHttpApiService;
-import org.tron.core.services.jsonrpc.FullNodeJsonRpcHttpService;
 import org.tron.core.store.AccountStore;
 import org.tron.core.store.DynamicPropertiesStore;
 
-import java.io.File;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Slf4j(topic = "app")
 public class FullNode {
 
-
-  public static void load(String path) {
-    try {
-      File file = new File(path);
-      if (!file.exists() || !file.isFile() || !file.canRead()) {
-        return;
-      }
-      LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
-      JoranConfigurator configurator = new JoranConfigurator();
-      configurator.setContext(lc);
-      lc.reset();
-      configurator.doConfigure(file);
-    } catch (Exception e) {
-      logger.error(e.getMessage());
-    }
-  }
-
   /**
    * Start the FullNode.
    */
   public static void main(String[] args) {
+    ExitManager.initExceptionHandler();
     logger.info("Full node running.");
     Args.setParam(args, Constant.TESTNET_CONF);
     CommonParameter parameter = Args.getInstance();
 
-    load(parameter.getLogbackPath());
+    LogService.load(parameter.getLogbackPath());
 
     if (parameter.isHelp()) {
       JCommander jCommander = JCommander.newBuilder().addObject(Args.PARAMETER).build();
@@ -77,23 +56,6 @@ public class FullNode {
     context.refresh();
     Application appT = ApplicationFactory.create(context);
     context.registerShutdownHook();
-
-    // grpc api server
-    RpcApiService rpcApiService = context.getBean(RpcApiService.class);
-    appT.addService(rpcApiService);
-
-    // http api server
-    FullNodeHttpApiService httpApiService = context.getBean(FullNodeHttpApiService.class);
-    if (CommonParameter.getInstance().fullNodeHttpEnable) {
-      appT.addService(httpApiService);
-    }
-
-    // JSON-RPC http server
-    if (CommonParameter.getInstance().jsonRpcHttpFullNodeEnable) {
-      FullNodeJsonRpcHttpService jsonRpcHttpService =
-          context.getBean(FullNodeJsonRpcHttpService.class);
-      appT.addService(jsonRpcHttpService);
-    }
 
     // Init stake2.0
     AccountStore accountStore = appT.getChainBaseManager().getAccountStore();

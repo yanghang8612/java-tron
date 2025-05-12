@@ -16,6 +16,7 @@ import org.tron.common.utils.Sha256Hash;
 import org.tron.common.utils.StringUtil;
 import org.tron.core.capsule.utils.FastByteComparisons;
 import org.tron.common.es.ExecutorServiceManager;
+import org.tron.core.ChainBaseManager;
 import org.tron.core.config.args.Args;
 import org.tron.core.exception.P2pException;
 import org.tron.core.exception.P2pException.TypeEnum;
@@ -46,6 +47,8 @@ public class TransactionsMsgHandler implements TronMsgHandler {
   private AdvService advService;
   @Setter
   private TronNetService tronNetService;
+  @Autowired
+  private ChainBaseManager chainBaseManager;
 
   private BlockingQueue<TrxEvent> smartContractQueue = new LinkedBlockingQueue(MAX_TRX_SIZE);
 
@@ -127,15 +130,20 @@ public class TransactionsMsgHandler implements TronMsgHandler {
             "trx: " + msg.getMessageId() + " without request.");
       }
       peer.getAdvInvRequest().remove(item);
+      if (trx.getRawData().getContractCount() < 1) {
+        throw new P2pException(TypeEnum.BAD_TRX,
+            "tx " + item.getHash() + " contract size should be greater than 0");
+      }
     }
   }
 
   private void handleSmartContract() {
-    smartContractExecutor.scheduleWithFixedDelay(() -> {
+    ExecutorServiceManager.scheduleWithFixedDelay(smartContractExecutor, () -> {
       try {
         while (queue.size() < MAX_SMART_CONTRACT_SUBMIT_SIZE && smartContractQueue.size() > 0) {
           TrxEvent event = smartContractQueue.take();
-          trxHandlePool.submit(() -> handleTransaction(event.getPeer(), event.getMsg()));
+          ExecutorServiceManager.submit(
+              trxHandlePool, () -> handleTransaction(event.getPeer(), event.getMsg()));
         }
       } catch (InterruptedException e) {
         logger.warn("Handle smart server interrupted");
@@ -158,7 +166,7 @@ public class TransactionsMsgHandler implements TronMsgHandler {
     }
 
     try {
-      trx.getTransactionCapsule().checkExpiration(tronNetDelegate.getNextBlockSlotTime());
+      trx.getTransactionCapsule().checkExpiration(chainBaseManager.getNextBlockSlotTime());
       tronNetDelegate.pushTransaction(trx.getTransactionCapsule());
       advService.broadcast(trx);
     } catch (P2pException e) {
