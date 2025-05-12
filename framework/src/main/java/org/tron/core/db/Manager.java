@@ -74,6 +74,7 @@ import org.tron.core.metrics.MetricsUtil;
 import org.tron.core.service.MortgageService;
 import org.tron.core.service.RewardViCalService;
 import org.tron.core.service.TopDelegatorService;
+import org.tron.core.services.event.exception.EventException;
 import org.tron.core.store.*;
 import org.tron.core.utils.TransactionRegister;
 import org.tron.protos.Protocol.AccountType;
