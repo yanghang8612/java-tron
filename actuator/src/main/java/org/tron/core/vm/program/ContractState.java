@@ -261,6 +261,11 @@ public class ContractState implements Repository, ProgramListenerAware {
   }
 
   @Override
+  public void putTransientStorageValue(Key address, Key key, Value value) {
+    repository.putTransientStorageValue(address, key, value);
+  }
+
+  @Override
   public long addTokenBalance(byte[] address, byte[] tokenId, long value) {
     return repository.addTokenBalance(address, tokenId, value);
   }
@@ -346,6 +351,11 @@ public class ContractState implements Repository, ProgramListenerAware {
   }
 
   @Override
+  public byte[] getTransientStorageValue(byte[] address, byte[] key) {
+    return repository.getTransientStorageValue(address, key);
+  }
+
+  @Override
   public void updateDynamicProperty(byte[] word, BytesCapsule bytesCapsule) {
     repository.updateDynamicProperty(word, bytesCapsule);
   }
@@ -383,6 +393,11 @@ public class ContractState implements Repository, ProgramListenerAware {
   @Override
   public void updateDelegatedResourceAccountIndex(byte[] word, DelegatedResourceAccountIndexCapsule delegatedResourceAccountIndexCapsule) {
     repository.updateDelegatedResourceAccountIndex(word, delegatedResourceAccountIndexCapsule);
+  }
+
+  @Override
+  public void updateTransientStorageValue(byte[] address, byte[] key, byte[] value) {
+    repository.updateTransientStorageValue(address, key, value);
   }
 
   @Override
