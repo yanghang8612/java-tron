@@ -3,6 +3,7 @@ package org.tron.program;
 import com.beust.jcommander.JCommander;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
+import org.tron.api.GrpcAPI;
 import org.tron.common.application.Application;
 import org.tron.common.application.ApplicationFactory;
 import org.tron.common.application.TronApplicationContext;
@@ -11,8 +12,12 @@ import org.tron.common.log.LogService;
 import org.tron.common.parameter.CommonParameter;
 import org.tron.common.prometheus.Metrics;
 import org.tron.core.Constant;
+import org.tron.core.Wallet;
+import org.tron.core.capsule.TransactionRetCapsule;
 import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
+import org.tron.core.store.TransactionRetStore;
+import org.tron.protos.Protocol;
 
 @Slf4j(topic = "app")
 public class FullNode {
@@ -52,7 +57,26 @@ public class FullNode {
     context.refresh();
     Application appT = ApplicationFactory.create(context);
     context.registerShutdownHook();
-    appT.startup();
+//    appT.startup();
+
+    Wallet wallet = context.getBean(Wallet.class);
+    long start = 72693299L;
+    long end = 72722091L;
+    long totalFee = 0L;
+    for (long i = start; i < end; i++) {
+      GrpcAPI.TransactionInfoList ret = wallet.getTransactionInfoByBlockNum(i);
+      if (ret.getTransactionInfoCount() > 0) {
+        for (Protocol.TransactionInfo info : ret.getTransactionInfoList()) {
+          totalFee += info.getFee();
+        }
+      }
+
+      if (i % 1000 == 0) {
+        System.out.println("Processed block number: " + i);
+      }
+    }
+    System.out.println("Total fee from " + start + " to " + end + " is: " + totalFee);
+
     appT.blockUntilShutdown();
   }
 }
