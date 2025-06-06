@@ -1,6 +1,7 @@
 package org.tron.program;
 
 import com.beust.jcommander.JCommander;
+import java.text.SimpleDateFormat;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.tron.api.GrpcAPI;
@@ -60,12 +61,19 @@ public class FullNode {
 //    appT.startup();
 
     Wallet wallet = context.getBean(Wallet.class);
-    long start = 72693299L;
-    long end = 72722091L;
+    long start = 72520562L;
+    long end = wallet.getBlockByLatestNum(1).getBlock(0).getBlockHeader().getRawData().getNumber();
     long totalFee = 0L;
+    String curDate = "2025-05-26";
     for (long i = start; i < end; i++) {
       GrpcAPI.TransactionInfoList ret = wallet.getTransactionInfoByBlockNum(i);
       if (ret.getTransactionInfoCount() > 0) {
+        String date = new SimpleDateFormat("yyyy-MM-dd").format(ret.getTransactionInfo(0).getBlockTimeStamp());
+        if (!date.equals(curDate)) {
+          System.out.println("Daily fee for " + curDate + " is: " + totalFee);
+          curDate = date;
+          totalFee = 0L;
+        }
         for (Protocol.TransactionInfo info : ret.getTransactionInfoList()) {
           totalFee += info.getFee();
         }
@@ -75,8 +83,6 @@ public class FullNode {
         System.out.println("Processed block number: " + i);
       }
     }
-    System.out.println("Total fee from " + start + " to " + end + " is: " + totalFee);
-
     appT.blockUntilShutdown();
   }
 }
