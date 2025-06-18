@@ -3100,6 +3100,7 @@ public class Wallet {
     if (!isEstimating && result.getException() != null
         || result.getException() instanceof Program.OutOfTimeException) {
       builder.setEnergyUsed(result.getEnergyMark());
+      result.getOpcodeCountMap().forEach(builder::putOpcodeCount);
       RuntimeException e = result.getException();
       logger.warn("Constant call failed for reason: {}", e.getMessage());
       throw e;
@@ -3113,6 +3114,7 @@ public class Wallet {
         builder.addLogs(LogInfo.buildLog(logInfo)));
     result.getInternalTransactions().forEach(it ->
         builder.addInternalTransactions(buildInternalTransaction(it)));
+    result.getOpcodeCountMap().forEach(builder::putOpcodeCount);
     ret.setStatus(0, code.SUCESS);
     if (StringUtils.isNoneEmpty(result.getRuntimeError())) {
       ret.setStatus(0, code.FAILED);

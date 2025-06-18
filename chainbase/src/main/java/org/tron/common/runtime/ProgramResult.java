@@ -6,6 +6,7 @@ import static org.tron.common.utils.ByteUtil.EMPTY_BYTE_ARRAY;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -40,6 +41,9 @@ public class ProgramResult {
   //private ByteArraySet touchedAccounts = new ByteArraySet();
   private List<InternalTransaction> internalTransactions;
   private List<LogInfo> logInfoList;
+
+  @Getter
+  private Map<String, Integer> opcodeCountMap = new HashMap<>();
   private TransactionResultCapsule ret = new TransactionResultCapsule();
 
   @Setter
@@ -180,6 +184,10 @@ public class ProgramResult {
     }
   }
 
+  public void increaseOpcodeCount(String opcode) {
+    opcodeCountMap.put(opcode, opcodeCountMap.getOrDefault(opcode, 0) + 1);
+  }
+
   public List<CallCreate> getCallCreateList() {
     if (callCreateList == null) {
       callCreateList = new ArrayList<>();
@@ -243,6 +251,9 @@ public class ProgramResult {
   public void merge(ProgramResult another) {
     addInternalTransactions(another.getInternalTransactions());
     addTotalPenalty(another.getEnergyPenaltyTotal());
+    for (Map.Entry<String, Integer> entry : another.getOpcodeCountMap().entrySet()) {
+      opcodeCountMap.merge(entry.getKey(), entry.getValue(), Integer::sum);
+    }
     if (another.getException() == null && !another.isRevert()) {
       addDeleteAccounts(another.getDeleteAccounts());
       addLogInfos(another.getLogInfoList());

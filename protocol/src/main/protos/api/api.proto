@@ -1224,6 +1224,7 @@ message TransactionExtention {
   repeated TransactionInfo.Log logs = 6;
   repeated InternalTransaction internal_transactions = 7;
   int64 energy_penalty = 8;
+  map<string, uint32> opcode_count = 9;
 }
 
 message EstimateEnergyMessage {

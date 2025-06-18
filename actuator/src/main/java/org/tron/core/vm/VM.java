@@ -96,6 +96,7 @@ public class VM {
           /* exec op action */
           op.execute(program);
 
+          program.getResult().increaseOpcodeCount(opName);
           program.setPreviouslyExecutedOp((byte) op.getOpcode());
         } catch (RuntimeException e) {
           logger.info("VM halted: [{}]", e.getMessage());
