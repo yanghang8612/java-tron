@@ -3099,6 +3099,7 @@ public class Wallet {
     ProgramResult result = context.getProgramResult();
     if (!isEstimating && result.getException() != null
         || result.getException() instanceof Program.OutOfTimeException) {
+      builder.setEnergyUsed(result.getEnergyMark());
       RuntimeException e = result.getException();
       logger.warn("Constant call failed for reason: {}", e.getMessage());
       throw e;

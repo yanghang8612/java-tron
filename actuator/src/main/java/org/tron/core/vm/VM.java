@@ -100,6 +100,9 @@ public class VM {
         } catch (RuntimeException e) {
           logger.info("VM halted: [{}]", e.getMessage());
           if (!(e instanceof TransferException)) {
+            if (program.isConstantCall() && e instanceof OutOfTimeException) {
+              program.getResult().setEnergyMark(program.getResult().getEnergyUsed());
+            }
             program.spendAllEnergy();
           }
           //program.resetFutureRefund();

@@ -22,6 +22,10 @@ import org.tron.protos.Protocol.Transaction.Result.contractResult;
 public class ProgramResult {
 
   private long energyUsed = 0;
+
+  @Getter
+  @Setter
+  private long energyMark = 0;
   //private long futureRefund = 0;
 
   @Getter
