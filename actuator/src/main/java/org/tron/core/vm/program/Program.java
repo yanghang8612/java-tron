@@ -1097,6 +1097,7 @@ public class Program {
 
     // 5. REFUND THE REMAIN ENERGY
     if (callResult != null) {
+      internalTx.setEnergyUsed(callResult.getEnergyUsed());
       BigInteger refundEnergy = msg.getEnergy().value()
           .subtract(BIUtil.toBI(callResult.getEnergyUsed()));
       if (BIUtil.isPositive(refundEnergy)) {

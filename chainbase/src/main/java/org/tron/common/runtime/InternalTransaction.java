@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.Getter;
+import lombok.Setter;
 import org.apache.commons.lang3.ArrayUtils;
 import org.tron.common.crypto.Hash;
 import org.tron.common.utils.WalletUtil;
@@ -70,6 +71,10 @@ public class InternalTransaction {
    * extra data field for recording parameters of vote witness opcode
    */
   private String extra;
+
+  @Getter
+  @Setter
+  private long energyUsed = 0;
 
 
   /**
