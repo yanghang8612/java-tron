@@ -131,17 +131,17 @@ public class FullNode {
             long energyTotal = interTx.getEnergyUsed();
             long energyUsage = (long) (info.getReceipt().getEnergyUsage() * percent);
             long originUsage = (long) (info.getReceipt().getOriginEnergyUsage() * percent);
-            if (dataString.startsWith("a9059cbb") && dataString.length() >= 68) {
+            if (dataString.startsWith("a9059cbb") && dataBytes.length >= 68) {
               String from = StringUtil.encode58Check(interTx.getCallerAddress().toByteArray());
               dataBytes[4+11] = 0x41;
               String to = StringUtil.encode58Check(Arrays.copyOfRange(dataBytes, 15, 36));
-              String amount = new BigInteger(Arrays.copyOfRange(dataBytes, 36, 48)).toString();
+              String amount = new BigInteger(Arrays.copyOfRange(dataBytes, 36, 68)).toString();
 
               writer.write(String.format("%s %d %d %s %s %s %d %d %d %d\n",
                   date, info.getBlockNumber(), i, from, to, amount, fee, energyTotal, energyUsage, originUsage));
             }
 
-            if (dataString.startsWith("23b872dd") && dataString.length() >= 100) {
+            if (dataString.startsWith("23b872dd") && dataBytes.length >= 100) {
               dataBytes[15] = 0x41;
               String from = StringUtil.encode58Check(Arrays.copyOfRange(dataBytes, 15, 36));
               dataBytes[36+11] = 0x41;
