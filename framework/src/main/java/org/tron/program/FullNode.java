@@ -1,8 +1,18 @@
 package org.tron.program;
 
 import com.beust.jcommander.JCommander;
+import com.google.protobuf.ByteString;
+import java.io.File;
+import java.io.FileWriter;
+import java.math.BigInteger;
+import java.text.SimpleDateFormat;
+import java.util.Arrays;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.bouncycastle.util.encoders.Hex;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
+import org.tron.api.GrpcAPI;
+import org.tron.api.GrpcAPI.TransactionInfoList;
 import org.tron.common.application.Application;
 import org.tron.common.application.ApplicationFactory;
 import org.tron.common.application.TronApplicationContext;
@@ -10,13 +20,18 @@ import org.tron.common.exit.ExitManager;
 import org.tron.common.log.LogService;
 import org.tron.common.parameter.CommonParameter;
 import org.tron.common.prometheus.Metrics;
+import org.tron.common.utils.FastByteComparisons;
+import org.tron.common.utils.StringUtil;
 import org.tron.core.Constant;
+import org.tron.core.Wallet;
 import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
 import org.tron.core.store.AccountStore;
 import org.tron.core.store.DynamicPropertiesStore;
 
 import java.util.concurrent.atomic.AtomicLong;
+import org.tron.core.store.TransactionRetStore;
+import org.tron.protos.Protocol;
 
 @Slf4j(topic = "app")
 public class FullNode {
@@ -24,6 +39,7 @@ public class FullNode {
   /**
    * Start the FullNode.
    */
+  @SneakyThrows
   public static void main(String[] args) {
     ExitManager.initExceptionHandler();
     logger.info("Full node running.");
@@ -87,7 +103,65 @@ public class FullNode {
       System.out.println("Stake for energy: " + dynamicPropertiesStore.getTotalEnergyWeight2());
     }
 
-    appT.startup();
-    appT.blockUntilShutdown();
+    // Traverse internal USDT
+    long number = 73135000L;
+    Wallet wallet = context.getBean(Wallet.class);
+    ByteString USDT = ByteString.copyFrom(Hex.decode("41a614f803B6FD780986A42c78Ec9c7f77e6DeD13C"));
+    ByteString CALL = ByteString.copyFrom(Hex.decode("63616c6c"));
+    FileWriter writer = new FileWriter("/data/usdt.txt", false);
+
+    while (true) {
+      TransactionInfoList infoList = wallet.getTransactionInfoByBlockNum(number);
+      for (int i = 0; i < infoList.getTransactionInfoCount(); i++) {
+        Protocol.TransactionInfo info = infoList.getTransactionInfo(i);
+        String date = new SimpleDateFormat("yyyyMMdd").format(info.getBlockTimeStamp());
+        if (date.equals("250709")) {
+          writer.close();
+          System.exit(1);
+        }
+
+        for (Protocol.InternalTransaction interTx : info.getInternalTransactionsList()) {
+          byte[] dataBytes = interTx.getData().toByteArray();
+          String dataString = Hex.toHexString(dataBytes);
+          if (!interTx.getRejected() && interTx.getNote().equals(CALL)
+              && interTx.getTransferToAddress().equals(USDT)
+              && (dataString.startsWith("a9059cbb") || dataString.startsWith("23b872dd"))) {
+            double percent = (double) interTx.getEnergyUsed() / info.getReceipt().getEnergyUsageTotal();
+            long fee = (long) (info.getFee() * percent);
+            long energyTotal = interTx.getEnergyUsed();
+            long energyUsage = (long) (info.getReceipt().getEnergyUsage() * percent);
+            long originUsage = (long) (info.getReceipt().getOriginEnergyUsage() * percent);
+            if (dataString.startsWith("a9059cbb") && dataString.length() >= 68) {
+              String from = StringUtil.encode58Check(interTx.getCallerAddress().toByteArray());
+              dataBytes[4+11] = 0x41;
+              String to = StringUtil.encode58Check(Arrays.copyOfRange(dataBytes, 15, 36));
+              String amount = new BigInteger(Arrays.copyOfRange(dataBytes, 36, 48)).toString();
+
+              writer.write(String.format("%s %d %d %s %s %s %d %d %d %d\n",
+                  date, info.getBlockNumber(), i, from, to, amount, fee, energyTotal, energyUsage, originUsage));
+            }
+
+            if (dataString.startsWith("23b872dd") && dataString.length() >= 100) {
+              dataBytes[15] = 0x41;
+              String from = StringUtil.encode58Check(Arrays.copyOfRange(dataBytes, 15, 36));
+              dataBytes[36+11] = 0x41;
+              String to = StringUtil.encode58Check(Arrays.copyOfRange(dataBytes, 47, 68));
+              String amount = new BigInteger(Arrays.copyOfRange(dataBytes, 68, 100)).toString();
+
+              writer.write(String.format("%s %d %d %s %s %s %d %d %d %d\n",
+                  date, info.getBlockNumber(), i, from, to, amount, fee, energyTotal, energyUsage, originUsage));
+            }
+          }
+        }
+      }
+
+      number += 1;
+      if (number % 1000 == 0) {
+        System.out.println("Processed block number: " + number);
+      }
+    }
+
+//    appT.startup();
+//    appT.blockUntilShutdown();
   }
 }
