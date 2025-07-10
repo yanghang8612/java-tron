@@ -131,6 +131,7 @@ public class FullNode {
             double percent = (double) interTx.getEnergyUsed() / info.getReceipt().getEnergyUsageTotal();
             long fee = (long) (info.getFee() * percent);
             long energyTotal = interTx.getEnergyUsed();
+            long energyFee = (long) (info.getReceipt().getEnergyFee() * percent);
             long energyUsage = (long) (info.getReceipt().getEnergyUsage() * percent);
             long originUsage = (long) (info.getReceipt().getOriginEnergyUsage() * percent);
             if (dataString.startsWith("a9059cbb") && dataBytes.length >= 68) {
@@ -139,8 +140,8 @@ public class FullNode {
               String to = StringUtil.encode58Check(Arrays.copyOfRange(dataBytes, 15, 36));
               String amount = new BigInteger(Arrays.copyOfRange(dataBytes, 36, 68)).toString();
 
-              writer.write(String.format("%s %d %d %s %s %s %d %d %d %d\n",
-                  date, info.getBlockNumber(), i, from, to, amount, fee, energyTotal, energyUsage, originUsage));
+              writer.write(String.format("%s %d %d %s %s %s %d %d %d %d %d\n",
+                  date, info.getBlockNumber(), i, from, to, amount, fee, energyTotal, energyFee, energyUsage, originUsage));
             }
 
             if (dataString.startsWith("23b872dd") && dataBytes.length >= 100) {
@@ -150,8 +151,8 @@ public class FullNode {
               String to = StringUtil.encode58Check(Arrays.copyOfRange(dataBytes, 47, 68));
               String amount = new BigInteger(Arrays.copyOfRange(dataBytes, 68, 100)).toString();
 
-              writer.write(String.format("%s %d %d %s %s %s %d %d %d %d\n",
-                  date, info.getBlockNumber(), i, from, to, amount, fee, energyTotal, energyUsage, originUsage));
+              writer.write(String.format("%s %d %d %s %s %s %d %d %d %d %d\n",
+                  date, info.getBlockNumber(), i, from, to, amount, fee, energyTotal, energyFee, energyUsage, originUsage));
             }
           }
         }
