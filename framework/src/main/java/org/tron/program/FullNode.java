@@ -116,7 +116,7 @@ public class FullNode {
       for (int i = 0; i < infoList.getTransactionInfoCount(); i++) {
         Protocol.TransactionInfo info = infoList.getTransactionInfo(i);
         String date = new SimpleDateFormat("yyyyMMdd").format(info.getBlockTimeStamp());
-        if (date.equals("250709")) {
+        if (date.equals("20250709")) {
           writer.close();
           stop = true;
           break;
