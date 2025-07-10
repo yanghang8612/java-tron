@@ -104,7 +104,7 @@ public class FullNode {
     }
 
     // Traverse internal USDT
-    long number = 73135000L;
+    long number = 73115000L;
     Wallet wallet = context.getBean(Wallet.class);
     ByteString USDT = ByteString.copyFrom(Hex.decode("41a614f803B6FD780986A42c78Ec9c7f77e6DeD13C"));
     ByteString CALL = ByteString.copyFrom(Hex.decode("63616c6c"));
