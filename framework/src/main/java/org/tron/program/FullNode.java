@@ -110,14 +110,16 @@ public class FullNode {
     ByteString CALL = ByteString.copyFrom(Hex.decode("63616c6c"));
     FileWriter writer = new FileWriter("/data/usdt.txt", false);
 
-    while (true) {
+    boolean stop = false;
+    while (!stop) {
       TransactionInfoList infoList = wallet.getTransactionInfoByBlockNum(number);
       for (int i = 0; i < infoList.getTransactionInfoCount(); i++) {
         Protocol.TransactionInfo info = infoList.getTransactionInfo(i);
         String date = new SimpleDateFormat("yyyyMMdd").format(info.getBlockTimeStamp());
         if (date.equals("250709")) {
           writer.close();
-          System.exit(1);
+          stop = true;
+          break;
         }
 
         for (Protocol.InternalTransaction interTx : info.getInternalTransactionsList()) {
@@ -161,7 +163,7 @@ public class FullNode {
       }
     }
 
-//    appT.startup();
-//    appT.blockUntilShutdown();
+    appT.startup();
+    appT.blockUntilShutdown();
   }
 }
