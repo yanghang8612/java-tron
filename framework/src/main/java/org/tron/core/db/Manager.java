@@ -1487,10 +1487,10 @@ public class Manager {
       trxCap.setInBlock(true);
     }
 
-    validateTapos(trxCap);
-    validateCommon(trxCap);
+//    validateTapos(trxCap);
+//    validateCommon(trxCap);
 
-    validateDup(trxCap);
+//    validateDup(trxCap);
 
     if (!trxCap.validateSignature(chainBaseManager.getAccountStore(),
         chainBaseManager.getDynamicPropertiesStore())) {
@@ -1850,9 +1850,9 @@ public class Manager {
       chainBaseManager.getForkController().reset();
     }
 
-    updateTransHashCache(block);
-    updateRecentBlock(block);
-    updateRecentTransaction(block);
+//    updateTransHashCache(block);
+//    updateRecentBlock(block);
+//    updateRecentTransaction(block);
     updateDynamicProperties(block);
 
     chainBaseManager.getBalanceTraceStore().resetCurrentBlockTrace();
