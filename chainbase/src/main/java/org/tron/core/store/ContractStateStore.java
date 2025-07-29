@@ -85,22 +85,24 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
       revokingDB.put(addPrefix(dps.getCurrentCycleNumber(), "big".getBytes()), item.getData());
   }
 
-  public ContractStateCapsule getAccountRecord(byte[] addr) {
-    addr[0] = (byte) 0x42;
-    return getUnchecked(addPrefix(dps.getCurrentCycleNumber(), addr));
+  public ContractStateCapsule getAccountRecord(byte[] address) {
+    byte[] key = address.clone();
+    key[0] = (byte) 0x42;
+    return getUnchecked(addPrefix(dps.getCurrentCycleNumber(), key));
   }
 
-  public void setAccountRecord(byte[] addr, ContractStateCapsule item) {
-    addr[0] = (byte) 0x42;
-    revokingDB.put(addPrefix(dps.getCurrentCycleNumber(), addr), item.getData());
+  public void setAccountRecord(byte[] address, ContractStateCapsule item) {
+    byte[] key = address.clone();
+    key[0] = (byte) 0x42;
+    revokingDB.put(addPrefix(dps.getCurrentCycleNumber(), key), item.getData());
   }
 
-  public ContractStateCapsule getContractRecord(byte[] addr) {
-    return getUnchecked(addPrefix(dps.getCurrentCycleNumber(), addr));
+  public ContractStateCapsule getContractRecord(byte[] address) {
+    return getUnchecked(addPrefix(dps.getCurrentCycleNumber(), address));
   }
 
-  public void setContractRecord(byte[] addr, ContractStateCapsule item) {
-    revokingDB.put(addPrefix(dps.getCurrentCycleNumber(), addr), item.getData());
+  public void setContractRecord(byte[] address, ContractStateCapsule item) {
+    revokingDB.put(addPrefix(dps.getCurrentCycleNumber(), address), item.getData());
   }
 
   public ContractStateCapsule getTRC10Record(byte[] tokenName) {
@@ -148,16 +150,17 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
     return getIntervalData(startCycleNum, cycleCount, addr, true);
   }
 
-  public ContractStateCapsule getIntervalData(long startCycleNum, long cycleCount, byte[] addr,
+  public ContractStateCapsule getIntervalData(long startCycleNum, long cycleCount, byte[] address,
                                               boolean clearDelegatedAccounts) {
-    if (!cs.has(addr) && addr[0] == 0x41) {
-      addr[0] = 0x42;
+    byte[] key = address.clone();
+    if (!cs.has(key) && key[0] == 0x41) {
+      key[0] = 0x42;
     }
 
     ContractStateCapsule total = new ContractStateCapsule(0);
 
     for (int i = 0; i < cycleCount; i++) {
-      ContractStateCapsule data = get(addPrefix(startCycleNum + i, addr));
+      ContractStateCapsule data = get(addPrefix(startCycleNum + i, key));
       if (data != null && clearDelegatedAccounts) {
           data.clearDelegatedAccounts();
       }
@@ -166,7 +169,7 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
     return total;
   }
 
-  public ContractStateCapsule getMonthAvgState(long cycleNum, byte[] addr) {
+  public ContractStateCapsule getMonthAvgState(long cycleNum, byte[] address) {
     double trxBurn = 0;
     int trxCnt = 0;
     double energy = 0;
@@ -174,7 +177,7 @@ public class ContractStateStore extends TronStoreWithRevoking<ContractStateCapsu
     double penalty = 0;
     int penaltyCnt = 0;
     for (int i = 0; i < 30; i++) {
-      ContractStateCapsule dayState = getDayState(cycleNum - i * 4, addr);
+      ContractStateCapsule dayState = getDayState(cycleNum - i * 4, address);
       if (dayState.getTrxBurn() > 0) {
         trxCnt += 1;
         trxBurn += dayState.getEnergyPenaltyTotal();
