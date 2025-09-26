@@ -1561,15 +1561,6 @@ public class Program {
       contextAddress = msg.getCodeAddress().toTronAddress();
     }
 
-    String precompiledContractName = contract.getClass().getSimpleName();
-
-    byte[] contractAddress = getContextAddress();
-    String addressIn58 = StringUtil.encode58Check(contractAddress);
-
-    long time = contractState.getDynamicPropertiesStore().getLatestBlockHeaderTimestamp();
-    String printMsg = time + " Target_contract_" + precompiledContractName + ": " + addressIn58;
-    System.out.println(printMsg);
-
     long endowment = msg.getEndowment().value().longValueExact();
     long senderBalance = 0;
     byte[] tokenId = null;
@@ -1591,6 +1582,11 @@ public class Program {
     }
     byte[] data = this.memoryChunk(msg.getInDataOffs().intValue(),
         msg.getInDataSize().intValue());
+
+    System.out.printf("%d %d %s %s %s%n",
+        contractState.getDynamicPropertiesStore().getLatestBlockHeaderNumber(),
+        contractState.getDynamicPropertiesStore().getLatestBlockHeaderTimestamp(),
+        contract.getClass().getSimpleName(), StringUtil.encode58Check(getContextAddress()), Hex.toHexString(data));
 
     // Charge for endowment - is not reversible by rollback
     if (!ArrayUtils.isEmpty(senderAddress) && !ArrayUtils.isEmpty(contextAddress)
