@@ -29,7 +29,7 @@ public class HeHeServlet extends BaseTrackerServlet {
     resObj.put("big", css.getIntervalData(cycleNumber, cycleCount, "big".getBytes()).toJsonObject());
     resObj.put("small", css.getIntervalData(cycleNumber, cycleCount, "small".getBytes()).toJsonObject());
 
-    if (request.getParameter("address") == null) {
+    if (request.getParameter("top100") != null) {
       Map<ByteString, ContractStateCapsule> result = css.getMergedDataWithinCycles(cycleNumber, cycleCount, true);
       List<Map.Entry<ByteString, ContractStateCapsule>> list = new LinkedList<>(result.entrySet());
 
@@ -67,7 +67,7 @@ public class HeHeServlet extends BaseTrackerServlet {
         top100Array.add(topObj);
       }
       resObj.put("top100", top100Array);
-    } else {
+    } else if (request.getParameter("address") != null) {
       byte[] addr = Commons.decodeFromBase58Check(request.getParameter("address"));
       resObj.put(request.getParameter("address"),
               css.getIntervalData(cycleNumber, cycleCount, addr, false).toJsonObject());

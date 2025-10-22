@@ -29,7 +29,7 @@ public class ListCycleServlet extends RateLimiterServlet {
       resObj.put("today", startCycleNumberInDay);
 
       SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-      for (int i = 0; i < 365; i++) {
+      for (int i = 0; i < 31; i++) {
         long cycleStartTime = ChainBaseManager.getInstance()
                 .getBlockByNum(dps.getCycleEndBlockNumber(startCycleNumberInDay - 1)).getTimeStamp();
         resObj.put(sdf.format(new Date(cycleStartTime)), startCycleNumberInDay);
