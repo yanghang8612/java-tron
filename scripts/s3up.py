@@ -26,7 +26,7 @@ if __name__ == "__main__":
     local_file_path = sys.argv[1]
     # S3 存储桶名称
     s3_bucket_name = 'tronlink-artifacts-dev'
-    # S3 对象键（即上传到 S3 后的文件名和路径）
+    # S3  对象键（即上传到 S3 后的文件名和路径）
     s3_prefix = sys.argv[2]  # 例如传入 "tronlink-server"
     s3_object_key = f"{s3_prefix}/{local_file_path}"
     upload_file_using_client(local_file_path, s3_bucket_name, s3_object_key)
