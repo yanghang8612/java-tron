@@ -21,7 +21,7 @@ else
   exit 0
 fi
 
-log "开始部署....$SERVICE:$short_sha.jar"
+log "开始部署...$SERVICE:$short_sha.jar"
 
 cd /data/${SERVICE}/
 
