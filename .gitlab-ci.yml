@@ -80,6 +80,7 @@ upload_job:
     - master
     - merge_requests
     - tags
+    - main_tronlink
   allow_failure: false
 
 
@@ -93,4 +94,5 @@ deploy_test:
   only:
     - master
     - merge_requests
+    - main_tronlink
   allow_failure: true
