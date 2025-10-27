@@ -70,8 +70,8 @@ upload_job:
     - zip -j "$ZIP_NAME" "$JAR_NAME" "$ASC_NAME"
     - echo "打包完成：$ZIP_NAME"
 
-    - python3 ../s3up.py "$ZIP_NAME" FullNode
-    - python3 ../s3up2.py "$ZIP_NAME" FullNode
+    - python3 ../s3up.py "$ZIP_NAME" tronlink-fullnode
+    - python3 ../s3up2.py "$ZIP_NAME" tronlink-fullnode
     - echo "上传成功 -> $ZIP_NAME"
 
     - rm -f "$ZIP_NAME" "$JAR_NAME" "$ASC_NAME"

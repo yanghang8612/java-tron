@@ -25,7 +25,7 @@ log "开始部署...$SERVICE:$short_sha.jar"
 
 cd /data/${SERVICE}/
 
-aws s3 cp "s3://tronlink-artifacts-dev/${SERVICE}/buildsign:$short_sha.zip" "buildsign:$short_sha.zip"
+aws s3 cp "s3://tronlink-artifacts-dev/tronlink-fullnode/buildsign:$short_sha.zip" "buildsign:$short_sha.zip"
 
 unzip -o "buildsign:$short_sha.zip"
 
