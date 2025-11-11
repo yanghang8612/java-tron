@@ -98,7 +98,9 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
     }
 
     long now = EnergyProcessor.getHeadSlot(dynamicPropertiesStore);
-    if (item != null && item.getLatestConsumeTimeForEnergy() == now) {
+    long preDelegated = preItem == null ? 0 : preItem.getDelegatedFrozenV2BalanceForEnergy();
+    if (item != null && (item.getLatestConsumeTimeForEnergy() == now
+        || item.getDelegatedFrozenV2BalanceForEnergy() > preDelegated)) {
       topDelegatorService.updateMEU(item);
     }
 
