@@ -1,8 +1,13 @@
 package org.tron.program;
 
 import com.beust.jcommander.JCommander;
+import com.google.protobuf.ByteString;
+import java.util.HashSet;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
+import org.bouncycastle.util.encoders.Hex;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
+import org.tron.api.GrpcAPI;
 import org.tron.common.application.Application;
 import org.tron.common.application.ApplicationFactory;
 import org.tron.common.application.TronApplicationContext;
@@ -11,8 +16,12 @@ import org.tron.common.log.LogService;
 import org.tron.common.parameter.CommonParameter;
 import org.tron.common.prometheus.Metrics;
 import org.tron.core.Constant;
+import org.tron.core.Wallet;
 import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
+import org.tron.core.store.DynamicPropertiesStore;
+import org.tron.core.store.TransactionRetStore;
+import org.tron.protos.Protocol;
 
 @Slf4j(topic = "app")
 public class FullNode {
@@ -52,7 +61,43 @@ public class FullNode {
     context.refresh();
     Application appT = ApplicationFactory.create(context);
     context.registerShutdownHook();
-    appT.startup();
-    appT.blockUntilShutdown();
+
+    Wallet wallet = context.getBean(Wallet.class);
+    DynamicPropertiesStore dps = context.getBean(DynamicPropertiesStore.class);
+    Set<ByteString> suicides = new HashSet<>();
+
+    ByteString suicide = ByteString.copyFrom("suicide".getBytes());
+    ByteString create = ByteString.copyFrom("create".getBytes());
+    long endBlockNum = dps.getLatestBlockHeaderNumber();
+    for (int i = 0; i < endBlockNum; i++) {
+      GrpcAPI.TransactionInfoList list = wallet.getTransactionInfoByBlockNum(i);
+      Set<ByteString> created = new HashSet<>();
+      Set<ByteString> deleted = new HashSet<>();
+      for (Protocol.TransactionInfo info : list.getTransactionInfoList()) {
+        for (Protocol.InternalTransaction it : info.getInternalTransactionsList()) {
+          if (it.getNote().equals(suicide)) {
+            deleted.add(it.getCallerAddress());
+          } else if (it.getNote().equals(create)) {
+            if (suicides.contains(it.getCallerAddress())) {
+              System.out.println("Find recreate: " + Hex.toHexString(it.getCallerAddress().toByteArray()));
+            }
+            created.add(it.getCallerAddress());
+          }
+        }
+      }
+
+      for (ByteString address : deleted) {
+        if (!created.contains(address)) {
+          suicides.add(address);
+        }
+      }
+
+      if (i % 100000 == 0) {
+        System.out.println("Tracked block num: " + i);
+      }
+    }
+
+//    appT.startup();
+//    appT.blockUntilShutdown();
   }
 }
