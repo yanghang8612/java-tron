@@ -1428,6 +1428,7 @@ public class Manager {
   void blockTrigger(final BlockCapsule block, long oldSolid, long newSolid) {
     // post block and logs for jsonrpc
     try {
+      long start = System.currentTimeMillis();
       if (CommonParameter.getInstance().isJsonRpcHttpFullNodeEnable()) {
         postBlockFilter(block, false);
         postLogsFilter(block, false, false);
@@ -1448,11 +1449,16 @@ public class Manager {
       postSolidityTrigger(newSolid);
 
       // Post customized triggers
+      long postStart = System.currentTimeMillis();
       postBalanceTrigger(block);
       postBalanceSolidityTrigger(newSolid);
+      long end = System.currentTimeMillis();
+
+      logger.info("EventTrigger blockNum {} BalanceTrigger-cost {}, total-cost {}", block.getNum(), end - postStart, end - start);
     } catch (Exception e) {
       logger.error("Block trigger failed. head: {}, oldSolid: {}, newSolid: {}",
           block.getNum(), oldSolid, newSolid, e);
+      ApplicationHandler.closeSelf();
       throw new TronError(e, TronError.ErrCode.EVENT_SUBSCRIBE_ERROR);
     }
   }
@@ -2219,7 +2225,7 @@ public class Manager {
       shieldedTRC20TrackerCapsule.processTrigger();
     }
 
-    logger.info("transferTrackerTriggerEnable={}", EventPluginLoader.getInstance().isTransferTrackerTriggerEnable());
+//    logger.info("transferTrackerTriggerEnable={}", EventPluginLoader.getInstance().isTransferTrackerTriggerEnable());
     //transfer record
     if (EventPluginLoader.getInstance().isTransferTrackerTriggerEnable()) {
       TransferTrackerCapsule transferTrackerCapsule = new TransferTrackerCapsule(blockCapsule);

@@ -221,9 +221,9 @@ public class TRC20Utils {
     Map<String, BalanceTrackerTrigger.Trc1155Info> trc1155InfoMap = new HashMap<>();
     handlerLogs(trc20IncrementMap, trc20ShareIncrementMap,
             logInfos, trc20Tokens, trc20ShareTokens, trc721InfoMap, trc1155InfoMap);
-    if (!CollectionUtils.isEmpty(trc721InfoMap)) {
-      logger.info(" >>>> trc721InfoMap:{}", trc721InfoMap);
-    }
+//    if (!CollectionUtils.isEmpty(trc721InfoMap)) {
+//      logger.info(" >>>> trc721InfoMap:{}", trc721InfoMap);
+//    }
 
     Map<String, BigInteger> balanceMap = new LinkedHashMap<>();
     Map<String, BigInteger> decimalMap = new LinkedHashMap<>();
@@ -237,9 +237,9 @@ public class TRC20Utils {
     result.put(TRC721, trc721Infos);
     result.put(TRC1155, trc1155Infos);
 
-    if (!CollectionUtils.isEmpty(trc721Infos)) {
-      logger.info(" >>>> trc721Infos:{}", trc721Infos);
-    }
+//    if (!CollectionUtils.isEmpty(trc721Infos)) {
+//      logger.info(" >>>> trc721Infos:{}", trc721Infos);
+//    }
     return result;
   }
 
@@ -252,13 +252,13 @@ public class TRC20Utils {
     result.put(TRC20_TRANSFER, trc20AssetTransferInfoList);
     result.put(TRC721_TRANSFER, trc721AssetTransferInfoList);
 
-    if (!CollectionUtils.isEmpty(trc20AssetTransferInfoList)) {
-      logger.info(" >>>> trc20AssetTransferList:{}", trc20AssetTransferInfoList);
-    }
-
-    if (!CollectionUtils.isEmpty(trc721AssetTransferInfoList)) {
-      logger.info(" >>>> trc721AssetTransferList:{}", trc721AssetTransferInfoList);
-    }
+//    if (!CollectionUtils.isEmpty(trc20AssetTransferInfoList)) {
+//      logger.info(" >>>> trc20AssetTransferList:{}", trc20AssetTransferInfoList);
+//    }
+//
+//    if (!CollectionUtils.isEmpty(trc721AssetTransferInfoList)) {
+//      logger.info(" >>>> trc721AssetTransferList:{}", trc721AssetTransferInfoList);
+//    }
 
     return result;
   }
@@ -418,7 +418,7 @@ public class TRC20Utils {
     }
 
     CommonParameter.getInstance().setDebug(false);
-    logger.info("trc20ShareIncrementMap: {}", trc20ShareIncrementMap);
+//    logger.info("trc20ShareIncrementMap: {}", trc20ShareIncrementMap);
 
     List<AssetStatusPojo> result = new LinkedList<>();
     for (String keys : trc20IncrementMap.keySet()) {
@@ -536,7 +536,7 @@ public class TRC20Utils {
       caseTransferSingle(senderAddr, recAddr, tokenAddress, assetId.toString(), value.toString(), trc1155InfoMap);
     }
 
-    logger.info(" >>>> caseTransferBatch {}, {}, {}, {}", senderAddr, recAddr, tokenAddress, data);
+//    logger.info(" >>>> caseTransferBatch {}, {}, {}, {}", senderAddr, recAddr, tokenAddress, data);
   }
 
   private static final String ZERO_ADDRESS = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
@@ -550,7 +550,7 @@ public class TRC20Utils {
     String data = logInfo.getHexData();
     final String assetId = hexStrToBigInteger(data.substring(0, 64)).toString();
     final String value = hexStrToBigInteger(data.substring(64)).toString();
-    logger.info(" >>>> caseTransferSingle {}, {}, {}, {}", senderAddr, recAddr, tokenAddress, data);
+//    logger.info(" >>>> caseTransferSingle {}, {}, {}, {}", senderAddr, recAddr, tokenAddress, data);
     caseTransferSingle(senderAddr, recAddr, tokenAddress, assetId, value, trc1155InfoMap);
   }
 
@@ -630,7 +630,7 @@ public class TRC20Utils {
         final BigInteger uriLength = hexStrToBigInteger(data.substring(64, 128));
         String uriHex = data.substring(128, 128 + uriLength.intValue() * 2);
         final String uri = new String(Hex.decode(uriHex), "UTF-8");
-        logger.info(" >>>> {}, {},  uri.data:{}", tokenAddress, assetId, uri);
+//        logger.info(" >>>> {}, {},  uri.data:{}", tokenAddress, assetId, uri);
 
         BalanceTrackerTrigger.Trc1155Info info = new BalanceTrackerTrigger.Trc1155Info();
         info.setTokenAddress(tokenAddress);
@@ -662,7 +662,7 @@ public class TRC20Utils {
       // 是trc721
       BigInteger increment = hexStrToBigInteger(logInfo.getHexData());
       String assetId = increment.toString();
-      logger.info(" transfer: {} , {}, {}, {}", tokenAddress, senderAddr, recAddr, assetId);
+//      logger.info(" transfer: {} , {}, {}, {}", tokenAddress, senderAddr, recAddr, assetId);
       handlerTrc721(assetId, tokenAddress, senderAddr, recAddr, trc721InfoMap);
     }
     else if (topics.size() == 3) {
@@ -678,9 +678,9 @@ public class TRC20Utils {
     } else if(topics.size() == 4) {
       // 是trc721
       final byte[] data = logInfo.getTopics().get(3).getData();
-      logger.info(" transfer, data: {} ", Arrays.toString(data));
+//      logger.info(" transfer, data: {} ", Arrays.toString(data));
       String assetId = new BigInteger(1, data).toString();
-      logger.info(" transfer: {} , {}, {}, {}", tokenAddress, senderAddr, recAddr, assetId);
+//      logger.info(" transfer: {} , {}, {}, {}", tokenAddress, senderAddr, recAddr, assetId);
       handlerTrc721(assetId, tokenAddress, senderAddr, recAddr, trc721InfoMap);
     }
   }
@@ -787,9 +787,9 @@ public class TRC20Utils {
             } else if(topics.size() == 4) {
               // 是trc721
               final byte[] data = logInfo.getTopics().get(3).getData();
-              logger.info(" handlerTransferLogs trc721 data: {} ", Arrays.toString(data));
+//              logger.info(" handlerTransferLogs trc721 data: {} ", Arrays.toString(data));
               String assetId = new BigInteger(1, data).toString();
-              logger.info(" handlerTransferLogs trc721 {} , {}, {}, {}", tokenAddress, senderAddr, recAddr, assetId);
+//              logger.info(" handlerTransferLogs trc721 {} , {}, {}, {}", tokenAddress, senderAddr, recAddr, assetId);
 
               assetTransferInfo.setAssetType(3);
               assetTransferInfo.setAmount("1");
