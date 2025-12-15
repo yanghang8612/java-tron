@@ -69,7 +69,7 @@ public class PendingManager implements AutoCloseable {
         Metrics.counterInc(MetricKeys.Counter.TXS, 1,
             MetricLabels.Counter.TXS_FAIL, MetricLabels.Counter.TXS_FAIL_TIMEOUT);
         if (Args.getInstance().isOpenPrintLog()) {
-          logger.warn("Timeout remove tx from pending, txId: {}.", tx.getTransactionId());
+          logger.warn("Timeout remove tx from pending, txId: {}, txCap: {}.", tx.getTransactionId(), tx);
         }
       }
     } catch (InterruptedException e) {
