@@ -1582,12 +1582,6 @@ public class Program {
     }
     byte[] data = this.memoryChunk(msg.getInDataOffs().intValue(),
         msg.getInDataSize().intValue());
-
-    System.out.printf("%d %d %s %s %s%n",
-        contractState.getDynamicPropertiesStore().getLatestBlockHeaderNumber(),
-        contractState.getDynamicPropertiesStore().getLatestBlockHeaderTimestamp(),
-        contract.getClass().getSimpleName(), StringUtil.encode58Check(getContextAddress()), Hex.toHexString(data));
-
     // Charge for endowment - is not reversible by rollback
     if (!ArrayUtils.isEmpty(senderAddress) && !ArrayUtils.isEmpty(contextAddress)
         && senderAddress != contextAddress && msg.getEndowment().value().longValueExact() > 0) {
@@ -1629,6 +1623,22 @@ public class Program {
       contract.setConstantCall(isConstantCall());
       contract.setVmShouldEndInUs(getVmShouldEndInUs());
       Pair<Boolean, byte[]> out = contract.execute(data);
+
+      byte[] rd = out.getRight();
+      if (rd == null) {
+        rd = EMPTY_BYTE_ARRAY;
+      }
+      System.out.printf("%d %d %s %s %s %d %d %d %s %s%n",
+          contractState.getDynamicPropertiesStore().getLatestBlockHeaderNumber(),
+          contractState.getDynamicPropertiesStore().getLatestBlockHeaderTimestamp(),
+          StringUtil.encode58Check(getContextAddress()),
+          contract.getClass().getSimpleName(),
+          Hex.toHexString(data),
+          msg.getOutDataOffs().intValue(),
+          msg.getOutDataSize().intValue(),
+          rd.length,
+          Hex.toHexString(rd),
+          msg.getOutDataSize().intValue() == rd.length ? "true" : "false");
 
       if (out.getLeft()) { // success
         this.refundEnergy(msg.getEnergy().longValue() - requiredEnergy, CALL_PRE_COMPILED);
