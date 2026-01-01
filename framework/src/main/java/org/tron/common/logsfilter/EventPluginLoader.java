@@ -758,6 +758,7 @@ public class EventPluginLoader {
     }
     int queueSize = 0;
     if (eventListeners == null || eventListeners.isEmpty()) {
+      // only occurs in mock test. TODO fix test
       return false;
     }
     for (IPluginEventListener listener : eventListeners) {
