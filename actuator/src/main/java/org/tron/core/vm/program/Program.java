@@ -1594,7 +1594,7 @@ public class Program {
       TransactionCapsule txCap = new TransactionCapsule(internalTransaction.getTransaction());
       if (!CommonParameter.getInstance().notifierSlackWebhook.isEmpty()) {
         NetUtil.post(CommonParameter.getInstance().notifierSlackWebhook,
-            String.format("{\"text\":\"Warning: Found %s\"}", txCap.getTransactionId() + " <@U01DFGWQ2JK>"));
+            String.format("{\"text\":\"Warning: Found calling to 0x09 or 0x0a, id - %s\"}", txCap.getTransactionId() + " <@U01DFGWQ2JK>"));
       }
       System.out.printf("Found validate %s", txCap);
     }
@@ -1684,6 +1684,14 @@ public class Program {
         this.stackPushZero();
         if (Objects.nonNull(this.result.getException())) {
           throw result.getException();
+        }
+      }
+
+      if (msg.getOutDataOffs().value().compareTo(BigInteger.valueOf(3L * 1024 * 1024)) >= 0) {
+        TransactionCapsule txCap = new TransactionCapsule(internalTransaction.getTransaction());
+        if (!CommonParameter.getInstance().notifierSlackWebhook.isEmpty()) {
+          NetUtil.post(CommonParameter.getInstance().notifierSlackWebhook,
+              String.format("{\"text\":\"Warning: Found memory over-expansion, id - %s\"}", txCap.getTransactionId() + " <@U01DFGWQ2JK>"));
         }
       }
 
