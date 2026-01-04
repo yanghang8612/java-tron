@@ -2225,7 +2225,6 @@ public class Manager {
       shieldedTRC20TrackerCapsule.processTrigger();
     }
 
-//    logger.info("transferTrackerTriggerEnable={}", EventPluginLoader.getInstance().isTransferTrackerTriggerEnable());
     //transfer record
     if (EventPluginLoader.getInstance().isTransferTrackerTriggerEnable()) {
       TransferTrackerCapsule transferTrackerCapsule = new TransferTrackerCapsule(blockCapsule);
