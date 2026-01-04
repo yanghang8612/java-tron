@@ -69,6 +69,9 @@ public class CancelAllUnfreezeV2Actuator extends AbstractActuator {
         Pair.of(new AtomicLong(0L), new AtomicLong(0L)),
         Pair.of(new AtomicLong(0L), new AtomicLong(0L)),
         Pair.of(new AtomicLong(0L), new AtomicLong(0L)));
+
+    StakeChangeRecord.withdrawUnfreeze(ownerAddress, unfrozenV2List);
+
     for (UnFreezeV2 unFreezeV2 : unfrozenV2List) {
       updateAndCalculate(triple, ownerCapsule, now, atomicWithdrawExpireBalance, unFreezeV2);
     }
