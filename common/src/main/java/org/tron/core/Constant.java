@@ -403,6 +403,8 @@ public class Constant {
 
   public static final String SLACK_DEFI_WEBHOOK = "slack.defiWebhook";
 
+  public static final String SLACK_NOTIFIER_WEBHOOK = "slack.notifierWebhook";
+
   public static final String COMMITTEE_CONSENSUS_LOGIC_OPTIMIZATION
       = "committee.consensusLogicOptimization";
 

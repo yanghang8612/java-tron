@@ -722,6 +722,10 @@ public class CommonParameter {
 
   @Getter
   @Setter
+  public String notifierSlackWebhook = "";
+
+  @Getter
+  @Setter
   public long  consensusLogicOptimization;
 
   @Getter

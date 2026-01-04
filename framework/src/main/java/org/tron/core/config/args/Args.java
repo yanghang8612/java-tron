@@ -1286,6 +1286,10 @@ public class Args extends CommonParameter {
       PARAMETER.defiSlackWebhook = config.getString(Constant.SLACK_DEFI_WEBHOOK);
     }
 
+    if (config.hasPath(Constant.SLACK_NOTIFIER_WEBHOOK)) {
+      PARAMETER.notifierSlackWebhook = config.getString(Constant.SLACK_NOTIFIER_WEBHOOK);
+    }
+
     PARAMETER.consensusLogicOptimization =
         config.hasPath(Constant.COMMITTEE_CONSENSUS_LOGIC_OPTIMIZATION) ? config
             .getInt(Constant.COMMITTEE_CONSENSUS_LOGIC_OPTIMIZATION) : 0;

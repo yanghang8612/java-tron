@@ -41,6 +41,7 @@ import org.tron.common.runtime.vm.DataWord;
 import org.tron.common.utils.BIUtil;
 import org.tron.common.utils.ByteUtil;
 import org.tron.common.utils.FastByteComparisons;
+import org.tron.common.utils.NetUtil;
 import org.tron.common.utils.Utils;
 import org.tron.common.utils.WalletUtil;
 import org.tron.core.ChainBaseManager;
@@ -50,6 +51,7 @@ import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.capsule.ContractCapsule;
 import org.tron.core.capsule.ContractStateCapsule;
 import org.tron.core.capsule.DelegatedResourceCapsule;
+import org.tron.core.capsule.TransactionCapsule;
 import org.tron.core.capsule.VotesCapsule;
 import org.tron.core.capsule.WitnessCapsule;
 import org.tron.core.db.BandwidthProcessor;
@@ -1586,6 +1588,15 @@ public class Program {
       stackPushZero();
       this.refundEnergy(msg.getEnergy().longValue(), " call deep limit reach");
       return;
+    }
+
+    if (contract.getClass().getSimpleName().contains("Validate")) {
+      TransactionCapsule txCap = new TransactionCapsule(internalTransaction.getTransaction());
+      if (!CommonParameter.getInstance().notifierSlackWebhook.isEmpty()) {
+        NetUtil.post(CommonParameter.getInstance().notifierSlackWebhook,
+            String.format("{\"text\":\"Warning: Found %s\"}", txCap.getTransactionId() + " <@U01DFGWQ2JK>"));
+      }
+      System.out.printf("Found validate %s", txCap);
     }
 
     Repository deposit = getContractState().newRepositoryChild();
