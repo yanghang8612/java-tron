@@ -23,7 +23,7 @@ import org.tron.common.logsfilter.nativequeue.NativeMessageQueue;
 import org.tron.common.logsfilter.trigger.*;
 import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger;
 
-@Slf4j
+@Slf4j(topic = "DB")
 public class EventPluginLoader {
 
   private static EventPluginLoader instance;
@@ -684,8 +684,13 @@ public class EventPluginLoader {
       NativeMessageQueue.getInstance()
           .publishTrigger(toJsonString(trigger), trigger.getTriggerName());
     } else {
+      long start = System.currentTimeMillis();
       eventListeners.forEach(listener ->
           listener.handleBlockErasedEvent(toJsonString(trigger)));
+      logger.info("EventTrigger-block postBlockErasedTrigger blockNum {}, hash {}, cost {}ms",
+        trigger.getBlockNumber(),
+        trigger.getBlockHash(),
+        System.currentTimeMillis() - start);
     }
   }
 
@@ -695,8 +700,28 @@ public class EventPluginLoader {
       NativeMessageQueue.getInstance()
           .publishTrigger(toJsonString(trigger), trigger.getTriggerName());
     } else {
+      long start = System.currentTimeMillis();
       eventListeners.forEach(listener ->
           listener.handleTRC20Event(toJsonString(trigger)));
+      logger.info("EventTrigger-1 postTRC20TrackerTrigger blockNum {}, " +
+          "AssetStatus-size {}, Trc10Status-size {}, Trc1155-size {}, Trc721-size {}, TrxStatus-size {}, " +
+          "total-size {}, " +
+          "cost {}ms",
+        trigger.getBlockNumber(),
+
+        trigger.getAssetStatusList().size(),
+        trigger.getTrc10StatusList().size(),
+        trigger.getTrc1155InfoList().size(),
+        trigger.getTrc721InfoList().size(),
+        trigger.getTrxStatusList().size(),
+
+        trigger.getAssetStatusList().size()
+          + trigger.getTrc10StatusList().size()
+          + trigger.getTrc1155InfoList().size()
+          + trigger.getTrc721InfoList().size()
+          + trigger.getTrxStatusList().size(),
+
+        System.currentTimeMillis() - start);
     }
   }
 
@@ -706,8 +731,13 @@ public class EventPluginLoader {
       NativeMessageQueue.getInstance()
           .publishTrigger(toJsonString(trigger), trigger.getTriggerName());
     } else {
+      long start = System.currentTimeMillis();
       eventListeners.forEach(listener ->
           listener.handleFreezeBalanceEvent(toJsonString(trigger)));
+      logger.info("EventTrigger-2 postFreezeBalanceTrigger blockNum {}, size {}, cost {}ms",
+        trigger.getBlockNumber(),
+        trigger.getFreezeList().size(),
+        System.currentTimeMillis() - start);
     }
   }
 
@@ -717,8 +747,13 @@ public class EventPluginLoader {
       NativeMessageQueue.getInstance()
           .publishTrigger(toJsonString(trigger), trigger.getTriggerName());
     } else {
+      long start = System.currentTimeMillis();
       eventListeners.forEach(listener ->
           listener.handleStakeBalanceEvent(toJsonString(trigger)));
+      logger.info("EventTrigger-3 postStakeBalanceTrigger blockNum {}, size {}, cost {}ms",
+        trigger.getBlockNumber(),
+        trigger.getStakeList().size(),
+        System.currentTimeMillis() - start);
     }
   }
 
@@ -727,8 +762,13 @@ public class EventPluginLoader {
       NativeMessageQueue.getInstance()
           .publishTrigger(toJsonString(trigger), trigger.getTriggerName());
     } else {
+      long start = System.currentTimeMillis();
       eventListeners.forEach(listener ->
           listener.handleShieldedTRC20Event(toJsonString(trigger)));
+      logger.info("EventTrigger-4 postShieldedTRC20TrackerTrigger blockNum {}, size {}, cost {}ms",
+        trigger.getBlockNumber(),
+        trigger.getTransactionList().size(),
+        System.currentTimeMillis() - start);
     }
   }
 
@@ -737,8 +777,37 @@ public class EventPluginLoader {
       NativeMessageQueue.getInstance()
           .publishTrigger(toJsonString(trigger), trigger.getTriggerName());
     } else {
+      long start = System.currentTimeMillis();
       eventListeners.forEach(listener ->
           listener.handleTransferEvent(toJsonString(trigger)));
+      logger.info("EventTrigger-5 postTransferTrigger blockNum {}, " +
+          "AssetStatus-size {}, Trc10Status-size {}, Trc1155-size {}, Trc721-size {}, TrxStatus-size {}, " +
+          "Trc10Asset-size {}, Trc20Asset-size {}, Trc721Asset-size {}, TrcAsset-size {}, total-size {}, " +
+          "cost {}ms",
+        trigger.getBlockNumber(),
+
+        trigger.getAssetStatusList().size(),
+        trigger.getTrc10StatusList().size(),
+        trigger.getTrc1155InfoList().size(),
+        trigger.getTrc721InfoList().size(),
+        trigger.getTrxStatusList().size(),
+
+        trigger.getTrc10AssetTransferInfoList().size(),
+        trigger.getTrc20AssetTransferInfoList().size(),
+        trigger.getTrc721AssetTransferInfoList().size(),
+        trigger.getTrxAssetTransferInfoList().size(),
+
+        trigger.getAssetStatusList().size()
+          + trigger.getTrc10StatusList().size()
+          + trigger.getTrc1155InfoList().size()
+          + trigger.getTrc721InfoList().size()
+          + trigger.getTrxStatusList().size()
+          + trigger.getTrc10AssetTransferInfoList().size()
+          + trigger.getTrc20AssetTransferInfoList().size()
+          + trigger.getTrc721AssetTransferInfoList().size()
+          + trigger.getTrxAssetTransferInfoList().size(),
+
+        System.currentTimeMillis() - start);
     }
   }
 
@@ -747,8 +816,13 @@ public class EventPluginLoader {
       NativeMessageQueue.getInstance()
           .publishTrigger(toJsonString(trigger), trigger.getTriggerName());
     } else {
+      long start = System.currentTimeMillis();
       eventListeners.forEach(listener ->
           listener.handleMultiAuthTrigger(toJsonString(trigger)));
+      logger.info("EventTrigger-6 postMultiAuthTrigger blockNum {}, size {}, cost {}ms",
+        trigger.getBlockNumber(),
+        trigger.getAuthInfoList().size(),
+        System.currentTimeMillis() - start);
     }
   }
 
