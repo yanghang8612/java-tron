@@ -221,9 +221,6 @@ public class TRC20Utils {
     Map<String, BalanceTrackerTrigger.Trc1155Info> trc1155InfoMap = new HashMap<>();
     handlerLogs(trc20IncrementMap, trc20ShareIncrementMap,
             logInfos, trc20Tokens, trc20ShareTokens, trc721InfoMap, trc1155InfoMap);
-//    if (!CollectionUtils.isEmpty(trc721InfoMap)) {
-//      logger.info(" >>>> trc721InfoMap:{}", trc721InfoMap);
-//    }
 
     Map<String, BigInteger> balanceMap = new LinkedHashMap<>();
     Map<String, BigInteger> decimalMap = new LinkedHashMap<>();
@@ -237,9 +234,6 @@ public class TRC20Utils {
     result.put(TRC721, trc721Infos);
     result.put(TRC1155, trc1155Infos);
 
-//    if (!CollectionUtils.isEmpty(trc721Infos)) {
-//      logger.info(" >>>> trc721Infos:{}", trc721Infos);
-//    }
     return result;
   }
 
@@ -251,14 +245,6 @@ public class TRC20Utils {
     Map<String, Object> result = new HashMap<>();
     result.put(TRC20_TRANSFER, trc20AssetTransferInfoList);
     result.put(TRC721_TRANSFER, trc721AssetTransferInfoList);
-
-//    if (!CollectionUtils.isEmpty(trc20AssetTransferInfoList)) {
-//      logger.info(" >>>> trc20AssetTransferList:{}", trc20AssetTransferInfoList);
-//    }
-//
-//    if (!CollectionUtils.isEmpty(trc721AssetTransferInfoList)) {
-//      logger.info(" >>>> trc721AssetTransferList:{}", trc721AssetTransferInfoList);
-//    }
 
     return result;
   }
@@ -418,7 +404,6 @@ public class TRC20Utils {
     }
 
     CommonParameter.getInstance().setDebug(false);
-//    logger.info("trc20ShareIncrementMap: {}", trc20ShareIncrementMap);
 
     List<AssetStatusPojo> result = new LinkedList<>();
     for (String keys : trc20IncrementMap.keySet()) {

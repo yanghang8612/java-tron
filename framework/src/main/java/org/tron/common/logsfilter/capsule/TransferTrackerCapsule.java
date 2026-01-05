@@ -228,7 +228,13 @@ public class TransferTrackerCapsule extends TriggerCapsule {
     String to = StringUtil.encode58Check(internalTransaction.getReceiveAddress());
     String txid = transactionCapsule.getTransactionId().toString();
     String note = internalTransaction.getNote();
-    convertInfo(key, value, from, to, txid, note, trxAssetTransferInfoList, assetTransferInfoList);
+
+    if (org.apache.commons.lang3.StringUtils.isNotEmpty(note)) {
+      if (note.equalsIgnoreCase("call")) {
+        // 暂时只支持 call 类型
+        convertInfo(key, value, from, to, txid, note, trxAssetTransferInfoList, assetTransferInfoList);
+      }
+    }
   }
 
   private void convertInfo(String key, Long value, String from, String to,
