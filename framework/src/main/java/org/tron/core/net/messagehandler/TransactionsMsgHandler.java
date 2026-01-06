@@ -123,7 +123,7 @@ public class TransactionsMsgHandler implements TronMsgHandler {
       } catch (Exception e) {
         logger.error("Handle smart contract exception", e);
       }
-    }, 1000, 20, TimeUnit.MILLISECONDS);
+    }, 1000, 1, TimeUnit.MILLISECONDS);
   }
 
   private void handleTransaction(PeerConnection peer, TransactionMessage trx) {
@@ -139,15 +139,8 @@ public class TransactionsMsgHandler implements TronMsgHandler {
 
     try {
       trx.getTransactionCapsule().checkExpiration(chainBaseManager.getNextBlockSlotTime());
-      tronNetDelegate.pushTransaction(trx.getTransactionCapsule());
+//      tronNetDelegate.pushTransaction(trx.getTransactionCapsule());
       advService.broadcast(trx);
-    } catch (P2pException e) {
-      logger.warn("Trx {} from peer {} process failed. type: {}, reason: {}",
-          trx.getMessageId(), peer.getInetAddress(), e.getType(), e.getMessage());
-      if (e.getType().equals(TypeEnum.BAD_TRX)) {
-        peer.setBadPeer(true);
-        peer.disconnect(ReasonCode.BAD_TX);
-      }
     } catch (TransactionExpirationException e) {
       logger.warn("{}. trx: {}, peer: {}",
           e.getMessage(), trx.getMessageId(), peer.getInetAddress());
