@@ -21,6 +21,7 @@ import org.tron.core.net.message.TronMessage;
 import org.tron.core.net.message.TronMessageFactory;
 import org.tron.core.net.message.adv.FetchInvDataMessage;
 import org.tron.core.net.message.adv.InventoryMessage;
+import org.tron.core.net.message.adv.TransactionsMessage;
 import org.tron.core.net.message.base.DisconnectMessage;
 import org.tron.core.net.message.handshake.HelloMessage;
 import org.tron.core.net.messagehandler.BlockMsgHandler;
@@ -165,7 +166,7 @@ public class P2pEventHandlerImpl extends P2pEventHandler {
       }
 
       peer.getPeerStatistics().messageStatistics.addTcpInMessage(msg);
-      if (PeerConnection.needToLog(msg)) {
+      if (msg instanceof TransactionsMessage) {
         logger.info("Receive message from  peer: {}, {}", peer.getInetSocketAddress(), msg);
       }
 
