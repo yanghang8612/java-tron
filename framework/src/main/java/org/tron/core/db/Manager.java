@@ -39,7 +39,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.TransactionInfoList;
-import org.tron.common.application.ApplicationHandler;
 import org.tron.common.args.GenesisBlock;
 import org.tron.common.bloom.Bloom;
 import org.tron.common.cron.CronExpression;
@@ -572,7 +571,7 @@ public class Manager {
     } else {
 //       if has no --es, close self.
       logger.info(" >>>>>>>>>>> has no --es , to close!!!!!!!!!!!!");
-      ApplicationHandler.closeSelf();
+      throw new TronError("This node must start with --es", TronError.ErrCode.EVENT_SUBSCRIBE_INIT);
     }
 
     // start json rpc filter process
@@ -1460,7 +1459,6 @@ public class Manager {
     } catch (Exception e) {
       logger.error("Block trigger failed. head: {}, oldSolid: {}, newSolid: {}",
           block.getNum(), oldSolid, newSolid, e);
-      ApplicationHandler.closeSelf();
       throw new TronError(e, TronError.ErrCode.EVENT_SUBSCRIBE_ERROR);
     }
   }
