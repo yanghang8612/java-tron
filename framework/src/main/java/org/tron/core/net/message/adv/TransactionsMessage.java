@@ -1,6 +1,7 @@
 package org.tron.core.net.message.adv;
 
 import java.util.List;
+import org.tron.common.utils.StringUtil;
 import org.tron.core.capsule.TransactionCapsule;
 import org.tron.core.net.message.MessageTypes;
 import org.tron.core.net.message.TronMessage;
@@ -35,8 +36,14 @@ public class TransactionsMessage extends TronMessage {
 
   @Override
   public String toString() {
+    StringBuilder sb = new StringBuilder();
+    for (Protocol.Transaction trx : this.transactions.getTransactionsList()) {
+      TransactionCapsule capsule = new TransactionCapsule(trx);
+      sb.append("txid: ").append(capsule.getTransactionId()).append(", owner: ")
+          .append(StringUtil.encode58Check(capsule.getOwnerAddress())).append("\n");
+    }
     return new StringBuilder().append(super.toString()).append("trx size: ")
-        .append(this.transactions.getTransactionsList().size()).toString();
+        .append(this.transactions.getTransactionsList().size()).append(", tx list:\n").append(sb).toString();
   }
 
   @Override
