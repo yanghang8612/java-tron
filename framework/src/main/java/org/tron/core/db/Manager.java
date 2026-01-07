@@ -572,7 +572,7 @@ public class Manager {
     } else {
 //       if has no --es, close self.
       logger.info(" >>>>>>>>>>> has no --es , to close!!!!!!!!!!!!");
-      ApplicationHandler.closeSelf();
+      throw new TronError("has no --es, to close!", TronError.ErrCode.EVENT_SUBSCRIBE_ERROR);
     }
 
     // start json rpc filter process
@@ -1460,7 +1460,6 @@ public class Manager {
     } catch (Exception e) {
       logger.error("Block trigger failed. head: {}, oldSolid: {}, newSolid: {}",
           block.getNum(), oldSolid, newSolid, e);
-      ApplicationHandler.closeSelf();
       throw new TronError(e, TronError.ErrCode.EVENT_SUBSCRIBE_ERROR);
     }
   }
