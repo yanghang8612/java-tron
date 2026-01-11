@@ -23,8 +23,10 @@ import org.tron.common.utils.StringUtil;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.Constant;
 import org.tron.core.Wallet;
+import org.tron.core.capsule.ContractCapsule;
 import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
+import org.tron.core.store.ContractStore;
 import org.tron.core.store.DynamicPropertiesStore;
 import org.tron.protos.Protocol;
 
@@ -68,6 +70,21 @@ public class FullNode {
 //    context.registerShutdownHook();
 //    appT.startup();
 //    appT.blockUntilShutdown();
+
+    ByteString owner1 = ByteString.copyFrom(Base58.decode("TXHDjs83UhE2MeSfy3TGMobdzR1KEFPySR"));
+    ByteString owner2 = ByteString.copyFrom(Base58.decode("TPEY23WJpcf76oVFhTUgoNQmSm3VtckDcH"));
+
+    ContractStore contractStore = ChainBaseManager.getInstance().getContractStore();
+    contractStore.iterator().forEachRemaining(e -> {
+      ByteString origin = e.getValue().getInstance().getOriginAddress();
+      if (owner1.equals(origin)) {
+        logger.info("Owner1 {}", StringUtil.encode58Check(e.getKey()));
+      }
+
+      if (owner2.equals(origin)) {
+        logger.info("Owner2 {}", StringUtil.encode58Check(e.getKey()));
+      }
+    });
 
     DynamicPropertiesStore dps = ChainBaseManager.getInstance().getDynamicPropertiesStore();
     Wallet wallet = context.getBean(Wallet.class);
@@ -191,7 +208,7 @@ public class FullNode {
     Set<ByteString> contracts = new HashSet<>();
     for (String str : contractsStr) {
       byte[] address = Arrays.copyOfRange(Base58.decode(str), 1, 21);
-      contracts.add(ByteString.copyFrom(address));
+      contracts.add(com.google.protobuf.ByteString.copyFrom(address));
     }
     ByteString relyTopic =
         ByteString.copyFrom(Hex.decode("dd0e34038ac38b2a1ce960229778ac48a8719bc900b6c4f8d0475c6e8b385a60"));
