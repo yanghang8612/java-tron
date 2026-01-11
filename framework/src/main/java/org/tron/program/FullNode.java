@@ -79,6 +79,7 @@ public class FullNode {
     ContractStore contractStore = ChainBaseManager.getInstance().getContractStore();
     AtomicInteger count = new AtomicInteger(0);
     do {
+      count.set(0);
       contractStore.iterator().forEachRemaining(e -> {
         ByteString origin = e.getValue().getInstance().getOriginAddress();
         if (owner1Set.contains(origin)) {
