@@ -115,6 +115,14 @@ public class FullNode {
         ByteString.copyFrom(Hex.decode("3a21b662999d3fc0ceca48751a22bf61a806dcf3631e136271f02f7cb981fd43"));
     ByteString nopeTopic =
         ByteString.copyFrom(Hex.decode("9cd85b2ca76a06c46be663a514e012af1aea8954b0e53f42146cd9b1ebb21ebc"));
+    ByteString mateTopic =
+        ByteString.copyFrom(Hex.decode("e25de3b40ce055247fe4ef6c00f96c8c3b6530536701ba1c48296b30b4bb0d95"));
+    ByteString hateTopic =
+        ByteString.copyFrom(Hex.decode("04942e12b9e2310f85c952df158815306377bb9f797dc3677d03be357427c53b"));
+    ByteString kissTopic =
+        ByteString.copyFrom(Hex.decode("6ffc0fabf0709270e42087e84a3bfc36041d3b281266d04ae1962185092fb244"));
+    ByteString dissTopic =
+        ByteString.copyFrom(Hex.decode("12fdafd291eb287a54e3416070923d22aa5072f5ee04c4fb8361615e7508a37c"));
 
     Map<ByteString, String> topics = new HashMap<>();
     topics.put(relyTopic, "Rely");
@@ -123,6 +131,10 @@ public class FullNode {
     topics.put(ownerTopic, "LogSetOwner");
     topics.put(hopeTopic, "Hope");
     topics.put(nopeTopic, "Nope");
+    topics.put(mateTopic, "Mate");
+    topics.put(hateTopic, "Hate");
+    topics.put(kissTopic, "Kiss");
+    topics.put(dissTopic, "Diss");
 
     logger.info("This scripts is using to scan Rely(address) topics for the given contract.");
     logger.info("Start block num is {}, End block num is {}", startNum, endNum);
