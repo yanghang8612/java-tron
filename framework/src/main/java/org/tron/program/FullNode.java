@@ -7,12 +7,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.util.encoders.Hex;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.tron.api.GrpcAPI;
-import org.tron.common.application.Application;
-import org.tron.common.application.ApplicationFactory;
 import org.tron.common.application.TronApplicationContext;
 import org.tron.common.exit.ExitManager;
 import org.tron.common.log.LogService;
@@ -70,26 +69,31 @@ public class FullNode {
 //    appT.startup();
 //    appT.blockUntilShutdown();
 
-    ByteString owner1 = ByteString.copyFrom(Commons.decode58Check("TXHDjs83UhE2MeSfy3TGMobdzR1KEFPySR"));
-    ByteString owner2 = ByteString.copyFrom(Commons.decode58Check("TPEY23WJpcf76oVFhTUgoNQmSm3VtckDcH"));
+    ByteString owner1 = ByteString.copyFrom(Commons.decodeFromBase58Check("TXHDjs83UhE2MeSfy3TGMobdzR1KEFPySR"));
+    ByteString owner2 = ByteString.copyFrom(Commons.decodeFromBase58Check("TPEY23WJpcf76oVFhTUgoNQmSm3VtckDcH"));
     Set<ByteString> owner1Set = new HashSet<>();
     owner1Set.add(owner1);
     Set<ByteString> owner2Set = new HashSet<>();
     owner2Set.add(owner2);
 
     ContractStore contractStore = ChainBaseManager.getInstance().getContractStore();
-    contractStore.iterator().forEachRemaining(e -> {
-      ByteString origin = e.getValue().getInstance().getOriginAddress();
-      if (owner1Set.contains(origin)) {
-        owner1Set.add(e.getValue().getInstance().getContractAddress());
-        logger.info("Owner1 {}", StringUtil.encode58Check(e.getKey()));
-      }
+    AtomicInteger count = new AtomicInteger(0);
+    do {
+      contractStore.iterator().forEachRemaining(e -> {
+        ByteString origin = e.getValue().getInstance().getOriginAddress();
+        if (owner1Set.contains(origin)) {
+          count.addAndGet(1);
+          owner1Set.add(e.getValue().getInstance().getContractAddress());
+          logger.info("Owner1 {}", StringUtil.encode58Check(e.getKey()));
+        }
 
-      if (owner2Set.contains(origin)) {
-        owner2Set.add(e.getValue().getInstance().getContractAddress());
-        logger.info("Owner2 {}", StringUtil.encode58Check(e.getKey()));
-      }
-    });
+        if (owner2Set.contains(origin)) {
+          count.addAndGet(1);
+          owner2Set.add(e.getValue().getInstance().getContractAddress());
+          logger.info("Owner2 {}", StringUtil.encode58Check(e.getKey()));
+        }
+      });
+    } while (count.get() != 0);
 
     DynamicPropertiesStore dps = ChainBaseManager.getInstance().getDynamicPropertiesStore();
     Wallet wallet = context.getBean(Wallet.class);
@@ -212,7 +216,7 @@ public class FullNode {
         "TCdgsgwyka6LG2VzSA65wdscPauxgFg9Wv"};
     Set<ByteString> contracts = new HashSet<>();
     for (String str : contractsStr) {
-      byte[] address = Arrays.copyOfRange(Commons.decode58Check(str), 1, 21);
+      byte[] address = Arrays.copyOfRange(Commons.decodeFromBase58Check(str), 1, 21);
       contracts.add(ByteString.copyFrom(address));
     }
     ByteString relyTopic =
