@@ -112,7 +112,13 @@ public class FullNode {
         for (Protocol.TransactionInfo.Log log : info.getLogList()) {
           if (contracts.contains(log.getAddress()) &&
               log.getTopicsCount() > 0 && log.getTopics(0).equals(relyTopic)) {
-            byte[] address = Arrays.copyOfRange(log.getData().toByteArray(), 12, 32);
+            byte[] address;
+            if (log.getTopicsCount() > 1) {
+              address = Arrays.copyOfRange(log.getTopics(1).toByteArray(), 12, 32);
+            } else {
+              address = Arrays.copyOfRange(log.getData().toByteArray(), 12, 32);
+            }
+
             logger.info("Found Rely topic - {} {} {}",
                 StringUtil.encode58Check(log.getAddress().toByteArray()),
                 StringUtil.encode58Check(address),
