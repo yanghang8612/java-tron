@@ -75,29 +75,76 @@ public class FullNode {
     long startNum = 68000000L;
     long endNum = dps.getLatestBlockHeaderNumber();
     String[] contractsStr = new String[]{
-        "TWTcYYHvRAkhFHR7Spgnh4Pb5ofboroVZK",
-        "TUGzN12obTXAmFBALRHDHim7WwATfdUmmV",
-        "TXzhj9Xh8xfzerjinRyM5TfoBL7Cw5hk5d",
-        "TSB7M6eBpBD4RUrqdgPrTLkfzzYV39QTBo",
-        "TNuBMH3A628d9UAhgkBFpgqb3gHy2sbnF5",
-        "TMhsJiXUrT5eueuH1cq6SdvQEBt4YjKLfx",
-        "TVsQxikpttN15u7vcjXKeVrtYRWbrqgPbH",
-        "TQrq2p1aoAkNK94q3Q69ubJcv5nQ9y675R",
+        "T9yEgaPQT9Z6jsF1Rd2nisf1bpwpXNAFqE",
+        "TAdMMCxAtNR6425AbnbktyBvZazQkp8aAZ",
+        "TBjGXKxTcDmmP6RQaXSvVqqa3H3ZmumQYo",
+        "TBQLNFv8cfxdw8ruukDRKR3b3DRMr8RHBt",
+        "TBXW4hS5KYjjbJXDpnrPf4zhkLwrpUjbyz",
+        "TCwYKcDj8c5Te9hjj3UokcxhpY6skFoXnG",
+        "TDDWjmQaquEtUn1Pa8wCd8dfWFPdQLGPYL",
+        "TDLgCe2SatVew6PxSwYmqsc3zfahqXwuqX",
+        "TDRjh5u9YSxcW53bLzFbS4xRwWNLJmkGbc",
+        "TDUkQbjrXs6xUbxGCLknWwJHxVTdysXBhy",
+        "TE19XD8DPc9D3z3SMWeS14xWC6Mt3wSJKu",
+        "TE6RxGgQuD6J1faw9mZxtbHGDqcKh8DvKU",
+        "TEk9usYZsunkc5oYijyMte6sGurspik2Js",
         "TEMgm1RKGY3uP1UTCDqNXJ7DgSqsKMBhiy",
+        "TFhJ87cWQVbDC451k5tAHn87GWfpYCaqmj",
+        "TFLT469zSDwfUEyXsKZQq9nqjUSahYunHs",
+        "TFpBqyujDPPBuNi33LvWSetLFtq1anh7vv",
+        "TFSFz8GYowZwqAfnCnURBiUeLrHm6agYXz",
+        "TFuumskYzYBLZ7EDNpADFTSi1cgcgd7Wwa",
+        "TGKJKQY9Bh5yVjW1WL5NbfmcGXD2z9Jj4q",
+        "TGQKnHDQNyc3QeHJ7YxH8wggdg89UVXyvX",
+        "TH5dhX7o39afSbfDT2e3c9k4itWjNKD4D9",
+        "THuAY3Dqaf5EMdUPcQtmFew85ZSTEENAYk",
+        "THuVWkvAikvSqmoZXHMUQJAcocsgFr4wuk",
+        "TJ1VWPvFVq7sVsN7J7dWJVZz4SLT14qRUr",
+        "TK9Ng6QqNVvyhWcWAiEasZ1HqE7bxgNayA",
+        "TKvNF7aJtU2gUncR64MCdDoaWqrnHpriSL",
+        "TLmm1SbAs9WFqKyaLpqTiRVFj6kTN7WeBp",
+        "TLNs9UZyd7jN3y8RzyFng88TkgEhtRXF8W",
+        "TM8Zpv6badmQnw6uo3jLhnRtYD5zoNY4Cj",
+        "TMhsJiXUrT5eueuH1cq6SdvQEBt4YjKLfx",
+        "TMUPT9tb5MknynKDVWwy6LWdABCjyGD3A8",
+        "TMZTbwpvs7VjTJ7qjwh4EMkB5ahZ5tUJeM",
+        "TNq6E9XsQfrzqVwam67LApZQx1omsj8dyW",
+        "TNqH7NFMDrHj5FSTGeGkepcEG5Fav9e6F6",
+        "TNuBMH3A628d9UAhgkBFpgqb3gHy2sbnF5",
+        "TP2eYpkrgk7sLAts5tvzsFxHiDH8PmQcuH",
+        "TPUPPLTYLdbW4jxwD5g2T7ystxsR9HL2mt",
+        "TPW3wnwGaqB6ivYTo7hxb3rpHEoWtSNz2M",
+        "TQmQgCP1ZNhMyq898purwhEz3DCEZiZAmg",
+        "TQrq2p1aoAkNK94q3Q69ubJcv5nQ9y675R",
+        "TQTAohrmgSyyeAS7jo1W4dUysnpmi5UbDv",
+        "TQUpHbLMoYjJtcdp1CAn95b6B3jwroN2s4",
+        "TR49CRc4fVrQ1Kz8MMypyzFJA4RdahkTr1",
+        "TRhCAd6BsCHEBKiCCRgatgcT2gWW6vyiHW",
+        "TRqNuQhyEGCLSuFL9xx2LsL7CgiAKKU4Jq",
+        "TSB7M6eBpBD4RUrqdgPrTLkfzzYV39QTBo",
+        "TSUYvQ5tdd3DijCD1uGunGLpftHuSZ12sQ",
+        "TTdDA16hnGXvVmiek7goij5a8B4QDxTT3v",
+        "TU8Z8CeUd7pnXSMHTNqRgK6Qxxxyzsba1n",
+        "TUajR7CbXU6hX8n3XtNkitFAD25JvP99K6",
+        "TUGzN12obTXAmFBALRHDHim7WwATfdUmmV",
         "TUMBP4f47fyu9neED1UYjT78J42eSf6xjB",
-        "TMk8sVbkfsuyJUHxkJ4oCS1JQPEp4PNB5g",
-        "TMtCbYmfc6zQ1LSKm3eWZntjzYUVaxCzr2",
-        "TTMuf1VNGVHBaZSBU54FK3tki8y5XoqvCX",
-        "TJKFX3vEybixnauT67ko4nh2DzwT9SPWiG",
-        "TBJQzdwg3bFM5kjrFeYwQLzGAG9RvF7MBh",
-        "TD6HorqmFL3M4xL14icjNzXPNCPca4d32f",
-        "TDiM14q5nNVjjsodA4rXmhxSv7oXtT8mPD",
-        "TMvvzNcnREy7qofJyqbNsoL2op7SvaaEey",
-        "TH9Y8aB8E8hiXYGbmXAM5qMTUxBe4vzb1u",
-        "TP9ZvM6kRk9kpVhpuLVvGZ1w2GzPCu7JbR",
-        "TQ2uLRqqHWb3LD5gfqBwj32uThNjFoSweV",
-        "TYyC3kxzMYC1sGKpui79VAzwn992jCA6fN",
-        "TCdgsgwyka6LG2VzSA65wdscPauxgFg9Wv"};
+        "TVDxsCLXr9zakfMP439UcjAi639HwFkYDF",
+        "TVg52CxgE67F1DJHSQnqDrVgW8TF3gUHDv",
+        "TVKZKa1LDadTPm2AoAW7hp9BtdScK4gSk8",
+        "TVnDFKq13XGTmdNcQnvRouaqG5dPpb48Yp",
+        "TVsQxikpttN15u7vcjXKeVrtYRWbrqgPbH",
+        "TVtZdz2zC51e8PUsdxnkFm9JCFHAq7cgnA",
+        "TWmmZ44tN6UBAD4iEsoZo5qSAZ64E4HDZZ",
+        "TWTcYYHvRAkhFHR7Spgnh4Pb5ofboroVZK",
+        "TWttvCqVmiLip7PL8Aut2Hi37swqv7EmYd",
+        "TWudpwxPHoJkcWG4yNU7LoYKQ3FTLcy6S8",
+        "TWXVYfD7GFinLnQpv7evwMzenzXgQ8MqNg",
+        "TX6CM8K1FgS2nnTEjLsKW6TAVSipFXHh5C",
+        "TXDk8mbtRbXeYuMNS83CfKPaYYT8XWv9Hz",
+        "TXhepqfva4WvcK6HapedmzwDjdZv8KoY6p",
+        "TXLfZmQtLtLxWYNL2fxhw34JNGHB2EKeSU",
+        "TXzhj9Xh8xfzerjinRyM5TfoBL7Cw5hk5d",
+        "TXZMGAc3zLtkiBZZrBUyYuyQMpfcmvHokn"};
     Set<ByteString> contracts = new HashSet<>();
     for (String str : contractsStr) {
       byte[] address = Arrays.copyOfRange(Base58.decode(str), 1, 21);
@@ -123,6 +170,8 @@ public class FullNode {
         ByteString.copyFrom(Hex.decode("6ffc0fabf0709270e42087e84a3bfc36041d3b281266d04ae1962185092fb244"));
     ByteString dissTopic =
         ByteString.copyFrom(Hex.decode("12fdafd291eb287a54e3416070923d22aa5072f5ee04c4fb8361615e7508a37c"));
+    ByteString ownershipTopic =
+        ByteString.copyFrom(Hex.decode("8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0"));
 
     Map<ByteString, String> topics = new HashMap<>();
     topics.put(relyTopic, "Rely");
@@ -135,6 +184,7 @@ public class FullNode {
     topics.put(hateTopic, "Hate");
     topics.put(kissTopic, "Kiss");
     topics.put(dissTopic, "Diss");
+    topics.put(ownershipTopic, "Ownership");
 
     logger.info("This scripts is using to scan Rely(address) topics for the given contract.");
     logger.info("Start block num is {}, End block num is {}", startNum, endNum);
