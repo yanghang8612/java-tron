@@ -114,10 +114,11 @@ public class FullNode {
               log.getTopicsCount() > 0 && log.getTopics(0).equals(relyTopic)) {
             byte[] address;
             if (log.getTopicsCount() > 1) {
-              address = Arrays.copyOfRange(log.getTopics(1).toByteArray(), 12, 32);
+              address = Arrays.copyOfRange(log.getTopics(1).toByteArray(), 11, 32);
             } else {
-              address = Arrays.copyOfRange(log.getData().toByteArray(), 12, 32);
+              address = Arrays.copyOfRange(log.getData().toByteArray(), 11, 32);
             }
+            address[0] = 0x41;
 
             logger.info("Found Rely topic - {} {} {}",
                 StringUtil.encode58Check(log.getAddress().toByteArray()),
