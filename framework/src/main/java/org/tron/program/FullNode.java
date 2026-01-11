@@ -3,7 +3,9 @@ package org.tron.program;
 import com.beust.jcommander.JCommander;
 import com.google.protobuf.ByteString;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.util.encoders.Hex;
@@ -103,6 +105,24 @@ public class FullNode {
     }
     ByteString relyTopic =
         ByteString.copyFrom(Hex.decode("dd0e34038ac38b2a1ce960229778ac48a8719bc900b6c4f8d0475c6e8b385a60"));
+    ByteString denyTopic =
+        ByteString.copyFrom(Hex.decode("184450df2e323acec0ed3b5c7531b81f9b4cdef7914dfd4c0a4317416bb5251b"));
+    ByteString authorityTopic =
+        ByteString.copyFrom(Hex.decode("1abebea81bfa2637f28358c371278fb15ede7ea8dd28d2e03b112ff6d936ada4"));
+    ByteString ownerTopic =
+        ByteString.copyFrom(Hex.decode("ce241d7ca1f669fee44b6fc00b8eba2df3bb514eed0f6f668f8f89096e81ed94"));
+    ByteString hopeTopic =
+        ByteString.copyFrom(Hex.decode("3a21b662999d3fc0ceca48751a22bf61a806dcf3631e136271f02f7cb981fd43"));
+    ByteString nopeTopic =
+        ByteString.copyFrom(Hex.decode("9cd85b2ca76a06c46be663a514e012af1aea8954b0e53f42146cd9b1ebb21ebc"));
+
+    Map<ByteString, String> topics = new HashMap<>();
+    topics.put(relyTopic, "Rely");
+    topics.put(denyTopic, "Deny");
+    topics.put(authorityTopic, "LogSetAuthority");
+    topics.put(ownerTopic, "LogSetOwner");
+    topics.put(hopeTopic, "Hope");
+    topics.put(nopeTopic, "Nope");
 
     logger.info("This scripts is using to scan Rely(address) topics for the given contract.");
     logger.info("Start block num is {}, End block num is {}", startNum, endNum);
@@ -111,7 +131,7 @@ public class FullNode {
       for (Protocol.TransactionInfo info : txList.getTransactionInfoList()) {
         for (Protocol.TransactionInfo.Log log : info.getLogList()) {
           if (contracts.contains(log.getAddress()) &&
-              log.getTopicsCount() > 0 && log.getTopics(0).equals(relyTopic)) {
+              log.getTopicsCount() > 0 && topics.containsKey(log.getTopics(0))) {
             byte[] contract = new byte[21];
             System.arraycopy(log.getAddress().toByteArray(), 0, contract, 1, 20);
             contract[0] = 0x41;
@@ -124,8 +144,9 @@ public class FullNode {
             }
             address[0] = 0x41;
 
-            logger.info("Found Rely topic - {} {} {}",
+            logger.info("Found concerned topic - {} {} {} {}",
                 StringUtil.encode58Check(contract),
+                topics.get(log.getTopics(0)),
                 StringUtil.encode58Check(address),
                 Hex.toHexString(info.getId().toByteArray()));
           }
