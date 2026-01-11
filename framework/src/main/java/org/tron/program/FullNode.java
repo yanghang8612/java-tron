@@ -263,7 +263,7 @@ public class FullNode {
                 if (it.getNote().equals(ByteString.copyFrom("create".getBytes()))) {
                   logger.info("{} {} {}",
                       owner1.equals(owner) ? "Owner1" : "Owner2",
-                      StringUtil.encode58Check(txInfo.getContractAddress().toByteArray()),
+                      StringUtil.encode58Check(it.getTransferToAddress().toByteArray()),
                       "CreateByContract");
                 }
               }
