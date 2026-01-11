@@ -73,15 +73,21 @@ public class FullNode {
 
     ByteString owner1 = ByteString.copyFrom(Base58.decode("TXHDjs83UhE2MeSfy3TGMobdzR1KEFPySR"));
     ByteString owner2 = ByteString.copyFrom(Base58.decode("TPEY23WJpcf76oVFhTUgoNQmSm3VtckDcH"));
+    Set<ByteString> owner1Set = new HashSet<>();
+    owner1Set.add(owner1);
+    Set<ByteString> owner2Set = new HashSet<>();
+    owner2Set.add(owner2);
 
     ContractStore contractStore = ChainBaseManager.getInstance().getContractStore();
     contractStore.iterator().forEachRemaining(e -> {
       ByteString origin = e.getValue().getInstance().getOriginAddress();
-      if (owner1.equals(origin)) {
+      if (owner1Set.contains(origin)) {
+        owner1Set.add(e.getValue().getInstance().getContractAddress());
         logger.info("Owner1 {}", StringUtil.encode58Check(e.getKey()));
       }
 
-      if (owner2.equals(origin)) {
+      if (owner2Set.contains(origin)) {
+        owner2Set.add(e.getValue().getInstance().getContractAddress());
         logger.info("Owner2 {}", StringUtil.encode58Check(e.getKey()));
       }
     });
