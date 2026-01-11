@@ -98,7 +98,8 @@ public class FullNode {
         "TCdgsgwyka6LG2VzSA65wdscPauxgFg9Wv"};
     Set<ByteString> contracts = new HashSet<>();
     for (String str : contractsStr) {
-      contracts.add(ByteString.copyFrom(Base58.decode(str)));
+      byte[] address = Arrays.copyOfRange(Base58.decode(str), 1, 21);
+      contracts.add(ByteString.copyFrom(address));
     }
     ByteString relyTopic =
         ByteString.copyFrom(Hex.decode("dd0e34038ac38b2a1ce960229778ac48a8719bc900b6c4f8d0475c6e8b385a60"));
