@@ -82,16 +82,17 @@ public class FullNode {
       count.set(0);
       contractStore.iterator().forEachRemaining(e -> {
         ByteString origin = e.getValue().getInstance().getOriginAddress();
-        if (owner1Set.contains(origin)) {
+        ByteString contract =  e.getValue().getInstance().getContractAddress();
+        if (owner1Set.contains(origin) && !owner1Set.contains(contract)) {
           count.addAndGet(1);
-          owner1Set.add(e.getValue().getInstance().getContractAddress());
-          logger.info("Owner1 {}", StringUtil.encode58Check(e.getKey()));
+          owner1Set.add(contract);
+          logger.info("Owner1 {}", StringUtil.encode58Check(contract.toByteArray()));
         }
 
-        if (owner2Set.contains(origin)) {
+        if (owner2Set.contains(origin) && !owner2Set.contains(contract)) {
           count.addAndGet(1);
-          owner2Set.add(e.getValue().getInstance().getContractAddress());
-          logger.info("Owner2 {}", StringUtil.encode58Check(e.getKey()));
+          owner2Set.add(contract);
+          logger.info("Owner2 {}", StringUtil.encode58Check(contract.toByteArray()));
         }
       });
     } while (count.get() != 0);
