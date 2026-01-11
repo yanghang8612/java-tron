@@ -18,12 +18,11 @@ import org.tron.common.exit.ExitManager;
 import org.tron.common.log.LogService;
 import org.tron.common.parameter.CommonParameter;
 import org.tron.common.prometheus.Metrics;
-import org.tron.common.utils.Base58;
+import org.tron.common.utils.Commons;
 import org.tron.common.utils.StringUtil;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.Constant;
 import org.tron.core.Wallet;
-import org.tron.core.capsule.ContractCapsule;
 import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
 import org.tron.core.store.ContractStore;
@@ -71,8 +70,8 @@ public class FullNode {
 //    appT.startup();
 //    appT.blockUntilShutdown();
 
-    ByteString owner1 = ByteString.copyFrom(Base58.decode("TXHDjs83UhE2MeSfy3TGMobdzR1KEFPySR"));
-    ByteString owner2 = ByteString.copyFrom(Base58.decode("TPEY23WJpcf76oVFhTUgoNQmSm3VtckDcH"));
+    ByteString owner1 = ByteString.copyFrom(Commons.decode58Check("TXHDjs83UhE2MeSfy3TGMobdzR1KEFPySR"));
+    ByteString owner2 = ByteString.copyFrom(Commons.decode58Check("TPEY23WJpcf76oVFhTUgoNQmSm3VtckDcH"));
     Set<ByteString> owner1Set = new HashSet<>();
     owner1Set.add(owner1);
     Set<ByteString> owner2Set = new HashSet<>();
@@ -213,8 +212,8 @@ public class FullNode {
         "TCdgsgwyka6LG2VzSA65wdscPauxgFg9Wv"};
     Set<ByteString> contracts = new HashSet<>();
     for (String str : contractsStr) {
-      byte[] address = Arrays.copyOfRange(Base58.decode(str), 1, 21);
-      contracts.add(com.google.protobuf.ByteString.copyFrom(address));
+      byte[] address = Arrays.copyOfRange(Commons.decode58Check(str), 1, 21);
+      contracts.add(ByteString.copyFrom(address));
     }
     ByteString relyTopic =
         ByteString.copyFrom(Hex.decode("dd0e34038ac38b2a1ce960229778ac48a8719bc900b6c4f8d0475c6e8b385a60"));
