@@ -236,33 +236,39 @@ public class FullNode {
 
     logger.info("This scripts is using to scan Rely(address) topics for the given contract.");
     logger.info("Start block num is {}, End block num is {}", startNum, endNum);
-    for (long i = startNum; i <= endNum; i++) {
-      Protocol.Block block = wallet.getBlockByNum(i);
-      GrpcAPI.TransactionInfoList txList = wallet.getTransactionInfoByBlockNum(i);
-      for (int j = 0; j < block.getTransactionsCount(); j++) {
-        Protocol.Transaction tx = block.getTransactions(j);
-        TransactionCapsule txCapsule = new TransactionCapsule(tx);
-        ByteString owner = ByteString.copyFrom(txCapsule.getOwnerAddress());
 
-        if (owner1.equals(owner) || owner2.equals(owner)) {
-          Protocol.TransactionInfo txInfo = txList.getTransactionInfo(j);
-          if (!txInfo.getContractAddress().isEmpty()) {
-            logger.info("{} {} {}",
-                owner1.equals(owner) ? "Owner1" : "Owner2",
-                StringUtil.encode58Check(txInfo.getContractAddress().toByteArray()),
-                contractStore.get(txInfo.getContractAddress().toByteArray()).getInstance().getName());
-          }
+    for (int c = 0; c < 8; c++) {
+      long start = startNum + (endNum - startNum) / 8 * c;
+      long end = startNum + (endNum - startNum) / 8 * (c + 1) - 1;
+      int thread = c;
+      new Thread(() -> {
+        for (long i = start; i <= end; i++) {
+          Protocol.Block block = wallet.getBlockByNum(i);
+          GrpcAPI.TransactionInfoList txList = wallet.getTransactionInfoByBlockNum(i);
+          for (int j = 0; j < block.getTransactionsCount(); j++) {
+            Protocol.Transaction tx = block.getTransactions(j);
+            TransactionCapsule txCapsule = new TransactionCapsule(tx);
+            ByteString owner = ByteString.copyFrom(txCapsule.getOwnerAddress());
 
-          for (Protocol.InternalTransaction it : txInfo.getInternalTransactionsList()) {
-            if (it.getNote().equals(ByteString.copyFrom("create".getBytes()))) {
-              logger.info("{} {} {}",
-                  owner1.equals(owner) ? "Owner1" : "Owner2",
-                  StringUtil.encode58Check(txInfo.getContractAddress().toByteArray()),
-                  "CreateByContract");
+            if (owner1.equals(owner) || owner2.equals(owner)) {
+              Protocol.TransactionInfo txInfo = txList.getTransactionInfo(j);
+              if (!txInfo.getContractAddress().isEmpty()) {
+                logger.info("{} {} {}",
+                    owner1.equals(owner) ? "Owner1" : "Owner2",
+                    StringUtil.encode58Check(txInfo.getContractAddress().toByteArray()),
+                    contractStore.get(txInfo.getContractAddress().toByteArray()).getInstance().getName());
+              }
+
+              for (Protocol.InternalTransaction it : txInfo.getInternalTransactionsList()) {
+                if (it.getNote().equals(ByteString.copyFrom("create".getBytes()))) {
+                  logger.info("{} {} {}",
+                      owner1.equals(owner) ? "Owner1" : "Owner2",
+                      StringUtil.encode58Check(txInfo.getContractAddress().toByteArray()),
+                      "CreateByContract");
+                }
+              }
             }
           }
-        }
-      }
 
 //      for (Protocol.TransactionInfo info : txList.getTransactionInfoList()) {
 //        for (Protocol.TransactionInfo.Log log : info.getLogList()) {
@@ -289,10 +295,13 @@ public class FullNode {
 //        }
 //      }
 
-      if (i % 100_000 == 0) {
-        logger.info("Current block num is {}", i);
-      }
+          if (i % 10_000 == 0) {
+            logger.info("{} Thread, Current block num is {}", thread, i);
+          }
+        }
+      }).start();
     }
+
     logger.info("Finish scanning.");
 
   }
