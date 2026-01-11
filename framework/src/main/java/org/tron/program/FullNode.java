@@ -22,6 +22,7 @@ import org.tron.common.utils.StringUtil;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.Constant;
 import org.tron.core.Wallet;
+import org.tron.core.capsule.TransactionCapsule;
 import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
 import org.tron.core.store.ContractStore;
@@ -71,32 +72,8 @@ public class FullNode {
 
     ByteString owner1 = ByteString.copyFrom(Commons.decodeFromBase58Check("TXHDjs83UhE2MeSfy3TGMobdzR1KEFPySR"));
     ByteString owner2 = ByteString.copyFrom(Commons.decodeFromBase58Check("TPEY23WJpcf76oVFhTUgoNQmSm3VtckDcH"));
-    Set<ByteString> owner1Set = new HashSet<>();
-    owner1Set.add(owner1);
-    Set<ByteString> owner2Set = new HashSet<>();
-    owner2Set.add(owner2);
 
     ContractStore contractStore = ChainBaseManager.getInstance().getContractStore();
-    AtomicInteger count = new AtomicInteger(0);
-    do {
-      count.set(0);
-      contractStore.iterator().forEachRemaining(e -> {
-        ByteString origin = e.getValue().getInstance().getOriginAddress();
-        ByteString contract =  e.getValue().getInstance().getContractAddress();
-        if (owner1Set.contains(origin) && !owner1Set.contains(contract)) {
-          count.addAndGet(1);
-          owner1Set.add(contract);
-          logger.info("Owner1 {}", StringUtil.encode58Check(contract.toByteArray()));
-        }
-
-        if (owner2Set.contains(origin) && !owner2Set.contains(contract)) {
-          count.addAndGet(1);
-          owner2Set.add(contract);
-          logger.info("Owner2 {}", StringUtil.encode58Check(contract.toByteArray()));
-        }
-      });
-    } while (count.get() != 0);
-
     DynamicPropertiesStore dps = ChainBaseManager.getInstance().getDynamicPropertiesStore();
     Wallet wallet = context.getBean(Wallet.class);
 
@@ -260,31 +237,57 @@ public class FullNode {
     logger.info("This scripts is using to scan Rely(address) topics for the given contract.");
     logger.info("Start block num is {}, End block num is {}", startNum, endNum);
     for (long i = startNum; i <= endNum; i++) {
+      Protocol.Block block = wallet.getBlockByNum(i);
       GrpcAPI.TransactionInfoList txList = wallet.getTransactionInfoByBlockNum(i);
-      for (Protocol.TransactionInfo info : txList.getTransactionInfoList()) {
-        for (Protocol.TransactionInfo.Log log : info.getLogList()) {
-          if (contracts.contains(log.getAddress()) &&
-              log.getTopicsCount() > 0 && topics.containsKey(log.getTopics(0))) {
-            byte[] contract = new byte[21];
-            System.arraycopy(log.getAddress().toByteArray(), 0, contract, 1, 20);
-            contract[0] = 0x41;
+      for (int j = 0; j < block.getTransactionsCount(); j++) {
+        Protocol.Transaction tx = block.getTransactions(j);
+        TransactionCapsule txCapsule = new TransactionCapsule(tx);
+        ByteString owner = ByteString.copyFrom(txCapsule.getOwnerAddress());
 
-            byte[] address;
-            if (log.getTopicsCount() > 1) {
-              address = Arrays.copyOfRange(log.getTopics(1).toByteArray(), 11, 32);
-            } else {
-              address = Arrays.copyOfRange(log.getData().toByteArray(), 11, 32);
+        if (owner1.equals(owner) || owner2.equals(owner)) {
+          Protocol.TransactionInfo txInfo = txList.getTransactionInfo(j);
+          if (!txInfo.getContractAddress().isEmpty()) {
+            logger.info("{} {} {}",
+                owner1.equals(owner) ? "Owner1" : "Owner2",
+                StringUtil.encode58Check(txInfo.getContractAddress().toByteArray()),
+                contractStore.get(txInfo.getContractAddress().toByteArray()).getInstance().getName());
+          }
+
+          for (Protocol.InternalTransaction it : txInfo.getInternalTransactionsList()) {
+            if (it.getNote().equals(ByteString.copyFrom("create".getBytes()))) {
+              logger.info("{} {} {}",
+                  owner1.equals(owner) ? "Owner1" : "Owner2",
+                  StringUtil.encode58Check(txInfo.getContractAddress().toByteArray()),
+                  "CreateByContract");
             }
-            address[0] = 0x41;
-
-            logger.info("Found concerned topic - {} {} {} {}",
-                StringUtil.encode58Check(contract),
-                topics.get(log.getTopics(0)),
-                StringUtil.encode58Check(address),
-                Hex.toHexString(info.getId().toByteArray()));
           }
         }
       }
+
+//      for (Protocol.TransactionInfo info : txList.getTransactionInfoList()) {
+//        for (Protocol.TransactionInfo.Log log : info.getLogList()) {
+//          if (contracts.contains(log.getAddress()) &&
+//              log.getTopicsCount() > 0 && topics.containsKey(log.getTopics(0))) {
+//            byte[] contract = new byte[21];
+//            System.arraycopy(log.getAddress().toByteArray(), 0, contract, 1, 20);
+//            contract[0] = 0x41;
+//
+//            byte[] address;
+//            if (log.getTopicsCount() > 1) {
+//              address = Arrays.copyOfRange(log.getTopics(1).toByteArray(), 11, 32);
+//            } else {
+//              address = Arrays.copyOfRange(log.getData().toByteArray(), 11, 32);
+//            }
+//            address[0] = 0x41;
+//
+//            logger.info("Found concerned topic - {} {} {} {}",
+//                StringUtil.encode58Check(contract),
+//                topics.get(log.getTopics(0)),
+//                StringUtil.encode58Check(address),
+//                Hex.toHexString(info.getId().toByteArray()));
+//          }
+//        }
+//      }
 
       if (i % 100_000 == 0) {
         logger.info("Current block num is {}", i);
