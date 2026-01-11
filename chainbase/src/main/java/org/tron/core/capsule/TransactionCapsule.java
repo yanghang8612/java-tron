@@ -846,6 +846,16 @@ public class TransactionCapsule implements ProtoCapsule<Transaction> {
     }
   }
 
+  public boolean isCreate() {
+    try {
+      ContractType type = this.getInstance().getRawData().getContract(0).getType();
+      return type == ContractType.CreateSmartContract;
+    } catch (Exception ex) {
+      logger.warn("check contract type failed, reason {}", ex.getMessage());
+      return false;
+    }
+  }
+
   public BalanceContract.TransferContract getTransferContract() {
     try {
       return transaction.getRawData()

@@ -252,7 +252,7 @@ public class FullNode {
 
             if (owner1.equals(owner) || owner2.equals(owner)) {
               Protocol.TransactionInfo txInfo = txList.getTransactionInfo(j);
-              if (!txInfo.getContractAddress().isEmpty()) {
+              if (txCapsule.isCreate()) {
                 logger.info("{} {} {}",
                     owner1.equals(owner) ? "Owner1" : "Owner2",
                     StringUtil.encode58Check(txInfo.getContractAddress().toByteArray()),
