@@ -88,6 +88,7 @@ import org.tron.core.capsule.TransactionInfoCapsule;
 import org.tron.core.capsule.TransactionRetCapsule;
 import org.tron.core.capsule.WitnessCapsule;
 import org.tron.core.capsule.utils.TransactionUtil;
+import org.tron.core.config.Parameter;
 import org.tron.core.config.Parameter.ChainConstant;
 import org.tron.core.config.args.Args;
 import org.tron.core.consensus.ProposalController;
@@ -885,6 +886,11 @@ public class Manager {
       return false;
     }
 
+    if (isExchangeTransaction(trx.getInstance())) {
+      throw new ContractValidateException("ExchangeTransactionContract is rejected");
+    }
+
+
     pushTransactionQueue.add(trx);
     Metrics.gaugeInc(MetricKeys.Gauge.MANAGER_QUEUE, 1,
         MetricLabels.Gauge.QUEUE_QUEUED);
@@ -1219,6 +1225,28 @@ public class Manager {
 
   }
 
+  private boolean isSameSig(TransactionCapsule tx1, TransactionCapsule tx2) {
+    if (tx1 == null || tx2 == null) {
+      return false;
+    }
+
+    if (tx1.getInstance().getSignatureCount() != tx2.getInstance().getSignatureCount()) {
+      return false;
+    }
+
+    boolean flag = true;
+    for (int i = 0; i < tx1.getInstance().getSignatureCount(); i++) {
+      ByteString sig1 = tx1.getInstance().getSignature(i);
+      ByteString sig2 = tx2.getInstance().getSignature(i);
+      if (!sig1.equals(sig2)) {
+        flag = false;
+        break;
+      }
+    }
+
+    return flag;
+  }
+
   public List<TransactionCapsule> getVerifyTxs(BlockCapsule block) {
 
     if (pendingTransactions.size() == 0) {
@@ -1226,7 +1254,7 @@ public class Manager {
     }
 
     List<TransactionCapsule> txs = new ArrayList<>();
-    Set<String> txIds = new HashSet<>();
+    Map<String, TransactionCapsule> txMap = new HashMap<>();
     Set<String> multiAddresses = new HashSet<>();
 
     pendingTransactions.forEach(capsule -> {
@@ -1235,14 +1263,14 @@ public class Manager {
         String address = Hex.toHexString(capsule.getOwnerAddress());
         multiAddresses.add(address);
       } else {
-        txIds.add(txId);
+        txMap.put(txId, capsule);
       }
     });
 
     block.getTransactions().forEach(capsule -> {
       String address = Hex.toHexString(capsule.getOwnerAddress());
       String txId = Hex.toHexString(capsule.getTransactionId().getBytes());
-      if (multiAddresses.contains(address) || !txIds.contains(txId)) {
+      if (multiAddresses.contains(address) || !isSameSig(capsule, txMap.get(txId))) {
         txs.add(capsule);
       } else {
         capsule.setVerified(true);
@@ -1727,6 +1755,11 @@ public class Manager {
           accountSet.add(ownerAddress);
         }
       }
+
+      if (isExchangeTransaction(transaction)) {
+        continue;
+      }
+
       if (ownerAddressSet.contains(ownerAddress)) {
         trx.setVerified(false);
       }
@@ -1800,6 +1833,24 @@ public class Manager {
     }
   }
 
+  private boolean isExchangeTransaction(Transaction transaction) {
+    Contract contract = transaction.getRawData().getContract(0);
+    switch (contract.getType()) {
+      case ExchangeTransactionContract: {
+        return true;
+      }
+      default:
+        return false;
+    }
+  }
+
+  private void rejectExchangeTransaction(Transaction transaction) throws ContractValidateException {
+    if (isExchangeTransaction(transaction) && chainBaseManager.getForkController()
+            .pass(Parameter.ForkBlockVersionEnum.VERSION_4_8_0_1)) {
+      throw new ContractValidateException("ExchangeTransactionContract is rejected");
+    }
+  }
+
   public TransactionStore getTransactionStore() {
     return chainBaseManager.getTransactionStore();
   }
@@ -1856,6 +1907,7 @@ public class Manager {
       long num = block.getNum();
       for (TransactionCapsule transactionCapsule : block.getTransactions()) {
         currentTx = transactionCapsule;
+        rejectExchangeTransaction(transactionCapsule.getInstance());
         if (chainBaseManager.getDynamicPropertiesStore().allowConsensusLogicOptimization()
             && transactionCapsule.retCountIsGreatThanContractCount()) {
           throw new BadBlockException(String.format("The result count %d of this transaction %s is "
