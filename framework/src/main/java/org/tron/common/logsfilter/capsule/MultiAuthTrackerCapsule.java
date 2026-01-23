@@ -24,7 +24,6 @@ public class MultiAuthTrackerCapsule extends TriggerCapsule {
     MultiAuthRecord multiAuthRecord;
 
     public MultiAuthTrackerCapsule(BlockCapsule block, Map<String, OwnerAuthInfo> ownerAuthMap) {
-//      logger.info("MultiAuthTrackerCapsule start, blockNum={}", block.getNum());
       multiAuthTrackerTrigger = new MultiAuthTrackerTrigger();
       multiAuthTrackerTrigger.setBlockHash(block.getBlockId().toString());
       multiAuthTrackerTrigger.setParentHash(block.getParentHash().toString());
