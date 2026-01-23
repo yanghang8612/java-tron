@@ -13,10 +13,8 @@ public class Trigger {
   public static final int SOLIDITY_EVENT_TRIGGER = 5;
   public static final int SOLIDITY_LOG_TRIGGER = 6;
 
-
+  // === TronLink Feature ===
   public static final int TRC20TRACKER_TRIGGER = 1000;
-  public static final int TRC20TRACKER_SOLIDITY_TRIGGER = 1001;
-  public static final int BLOCK_ERASE_TRIGGER = 1002;
   public static final int SHIELDED_TRC20TRACKER_TRIGGER = 1003;
   public static final int SHIELDED_TRC20SOLIDITYTRACKER_TRIGGER = 1004;
   public static final int FREEZE_TRACKER_TRIGGER = 1010;
@@ -32,6 +30,7 @@ public class Trigger {
   public static final String SOLIDITYLOG_TRIGGER_NAME = "solidityLogTrigger";
   public static final String SOLIDITYEVENT_TRIGGER_NAME = "solidityEventTrigger";
 
+  // === TronLink Feature ===
   public static final String FREEZE_BALANCE_TRIGGER_NAME = "freezeBalanceTrigger";
   public static final String STAKE_BALANCE_TRIGGER_NAME = "stakeBalanceTrigger";
   public static final String TRC20TRACKER_TRIGGER_NAME = "trc20TrackerTrigger";
@@ -41,7 +40,6 @@ public class Trigger {
   public static final String SHIELDED_TRC20SOLIDITYTRACKER_TRIGGER_NAME = "shieldedTRC20SolidityTracker";
   public static final String TRANSFER_TRIGGER_NAME = "transferTracker";
   public static final String MULTIAUTH_TRIGGER_NAME = "multiAuthTracker";
-
 
   @Getter
   @Setter

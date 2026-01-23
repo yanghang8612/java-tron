@@ -10,6 +10,9 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * === TronLink Feature ===
+ */
 @Data
 public class AuthInfo implements Serializable {
 
@@ -24,7 +27,7 @@ public class AuthInfo implements Serializable {
 
   private Integer permissionId; // 权限id
 
-  private Long threshold;     // 权限id
+  private Long threshold;     // 权限阈值
 
   private Long weight;        // 权限权重
 

@@ -2,12 +2,8 @@ package org.tron.common.entity;
 
 import lombok.Data;
 
-import java.math.BigInteger;
-
 /**
- * @author ：Tron
- * @description ：
- * @date ：2021/6/15
+ * === TronLink Feature ===
  */
 @Data
 public class AssetTransferInfo {

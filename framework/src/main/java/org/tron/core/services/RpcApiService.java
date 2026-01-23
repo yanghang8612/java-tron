@@ -815,7 +815,7 @@ public class RpcApiService extends RpcService {
     }
 
     @Override
-    public void getMarketOrderListByPair(MarketOrderPair request,
+    public void getMarketOrderListByPair(org.tron.protos.Protocol.MarketOrderPair request,
         StreamObserver<MarketOrderList> responseObserver) {
       try {
         MarketOrderList orderPairList = wallet

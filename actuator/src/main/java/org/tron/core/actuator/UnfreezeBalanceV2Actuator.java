@@ -85,6 +85,8 @@ public class UnfreezeBalanceV2Actuator extends AbstractActuator {
 
     long expireTime = this.calcUnfreezeExpireTime(now);
     accountCapsule.addUnfrozenV2List(freezeType, unfreezeBalance, expireTime);
+
+    // === TronLink Feature ===
     StakeChangeRecord.recordUnfreeze(ownerAddress, freezeType, unfreezeBalance, expireTime);
 
     this.updateTotalResourceWeight(accountCapsule, unfreezeBalanceV2Contract, unfreezeBalance);
@@ -266,6 +268,7 @@ public class UnfreezeBalanceV2Actuator extends AbstractActuator {
       }
     }
 
+    // === TronLink Feature ===
     StakeChangeRecord.withdrawUnfreeze(accountCapsule.getAddress().toByteArray(), expireList);
 
     accountCapsule.setInstance(

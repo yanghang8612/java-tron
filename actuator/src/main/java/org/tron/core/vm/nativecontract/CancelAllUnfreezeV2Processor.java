@@ -68,6 +68,8 @@ public class CancelAllUnfreezeV2Processor {
       ownerCapsule.setBalance(ownerCapsule.getBalance() + withdrawExpireBalance);
     }
     ownerCapsule.clearUnfrozenV2();
+
+    // === TronLink Feature ===
     StakeChangeRecord.withdrawUnfreeze(ownerAddress, totalWithdrawList);
 
     repo.updateAccount(ownerCapsule.createDbKey(), ownerCapsule);

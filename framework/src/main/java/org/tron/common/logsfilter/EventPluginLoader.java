@@ -20,8 +20,18 @@ import org.springframework.util.StringUtils;
 import org.tron.common.logsfilter.capsule.MultiAuthTrackerTrigger;
 import org.tron.common.logsfilter.capsule.TransferTrackerTrigger;
 import org.tron.common.logsfilter.nativequeue.NativeMessageQueue;
-import org.tron.common.logsfilter.trigger.*;
 import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger;
+import org.tron.common.logsfilter.trigger.BlockErasedTrigger;
+import org.tron.common.logsfilter.trigger.BlockLogTrigger;
+import org.tron.common.logsfilter.trigger.ContractEventTrigger;
+import org.tron.common.logsfilter.trigger.ContractLogTrigger;
+import org.tron.common.logsfilter.trigger.ContractTrigger;
+import org.tron.common.logsfilter.trigger.FreezeBalanceTrigger;
+import org.tron.common.logsfilter.trigger.ShieldedTRC20TrackerTrigger;
+import org.tron.common.logsfilter.trigger.SolidityTrigger;
+import org.tron.common.logsfilter.trigger.StakeBalanceTrigger;
+import org.tron.common.logsfilter.trigger.TransactionLogTrigger;
+import org.tron.common.logsfilter.trigger.Trigger;
 
 @Slf4j(topic = "DB")
 public class EventPluginLoader {
@@ -70,24 +80,26 @@ public class EventPluginLoader {
 
   private boolean solidityTriggerEnable = false;
 
+  // === TronLink Feature ===
   private boolean balanceTrackerTriggerEnable = false;
 
+  // === TronLink Feature ===
   private boolean transferTrackerTriggerEnable = false;
 
+  // === TronLink Feature ===
   private boolean freezeBalanceTriggerEnable = false;
 
+  // === TronLink Feature ===
   private boolean stakeBalanceTriggerEnable = false;
 
+  // === TronLink Feature ===
   private boolean multiAuthTriggerEnable = false;
 
-  private boolean trc20TrackerSolidityTriggerEnable = false;
-
-  private boolean blockErasedTriggerEnable = false;
-
+  // === TronLink Feature ===
   private boolean shieldedTRC20TrackerTriggerEnable = false;
 
+  // === TronLink Feature ===
   private boolean shieldedTRC20TrackerSolidityTriggerEnable = false;
-
 
   private FilterQuery filterQuery;
 
@@ -373,28 +385,9 @@ public class EventPluginLoader {
       if (!useNativeQueue) {
         setPluginTopic(Trigger.SOLIDITY_LOG_TRIGGER, triggerConfig.getTopic());
       }
-    } else if (EventPluginConfig.BLOCK_ERASE_TRIGGER_NAME
-        .equalsIgnoreCase(triggerConfig.getTriggerName())) {
-      if (triggerConfig.isEnabled()) {
-        blockErasedTriggerEnable = true;
-      } else {
-        blockErasedTriggerEnable = false;
-      }
-      if (!useNativeQueue) {
-        setPluginTopic(Trigger.BLOCK_ERASE_TRIGGER, triggerConfig.getTopic());
-      }
-    } else if (EventPluginConfig.TRC20TRACKER_SOLIDITY_TRIGGER_NAME
-        .equalsIgnoreCase(triggerConfig.getTriggerName())) {
-      if (triggerConfig.isEnabled()) {
-        trc20TrackerSolidityTriggerEnable = true;
-      } else {
-        trc20TrackerSolidityTriggerEnable = false;
-      }
-      if (!useNativeQueue) {
-        setPluginTopic(Trigger.TRC20TRACKER_SOLIDITY_TRIGGER, triggerConfig.getTopic());
-      }
     } else if (EventPluginConfig.BALANCE_TRACKER
         .equalsIgnoreCase(triggerConfig.getTriggerName())) {
+      // === TronLink Feature ===
       if (triggerConfig.isEnabled()) {
         balanceTrackerTriggerEnable = true;
       } else {
@@ -405,6 +398,7 @@ public class EventPluginLoader {
       }
     } else if (EventPluginConfig.TRANSFER_TRACKER
         .equalsIgnoreCase(triggerConfig.getTriggerName())) {
+      // === TronLink Feature ===
       if (triggerConfig.isEnabled()) {
         transferTrackerTriggerEnable = true;
       }
@@ -413,6 +407,7 @@ public class EventPluginLoader {
       }
     } else if (EventPluginConfig.FREEZE_BALANCE_TRACKER
         .equalsIgnoreCase(triggerConfig.getTriggerName())) {
+      // === TronLink Feature ===
       if (triggerConfig.isEnabled()) {
         freezeBalanceTriggerEnable = true;
       }
@@ -421,6 +416,7 @@ public class EventPluginLoader {
       }
     } else if (EventPluginConfig.STAKE_BALANCE_TRACKER
         .equalsIgnoreCase(triggerConfig.getTriggerName())) {
+      // === TronLink Feature ===
       if (triggerConfig.isEnabled()) {
         stakeBalanceTriggerEnable = true;
       }
@@ -429,6 +425,7 @@ public class EventPluginLoader {
       }
     } else if (EventPluginConfig.MULTIAUTH_TRACKER
         .equalsIgnoreCase(triggerConfig.getTriggerName())) {
+      // === TronLink Feature ===
       if (triggerConfig.isEnabled()) {
         multiAuthTriggerEnable = true;
       }
@@ -437,6 +434,7 @@ public class EventPluginLoader {
       }
     } else if (EventPluginConfig.SHIELDED_TRC20_SOLIDITY_TRACKER
         .equalsIgnoreCase(triggerConfig.getTriggerName())) {
+      // === TronLink Feature ===
       if (triggerConfig.isEnabled()) {
         shieldedTRC20TrackerSolidityTriggerEnable = true;
       } else {
@@ -447,6 +445,7 @@ public class EventPluginLoader {
       }
     } else if (EventPluginConfig.SHIELDED_TRC20_TRACKER
         .equalsIgnoreCase(triggerConfig.getTriggerName())) {
+      // === TronLink Feature ===
       if (triggerConfig.isEnabled()) {
         shieldedTRC20TrackerTriggerEnable = true;
       } else {
@@ -520,46 +519,42 @@ public class EventPluginLoader {
     return contractLogTriggerEnable;
   }
 
+  // === TronLink Feature ===
   public synchronized boolean isBalanceTrackerTriggerEnable() {
     return balanceTrackerTriggerEnable;
   }
 
+  // === TronLink Feature ===
   public synchronized boolean isTransferTrackerTriggerEnable() {
     return transferTrackerTriggerEnable;
   }
 
+  // === TronLink Feature ===
   public synchronized boolean isMultiAuthTriggerEnable() {
     return multiAuthTriggerEnable;
   }
 
+  // === TronLink Feature ===
   public synchronized boolean isFreezeBalanceTriggerEnable() {
     return freezeBalanceTriggerEnable;
   }
 
-
+  // === TronLink Feature ===
   public synchronized boolean isStakeBalanceTriggerEnable() {
     return stakeBalanceTriggerEnable;
   }
 
-
-
-  public synchronized boolean isTrc20TrackerSolidityTriggerEnable() {
-    return trc20TrackerSolidityTriggerEnable;
-  }
-
-  public synchronized boolean isBlockErasedTriggerEnable() {
-    return blockErasedTriggerEnable;
-  }
-
+  // === TronLink Feature ===
   public synchronized boolean isShieldedTRC20TrackerSolidityTriggerEnable() {
     return shieldedTRC20TrackerSolidityTriggerEnable;
   }
 
+  // === TronLink Feature ===
   public synchronized boolean isShieldedTRC20TrackerTriggerEnable() {
     return shieldedTRC20TrackerTriggerEnable;
   }
 
-
+  // === TronLink Feature ===
   public synchronized boolean isContractLogTriggerRedundancy() {
     return contractLogTriggerRedundancy;
   }
@@ -678,7 +673,7 @@ public class EventPluginLoader {
     }
   }
 
-
+  // === TronLink Feature ===
   public void postBlockErasedTrigger(BlockErasedTrigger trigger) {
     if (useNativeQueue) {
       NativeMessageQueue.getInstance()
@@ -694,7 +689,7 @@ public class EventPluginLoader {
     }
   }
 
-
+  // === TronLink Feature ===
   public void postTRC20TrackerTrigger(BalanceTrackerTrigger trigger) {
     if (useNativeQueue) {
       NativeMessageQueue.getInstance()
@@ -725,7 +720,7 @@ public class EventPluginLoader {
     }
   }
 
-
+  // === TronLink Feature ===
   public void postFreezeBalanceTrigger(FreezeBalanceTrigger trigger) {
     if (useNativeQueue) {
       NativeMessageQueue.getInstance()
@@ -741,7 +736,7 @@ public class EventPluginLoader {
     }
   }
 
-
+  // === TronLink Feature ===
   public void postStakeBalanceTrigger(StakeBalanceTrigger trigger) {
     if (useNativeQueue) {
       NativeMessageQueue.getInstance()
@@ -757,6 +752,7 @@ public class EventPluginLoader {
     }
   }
 
+  // === TronLink Feature ===
   public void postShieldedTRC20TrackerTrigger(ShieldedTRC20TrackerTrigger trigger) {
     if (useNativeQueue) {
       NativeMessageQueue.getInstance()
@@ -772,6 +768,7 @@ public class EventPluginLoader {
     }
   }
 
+  // === TronLink Feature ===
   public void postTransferTrigger(TransferTrackerTrigger trigger) {
     if (useNativeQueue) {
       NativeMessageQueue.getInstance()
@@ -811,6 +808,7 @@ public class EventPluginLoader {
     }
   }
 
+  // === TronLink Feature ===
   public void postMultiAuthTrigger(MultiAuthTrackerTrigger trigger) {
     if (useNativeQueue) {
       NativeMessageQueue.getInstance()

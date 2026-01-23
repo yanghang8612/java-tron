@@ -309,12 +309,16 @@ public class DelegateResourceActuator extends AbstractActuator {
       final long frozenBalanceForBandwidth = delegatedResourceCapsule.getFrozenBalanceForBandwidth();
       final long expireTimeForBandwidth = delegatedResourceCapsule.getExpireTimeForBandwidth();
       delegatedResourceCapsule.addFrozenBalanceForBandwidth(balance, expireTime);
+
+      // === TronLink Feature ===
       StakeChangeRecord.recordResource(ownerAddress, receiverAddress, Common.ResourceCode.BANDWIDTH,
               frozenBalanceForBandwidth + balance, expireTime, frozenBalanceForBandwidth, expireTimeForBandwidth, lock);
     } else {
       final long frozenBalanceForEnergy = delegatedResourceCapsule.getFrozenBalanceForEnergy();
       final long expireTimeForEnergy = delegatedResourceCapsule.getExpireTimeForEnergy();
       delegatedResourceCapsule.addFrozenBalanceForEnergy(balance, expireTime);
+
+      // TronLink feature
       StakeChangeRecord.recordResource(ownerAddress, receiverAddress, Common.ResourceCode.ENERGY,
               frozenBalanceForEnergy + balance, expireTime, frozenBalanceForEnergy, expireTimeForEnergy, lock);
     }

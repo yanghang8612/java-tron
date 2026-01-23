@@ -1,12 +1,14 @@
 package org.tron.common.logsfilter.trigger;
 
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
+/**
+ * === TronLink Feature ===
+ */
 @Data
 @EqualsAndHashCode(callSuper = false)
 public class BalanceTrackerTrigger extends Trigger {

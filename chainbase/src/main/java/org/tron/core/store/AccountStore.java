@@ -2,10 +2,6 @@ package org.tron.core.store;
 
 import com.google.protobuf.ByteString;
 import com.typesafe.config.ConfigObject;
-
-import java.util.*;
-
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,6 +17,11 @@ import org.tron.core.db.accountstate.AccountStateCallBackUtils;
 import org.tron.core.exception.TronError;
 import org.tron.protos.contract.BalanceContract.TransactionBalanceTrace;
 import org.tron.protos.contract.BalanceContract.TransactionBalanceTrace.Operation;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.OptionalLong;
 
 @Component
 public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
@@ -93,10 +94,12 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
     super.put(key, item);
     accountStateCallBackUtils.accountCallBack(key, item);
 
+    // === TronLink Feature ===
     if (getBlackhole() == null) {
       return;
     }
 
+    // === TronLink Feature ===
     if (!ByteUtil.equals(key, getBlackhole().getAddress().toByteArray())) {
       accountChangeRecord.recordChangedAccount(key, oldAccount, item);
     }
@@ -120,6 +123,7 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
 
     super.delete(key);
 
+    // === TronLink Feature ===
     if (!ByteUtil.equals(key, getBlackhole().getAddress().toByteArray())) {
       accountChangeRecord.delete(key, oldAccount);
     }

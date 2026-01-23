@@ -91,6 +91,7 @@ public class DataWord implements Comparable<DataWord> {
     }
   }
 
+  // === TronLink Feature ===
   public static DataWord getDataWord(byte[] bytes, int index) {
     if (index >= bytes.length / DataWord.WORD_SIZE) {
       throw new IndexOutOfBoundsException("length:" + bytes + " index:" + index);

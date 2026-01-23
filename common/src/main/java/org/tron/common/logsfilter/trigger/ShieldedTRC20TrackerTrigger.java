@@ -5,6 +5,9 @@ import java.util.List;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+/**
+ * === TronLink Feature ===
+ */
 @Data
 @EqualsAndHashCode(callSuper = false)
 public class ShieldedTRC20TrackerTrigger extends Trigger {

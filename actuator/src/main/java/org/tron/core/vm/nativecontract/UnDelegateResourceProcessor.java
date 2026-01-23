@@ -171,6 +171,7 @@ public class UnDelegateResourceProcessor {
         ownerCapsule.addDelegatedFrozenV2BalanceForBandwidth(-unDelegateBalance);
         ownerCapsule.addFrozenBalanceForBandwidthV2(unDelegateBalance);
 
+        // === TronLink Feature ===
         StakeChangeRecord.recordResource(ownerAddress, receiverAddress, BANDWIDTH,
                 frozenBalanceForBandwidth - unDelegateBalance, 0L, frozenBalanceForBandwidth, expireTimeForBandwidth, false);
 
@@ -190,6 +191,7 @@ public class UnDelegateResourceProcessor {
         ownerCapsule.addDelegatedFrozenV2BalanceForEnergy(-unDelegateBalance);
         ownerCapsule.addFrozenBalanceForEnergyV2(unDelegateBalance);
 
+        // === TronLink Feature ===
         StakeChangeRecord.recordResource(ownerAddress, receiverAddress, ENERGY,
                 frozenBalanceForEnergy - unDelegateBalance, 0L, frozenBalanceForEnergy, expireTimeForEnergy, false);
 

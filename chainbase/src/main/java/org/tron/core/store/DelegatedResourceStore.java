@@ -17,7 +17,7 @@ import org.tron.protos.contract.Common;
 @Component
 public class DelegatedResourceStore extends TronStoreWithRevoking<DelegatedResourceCapsule> {
 
-
+  // === TronLink Feature ===
   @Autowired
   private FreezeChangeRecord freezeChangeRecord;
 
@@ -34,6 +34,7 @@ public class DelegatedResourceStore extends TronStoreWithRevoking<DelegatedResou
   }
 
 
+  // === TronLink Feature ===
   @Override
   public void put(byte[] key, DelegatedResourceCapsule item) {
     if (Objects.isNull(key) || Objects.isNull(item)) {
@@ -46,6 +47,7 @@ public class DelegatedResourceStore extends TronStoreWithRevoking<DelegatedResou
     freezeChangeRecord.recordChangedFreeze(key, oldResource, item);
   }
 
+  // === TronLink Feature ===
   @Override
   public void delete(byte[] key) {
     final DelegatedResourceCapsule oldResource = get(key);
@@ -90,6 +92,7 @@ public class DelegatedResourceStore extends TronStoreWithRevoking<DelegatedResou
           lockResource.getFrozenBalanceForEnergy(), 0);
       lockResource.setFrozenBalanceForEnergy(0, 0);
 
+      // === TronLink Feature ===
       if (lockFrozenBalanceForEnergy > 0 || lockExpireTimeForEnergy > 0) {
         StakeChangeRecord.recordResource(from, to, Common.ResourceCode.ENERGY,
                 unLockFrozenBalanceForEnergy + lockFrozenBalanceForEnergy, 0L,
@@ -109,6 +112,7 @@ public class DelegatedResourceStore extends TronStoreWithRevoking<DelegatedResou
           lockResource.getFrozenBalanceForBandwidth(), 0);
       lockResource.setFrozenBalanceForBandwidth(0, 0);
 
+      // === TronLink Feature ===
       if (lockFrozenBalanceForBandwidth > 0  || lockExpireTimeForBandwidth > 0) {
         StakeChangeRecord.recordResource(from, to, Common.ResourceCode.BANDWIDTH,
                 unLockFrozenBalanceForBandwidth + lockFrozenBalanceForBandwidth, 0L,

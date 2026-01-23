@@ -3,6 +3,9 @@ package org.tron.common.logsfilter.trigger;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+/**
+ * === TronLink Feature ===
+ */
 @Data
 @EqualsAndHashCode(callSuper = false)
 public class BlockErasedTrigger extends Trigger {
