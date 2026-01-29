@@ -24,6 +24,9 @@ public class EventPluginConfig {
   public static final String TRANSFER_TRACKER = "transferTracker";
   public static final String MULTIAUTH_TRACKER = "multiAuthTracker";
 
+  // === JustLend Feature ===
+  public static final String JUSTLEND_TRACKER = "justlendTracker";
+
   @Getter
   @Setter
   private int version;
@@ -61,6 +64,16 @@ public class EventPluginConfig {
   @Setter
   private List<TriggerConfig> triggerConfigList;
 
+  // === JustLend Feature ===
+  @Getter
+  @Setter
+  private List<String> justlendTokens;
+
+  // === JustLend Feature ===
+  @Getter
+  @Setter
+  private String justlendRentMarket;
+
   public EventPluginConfig() {
     pluginPath = "";
     serverAddress = "";
@@ -69,5 +82,9 @@ public class EventPluginConfig {
     bindPort = 0;
     sendQueueLength = 0;
     triggerConfigList = new ArrayList<>();
+
+    // === JustLend Feature ===
+    justlendTokens = new ArrayList<>();
+    justlendRentMarket = "";
   }
 }

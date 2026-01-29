@@ -1,12 +1,10 @@
-package org.tron.common.logsfilter.capsule;
+package org.tron.common.logsfilter.trigger;
 
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.tron.common.entity.AssetTransferInfo;
-import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger;
-import org.tron.common.logsfilter.trigger.Trigger;
 
 /**
  * === TronLink Feature ===
@@ -23,7 +21,7 @@ public class TransferTrackerTrigger extends BalanceTrackerTrigger {
 
   List<AssetTransferInfo> trc721AssetTransferInfoList = new ArrayList<>();
 
-  TransferTrackerTrigger() {
+  public TransferTrackerTrigger() {
     super();
     setTriggerName(Trigger.TRANSFER_TRIGGER_NAME);
   }

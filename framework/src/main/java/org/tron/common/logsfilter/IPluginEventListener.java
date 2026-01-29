@@ -30,9 +30,6 @@ public interface IPluginEventListener extends ExtensionPoint {
   void handleSolidityEventTrigger(Object trigger);
 
   // === TronLink Feature ===
-  void handleBlockErasedEvent(Object trigger);
-
-  // === TronLink Feature ===
   void handleTRC20Event(Object trigger);
 
   // === TronLink Feature ===
@@ -49,4 +46,7 @@ public interface IPluginEventListener extends ExtensionPoint {
 
   // === TronLink Feature ===
   void handleMultiAuthTrigger(Object data);
+
+  // === JustLend Feature ===
+  void handleJustLendTrackerTrigger(Object data);
 }

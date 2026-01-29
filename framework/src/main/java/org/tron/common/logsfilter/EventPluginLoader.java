@@ -16,22 +16,25 @@ import org.pf4j.CompoundPluginDescriptorFinder;
 import org.pf4j.DefaultPluginManager;
 import org.pf4j.ManifestPluginDescriptorFinder;
 import org.pf4j.PluginManager;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
-import org.tron.common.logsfilter.capsule.MultiAuthTrackerTrigger;
-import org.tron.common.logsfilter.capsule.TransferTrackerTrigger;
+import org.tron.common.logsfilter.trigger.MultiAuthTrackerTrigger;
+import org.tron.common.logsfilter.trigger.TransferTrackerTrigger;
 import org.tron.common.logsfilter.nativequeue.NativeMessageQueue;
 import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger;
-import org.tron.common.logsfilter.trigger.BlockErasedTrigger;
 import org.tron.common.logsfilter.trigger.BlockLogTrigger;
 import org.tron.common.logsfilter.trigger.ContractEventTrigger;
 import org.tron.common.logsfilter.trigger.ContractLogTrigger;
 import org.tron.common.logsfilter.trigger.ContractTrigger;
 import org.tron.common.logsfilter.trigger.FreezeBalanceTrigger;
+import org.tron.common.logsfilter.trigger.JustlendTrackerTrigger;
 import org.tron.common.logsfilter.trigger.ShieldedTRC20TrackerTrigger;
 import org.tron.common.logsfilter.trigger.SolidityTrigger;
 import org.tron.common.logsfilter.trigger.StakeBalanceTrigger;
 import org.tron.common.logsfilter.trigger.TransactionLogTrigger;
 import org.tron.common.logsfilter.trigger.Trigger;
+import org.tron.core.Constant;
+import org.tron.core.exception.TronError;
 
 @Slf4j(topic = "DB")
 public class EventPluginLoader {
@@ -51,6 +54,12 @@ public class EventPluginLoader {
   private String dbConfig;
 
   private List<TriggerConfig> triggerConfigList;
+
+  // === JustLend Feature ===
+  private List<String> justlendTokens;
+
+  // === JustLend Feature ===
+  private String justlendRentMarket;
 
   private int version = 0;
 
@@ -100,6 +109,9 @@ public class EventPluginLoader {
 
   // === TronLink Feature ===
   private boolean shieldedTRC20TrackerSolidityTriggerEnable = false;
+
+  // === JustLend Feature ===
+  private boolean justlendTrackerTriggerEnable = false;
 
   private FilterQuery filterQuery;
 
@@ -222,6 +234,16 @@ public class EventPluginLoader {
       return false;
     }
 
+    // === JustLend Feature ===
+    if (justlendTrackerTriggerEnable &&
+        (CollectionUtils.isEmpty(config.getJustlendTokens()) || StringUtils.isEmpty(config.getJustlendRentMarket()))) {
+      throw new TronError(
+          String.format("Node type is JustLend, `%s` & `%s` must be configured",
+              Constant.EVENT_SUBSCRIBE_JUSTLEND_TOKENS,
+              Constant.EVENT_SUBSCRIBE_JUSTLEND_RENT_MARKET),
+          TronError.ErrCode.EVENT_SUBSCRIBE_INIT);
+    }
+
     triggerConfigList.forEach(triggerConfig -> {
       setSingleTriggerConfig(triggerConfig);
     });
@@ -241,6 +263,18 @@ public class EventPluginLoader {
     }
 
     setPluginConfig();
+
+    // === JustLend Feature ===
+    if (justlendTrackerTriggerEnable &&
+        (CollectionUtils.isEmpty(config.getJustlendTokens()) || StringUtils.isEmpty(config.getJustlendRentMarket()))) {
+      throw new TronError(
+          String.format("Node type is JustLend, `%s` & `%s` must be configured",
+              Constant.EVENT_SUBSCRIBE_JUSTLEND_TOKENS,
+              Constant.EVENT_SUBSCRIBE_JUSTLEND_RENT_MARKET),
+          TronError.ErrCode.EVENT_SUBSCRIBE_INIT);
+    }
+    this.justlendTokens = config.getJustlendTokens();
+    this.justlendRentMarket = config.getJustlendRentMarket();
 
     if (Objects.nonNull(eventListeners)) {
       eventListeners.forEach(listener -> listener.start());
@@ -437,8 +471,6 @@ public class EventPluginLoader {
       // === TronLink Feature ===
       if (triggerConfig.isEnabled()) {
         shieldedTRC20TrackerSolidityTriggerEnable = true;
-      } else {
-        shieldedTRC20TrackerSolidityTriggerEnable = false;
       }
       if (!useNativeQueue) {
         setPluginTopic(Trigger.SHIELDED_TRC20SOLIDITYTRACKER_TRIGGER, triggerConfig.getTopic());
@@ -448,11 +480,18 @@ public class EventPluginLoader {
       // === TronLink Feature ===
       if (triggerConfig.isEnabled()) {
         shieldedTRC20TrackerTriggerEnable = true;
-      } else {
-        shieldedTRC20TrackerTriggerEnable = false;
       }
       if (!useNativeQueue) {
         setPluginTopic(Trigger.SHIELDED_TRC20TRACKER_TRIGGER, triggerConfig.getTopic());
+      }
+    } else if (EventPluginConfig.JUSTLEND_TRACKER
+        .equalsIgnoreCase(triggerConfig.getTriggerName())) {
+      // === JustLend Feature ===
+      if (triggerConfig.isEnabled()) {
+        justlendTrackerTriggerEnable = true;
+      }
+      if (!useNativeQueue) {
+        setPluginTopic(Trigger.JUSTLEND_TRACKER_TRIGGER, triggerConfig.getTopic());
       }
     }
   }
@@ -466,6 +505,17 @@ public class EventPluginLoader {
           listener.handleSolidityTrigger(toJsonString(trigger)));
     }
   }
+
+  // === JustLend Feature ===
+  public synchronized List<String> getJustlendTokens() {
+    return justlendTokens;
+  }
+
+  // === JustLend Feature ===
+  public synchronized String getJustlendRentMarket() {
+    return justlendRentMarket;
+  }
+
 
   public synchronized int getVersion() {
     return version;
@@ -557,6 +607,11 @@ public class EventPluginLoader {
   // === TronLink Feature ===
   public synchronized boolean isContractLogTriggerRedundancy() {
     return contractLogTriggerRedundancy;
+  }
+
+  // === JustLend Feature ===
+  public synchronized boolean isJustlendTrackerTriggerEnable() {
+    return justlendTrackerTriggerEnable;
   }
 
   private void setPluginTopic(int eventType, String topic) {
@@ -670,22 +725,6 @@ public class EventPluginLoader {
     } else {
       eventListeners.forEach(listener ->
           listener.handleContractEventTrigger(toJsonString(trigger)));
-    }
-  }
-
-  // === TronLink Feature ===
-  public void postBlockErasedTrigger(BlockErasedTrigger trigger) {
-    if (useNativeQueue) {
-      NativeMessageQueue.getInstance()
-          .publishTrigger(toJsonString(trigger), trigger.getTriggerName());
-    } else {
-      long start = System.currentTimeMillis();
-      eventListeners.forEach(listener ->
-          listener.handleBlockErasedEvent(toJsonString(trigger)));
-      logger.info("EventTrigger-block postBlockErasedTrigger blockNum {}, hash {}, cost {}ms",
-        trigger.getBlockNumber(),
-        trigger.getBlockHash(),
-        System.currentTimeMillis() - start);
     }
   }
 
@@ -821,6 +860,17 @@ public class EventPluginLoader {
         trigger.getBlockNumber(),
         trigger.getAuthInfoList().size(),
         System.currentTimeMillis() - start);
+    }
+  }
+
+  // === JustLend Feature ===
+  public void postJustlendTrackerTrigger(JustlendTrackerTrigger trigger) {
+    if (useNativeQueue) {
+      NativeMessageQueue.getInstance()
+          .publishTrigger(toJsonString(trigger), trigger.getTriggerName());
+    } else {
+      eventListeners.forEach(listener ->
+          listener.handleJustLendTrackerTrigger(toJsonString(trigger)));
     }
   }
 

@@ -1465,6 +1465,22 @@ public class Args extends CommonParameter {
       eventPluginConfig.setTriggerConfigList(triggerConfigList);
     }
 
+    // === JustLend Feature ===
+    if (config.hasPath(Constant.EVENT_SUBSCRIBE_JUSTLEND_TOKENS)) {
+      List<String> justlendTokens = config.getStringList(Constant.EVENT_SUBSCRIBE_JUSTLEND_TOKENS);
+      if (!CollectionUtils.isEmpty(justlendTokens)) {
+        eventPluginConfig.setJustlendTokens(justlendTokens);
+      }
+    }
+
+    // === JustLend Feature ===
+    if(config.hasPath(Constant.EVENT_SUBSCRIBE_JUSTLEND_RENT_MARKET)) {
+      String justlendRentMarket = config.getString(Constant.EVENT_SUBSCRIBE_JUSTLEND_RENT_MARKET);
+      if (StringUtils.isNotEmpty(justlendRentMarket)){
+        eventPluginConfig.setJustlendRentMarket(justlendRentMarket);
+      }
+    }
+
     return eventPluginConfig;
   }
 

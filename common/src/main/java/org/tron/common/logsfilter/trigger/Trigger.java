@@ -22,6 +22,9 @@ public class Trigger {
   public static final int TRANSFER_TRACKER_TRIGGER = 1005;
   public static final int MULTIAUTH_TRACKER_TRIGGER = 1006;
 
+  // === JustLend Feature ===
+  public static final int JUSTLEND_TRACKER_TRIGGER = 1001;
+
   public static final String BLOCK_TRIGGER_NAME = "blockTrigger";
   public static final String TRANSACTION_TRIGGER_NAME = "transactionTrigger";
   public static final String CONTRACTLOG_TRIGGER_NAME = "contractLogTrigger";
@@ -34,12 +37,11 @@ public class Trigger {
   public static final String FREEZE_BALANCE_TRIGGER_NAME = "freezeBalanceTrigger";
   public static final String STAKE_BALANCE_TRIGGER_NAME = "stakeBalanceTrigger";
   public static final String TRC20TRACKER_TRIGGER_NAME = "trc20TrackerTrigger";
-  public static final String TRC20TRACKER_SOLIDITY_TRIGGER_NAME = "trc20SolidityTrackerTrigger";
-  public static final String BLOCK_ERASE_TRIGGER_NAME = "blockErasedTrigger";
   public static final String SHIELDED_TRC20TRACKER_TRIGGER_NAME = "shieldedTRC20Tracker";
   public static final String SHIELDED_TRC20SOLIDITYTRACKER_TRIGGER_NAME = "shieldedTRC20SolidityTracker";
   public static final String TRANSFER_TRIGGER_NAME = "transferTracker";
   public static final String MULTIAUTH_TRIGGER_NAME = "multiAuthTracker";
+  public static final String JUSTLEND_TRACKER_TRIGGER_NAME = "justLendTracker";
 
   @Getter
   @Setter

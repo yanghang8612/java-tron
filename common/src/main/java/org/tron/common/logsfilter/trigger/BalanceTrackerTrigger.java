@@ -181,10 +181,6 @@ public class BalanceTrackerTrigger extends Trigger {
     setTriggerName(Trigger.TRC20TRACKER_TRIGGER_NAME);
   }
 
-  public void solidityType() {
-    setTriggerName(Trigger.TRC20TRACKER_SOLIDITY_TRIGGER_NAME);
-  }
-
 }
 
 

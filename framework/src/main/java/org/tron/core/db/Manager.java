@@ -64,6 +64,7 @@ import org.tron.common.logsfilter.capsule.BlockLogTriggerCapsule;
 import org.tron.common.logsfilter.capsule.ContractTriggerCapsule;
 import org.tron.common.logsfilter.capsule.FilterTriggerCapsule;
 import org.tron.common.logsfilter.capsule.FreezeTrackerCapsule;
+import org.tron.common.logsfilter.capsule.JustlendTrackerCapsule;
 import org.tron.common.logsfilter.capsule.LogsFilterCapsule;
 import org.tron.common.logsfilter.capsule.MultiAuthTrackerCapsule;
 import org.tron.common.logsfilter.capsule.ShieldedTRC20SolidityTrackerCapsule;
@@ -1492,6 +1493,9 @@ public class Manager {
       postBalanceSolidityTrigger(newSolid);
       long end = System.currentTimeMillis();
       logger.info("EventTrigger blockNum {} BalanceTrigger-cost {}, total-cost {}", block.getNum(), end - postStart, end - start);
+
+      // === JustLend Feature ===
+      postJustlendTrackerTrigger(newSolid);
     } catch (Exception e) {
       logger.error("Block trigger failed. head: {}, oldSolid: {}, newSolid: {}",
           block.getNum(), oldSolid, newSolid, e);
@@ -2711,6 +2715,24 @@ public class Manager {
           .getShieldedTRC20EventsTypeIdByTopicBytes(logTopicsList.get(0).toByteArray());
     } else {
       return 0;
+    }
+  }
+
+  // === JustLend Feature ===
+  private void postJustlendTrackerTrigger(long latestSolidifiedBlockNum) {
+    if (eventPluginLoaded && EventPluginLoader.getInstance().isJustlendTrackerTriggerEnable()) {
+      try {
+        BlockCapsule solidityBlock = chainBaseManager.getBlockByNum(latestSolidifiedBlockNum);
+        if (Objects.nonNull(solidityBlock)) {
+          JustlendTrackerCapsule justlendTrackerCapsule = new JustlendTrackerCapsule(solidityBlock);
+//          if (CollectionUtils.isEmpty(justlendSolidityTrackerCapsule.getJustlendTrackerTrigger().getAssetStatusList())) {
+//            return;
+//          }
+          justlendTrackerCapsule.processTrigger();
+        }
+      } catch (Exception e) {
+        logger.error("postJustlendTrackerTrigger error, ", e);
+      }
     }
   }
 

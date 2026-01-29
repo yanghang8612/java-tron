@@ -1,11 +1,10 @@
-package org.tron.common.logsfilter.capsule;
+package org.tron.common.logsfilter.trigger;
 
 import java.util.ArrayList;
 import java.util.List;
-import lombok.Data;
+import javax.swing.Icon;import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.tron.common.entity.OwnerAuthInfo;
-import org.tron.common.logsfilter.trigger.Trigger;
 
 /**
  * === TronLink Feature ===
@@ -22,7 +21,7 @@ public class MultiAuthTrackerTrigger extends Trigger {
 
   List<OwnerAuthInfo> authInfoList = new ArrayList<>();
 
-  MultiAuthTrackerTrigger() {
+  public MultiAuthTrackerTrigger() {
     super();
     setTriggerName(Trigger.MULTIAUTH_TRIGGER_NAME);
   }

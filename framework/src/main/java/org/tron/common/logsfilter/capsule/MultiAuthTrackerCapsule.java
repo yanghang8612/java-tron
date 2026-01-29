@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.CollectionUtils;
 import org.tron.common.entity.OwnerAuthInfo;
 import org.tron.common.logsfilter.EventPluginLoader;
+import org.tron.common.logsfilter.trigger.MultiAuthTrackerTrigger;
 import org.tron.core.capsule.BlockCapsule;
 
 /**

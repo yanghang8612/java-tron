@@ -12,6 +12,7 @@ import org.tron.common.entity.AssetTransferInfo;
 import org.tron.common.entity.AssetTransferLogInfo;
 import org.tron.common.logsfilter.EventPluginLoader;
 import org.tron.common.logsfilter.TRC20Utils;
+import org.tron.common.logsfilter.trigger.TransferTrackerTrigger;
 import org.tron.common.runtime.InternalTransaction;
 import org.tron.common.runtime.vm.LogInfo;
 import org.tron.common.utils.StringUtil;
