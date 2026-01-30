@@ -13,6 +13,9 @@ public class Trigger {
   public static final int SOLIDITY_EVENT_TRIGGER = 5;
   public static final int SOLIDITY_LOG_TRIGGER = 6;
 
+  // === DeFi Feature ===
+  public static final int BLOCK_CONTRACTLOG_TRIGGER = 7;
+
   // === TronLink Feature ===
   public static final int TRC20TRACKER_TRIGGER = 1000;
   public static final int SHIELDED_TRC20TRACKER_TRIGGER = 1003;
@@ -32,6 +35,9 @@ public class Trigger {
   public static final String SOLIDITY_TRIGGER_NAME = "solidityTrigger";
   public static final String SOLIDITYLOG_TRIGGER_NAME = "solidityLogTrigger";
   public static final String SOLIDITYEVENT_TRIGGER_NAME = "solidityEventTrigger";
+
+  // === DeFi Feature ===
+  public static final String BLOCK_CONTRACTLOG_TRIGGER_NAME = "blockContractLogTrigger";
 
   // === TronLink Feature ===
   public static final String FREEZE_BALANCE_TRIGGER_NAME = "freezeBalanceTrigger";

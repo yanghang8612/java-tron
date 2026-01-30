@@ -15,6 +15,9 @@ public class EventPluginConfig {
   public static final String SOLIDITY_EVENT_NAME = "solidityevent";
   public static final String SOLIDITY_LOG_NAME = "soliditylog";
 
+  // === DeFi Feature ===
+  public static final String BLOCK_CONTRACTLOG_TRIGGER_NAME = "blockcontractlog";
+
   // === TronLink Feature ===
   public static final String BALANCE_TRACKER = "balanceTracker";
   public static final String FREEZE_BALANCE_TRACKER = "freezeBalanceTracker";

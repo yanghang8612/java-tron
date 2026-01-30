@@ -29,6 +29,12 @@ public interface IPluginEventListener extends ExtensionPoint {
 
   void handleSolidityEventTrigger(Object trigger);
 
+  // === DeFi Feature ===
+  String getEventFilterList();
+
+  // === DeFi Feature ===
+  void handleBlockContractLogTrigger(Object trigger);
+
   // === TronLink Feature ===
   void handleTRC20Event(Object trigger);
 

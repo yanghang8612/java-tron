@@ -388,7 +388,7 @@ public class DataWord implements Comparable<DataWord> {
     this.data = ByteUtil.copyToArray(result.and(MAX_VALUE));
   }
 
-  // TODO: improve with no BigInteger
+  // TODO: improve with no BigInteger1
   public void exp(DataWord word) {
     BigInteger result = value().modPow(word.value(), _2_256);
     this.data = ByteUtil.copyToArray(result);

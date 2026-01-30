@@ -104,7 +104,7 @@ public class BlockEventGet {
 
       List<ContractTrigger> triggers = parseLogs(tx, txInfo);
       for (ContractTrigger trigger : triggers) {
-        if (!EventPluginLoader.matchFilter(trigger)) {
+        if (EventPluginLoader.matchFilter(trigger).isEmpty()) {
           continue;
         }
         ContractTrigger eventOrLog = processTrigger(trigger);

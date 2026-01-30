@@ -59,6 +59,7 @@ import org.tron.common.exit.ExitManager;
 import org.tron.common.logsfilter.EventPluginLoader;
 import org.tron.common.logsfilter.FilterQuery;
 import org.tron.common.logsfilter.capsule.BalanceTrackerCapsule;
+import org.tron.common.logsfilter.capsule.BlockContractLogTriggerCapsule;
 import org.tron.common.logsfilter.capsule.BlockFilterCapsule;
 import org.tron.common.logsfilter.capsule.BlockLogTriggerCapsule;
 import org.tron.common.logsfilter.capsule.ContractTriggerCapsule;
@@ -1190,6 +1191,9 @@ public class Manager {
           applyBlock(item.getBlk().setSwitch(true));
           tmpSession.commit();
 
+          // === DeFi Feature ===
+          postBlockContractLogTrigger(item.getBlk());
+
           // === TronLink Feature ===
           postBalanceTrigger(item.getBlk());
         } catch (AccountResourceInsufficientException
@@ -1230,6 +1234,9 @@ public class Manager {
               try (ISession tmpSession = revokingStore.buildSession()) {
                 applyBlock(khaosBlock.getBlk().setSwitch(true));
                 tmpSession.commit();
+
+                // === DeFi Feature ===
+                postBlockContractLogTrigger(khaosBlock.getBlk());
 
                 // === TronLink Feature ===
                 postBalanceTrigger(khaosBlock.getBlk());
@@ -1485,6 +1492,9 @@ public class Manager {
       postBlockTrigger(block);
       // if event subscribe is enabled, post solidity trigger to queue
       postSolidityTrigger(newSolid);
+
+      // === DeFi Feature ===
+      postBlockContractLogTrigger(block);
 
       // === TronLink Feature ===
       // Post customized triggers
@@ -2228,11 +2238,8 @@ public class Manager {
       if (!eventPluginLoaded) {
         throw new EventException("Failed to load eventPlugin.");
       }
-
-      FilterQuery eventFilter = Args.getInstance().getEventFilter();
-      if (!Objects.isNull(eventFilter)) {
-        EventPluginLoader.getInstance().setFilterQuery(eventFilter);
-      }
+      // === DeFi Feature ===
+      EventPluginLoader.getInstance().getFilterQuery();
 
     } catch (Exception e) {
       throw new TronError(e, TronError.ErrCode.EVENT_SUBSCRIBE_INIT);
@@ -2772,6 +2779,21 @@ public class Manager {
     long value = getPendingTransactions().size() + getRePushTransactions().size()
         + getPoppedTransactions().size();
     return value;
+  }
+
+
+  // === DeFi Feature ===
+  private void postBlockContractLogTrigger(final BlockCapsule blockCapsule) {
+    if (!eventPluginLoaded || !EventPluginLoader.getInstance().isBlockContractLogTriggerEnable()) {
+      return;
+    }
+    BlockContractLogTriggerCapsule blockContractLogTriggerCapsule =
+        new BlockContractLogTriggerCapsule(blockCapsule, getDynamicPropertiesStore()
+        .getLatestSolidifiedBlockNum());
+
+    if (!triggerCapsuleQueue.offer(blockContractLogTriggerCapsule)) {
+      logger.info("too many triggers, BlockContractLog trigger lost: {}", blockCapsule.getBlockId());
+    }
   }
 
   private void initLiteNode() {

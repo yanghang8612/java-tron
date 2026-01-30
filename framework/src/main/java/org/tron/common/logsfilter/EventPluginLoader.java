@@ -1,11 +1,17 @@
 package org.tron.common.logsfilter;
 
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import com.beust.jcommander.internal.Sets;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -18,6 +24,7 @@ import org.pf4j.ManifestPluginDescriptorFinder;
 import org.pf4j.PluginManager;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
+import org.tron.common.logsfilter.trigger.BlockContractLogTrigger;
 import org.tron.common.logsfilter.trigger.MultiAuthTrackerTrigger;
 import org.tron.common.logsfilter.trigger.TransferTrackerTrigger;
 import org.tron.common.logsfilter.nativequeue.NativeMessageQueue;
@@ -34,6 +41,7 @@ import org.tron.common.logsfilter.trigger.StakeBalanceTrigger;
 import org.tron.common.logsfilter.trigger.TransactionLogTrigger;
 import org.tron.common.logsfilter.trigger.Trigger;
 import org.tron.core.Constant;
+import org.tron.core.config.args.Args;
 import org.tron.core.exception.TronError;
 
 @Slf4j(topic = "DB")
@@ -113,10 +121,20 @@ public class EventPluginLoader {
   // === JustLend Feature ===
   private boolean justlendTrackerTriggerEnable = false;
 
-  private FilterQuery filterQuery;
+  // === DeFi Feature ===
+  private boolean blockContractLogTriggerEnable = false;
+
+  // === DeFi Feature ===
+  private List<FilterQuery> filterQuery = null;
+
+  // === DeFi Feature ===
+  private Map<String, Map<String, List<FilterQuery>>> filterQueryMap = null;
 
   @Getter
   private boolean useNativeQueue = false;
+
+  // === DeFi Feature ===
+  private long filterQueryLastUpdate = 0;
 
   public static EventPluginLoader getInstance() {
     if (Objects.isNull(instance)) {
@@ -129,51 +147,81 @@ public class EventPluginLoader {
     return instance;
   }
 
-  public static boolean matchFilter(ContractTrigger trigger) {
-    long blockNumber = trigger.getBlockNumber();
+  // === DeFi Feature ===
+  public static List<String> matchFilter(ContractTrigger trigger) {
+    try {
+      long blockNumber = trigger.getBlockNumber();
 
-    FilterQuery filterQuery = EventPluginLoader.getInstance().getFilterQuery();
-    if (Objects.isNull(filterQuery)) {
-      return true;
-    }
-
-    long fromBlockNumber = filterQuery.getFromBlock();
-    long toBlockNumber = filterQuery.getToBlock();
-
-    boolean matched = false;
-    if (fromBlockNumber == FilterQuery.LATEST_BLOCK_NUM
-        || toBlockNumber == FilterQuery.EARLIEST_BLOCK_NUM) {
-      logger.error("invalid filter: fromBlockNumber: {}, toBlockNumber: {}",
-          fromBlockNumber, toBlockNumber);
-      return false;
-    }
-
-    if (toBlockNumber == FilterQuery.LATEST_BLOCK_NUM) {
-      if (fromBlockNumber == FilterQuery.EARLIEST_BLOCK_NUM) {
-        matched = true;
-      } else {
-        if (blockNumber >= fromBlockNumber) {
-          matched = true;
+      Set<String> matchedFilterName = new HashSet<>();
+      Map<String, Map<String, List<FilterQuery>>> filterQueryMap = EventPluginLoader.getInstance()
+          .getFilterQuery();
+      if (Objects.isNull(filterQueryMap) || filterQueryMap.isEmpty()) {
+        return new ArrayList<>(0);
+      }
+      List<List<FilterQuery>> maybeMatchFilters = new ArrayList<>(4);
+      if (!trigger.getLogInfo().getTopics().isEmpty()) {
+        String topic0 = trigger.getLogInfo().getTopics().get(0).toHexString();
+        if(filterQueryMap.containsKey(topic0)) {
+          Map<String, List<FilterQuery>> filterQueryMapForTopic = filterQueryMap.get(topic0);
+          if (filterQueryMapForTopic.containsKey(trigger.getContractAddress())) {
+            maybeMatchFilters.add(filterQueryMapForTopic.get(trigger.getContractAddress()));
+          }
+          if (filterQueryMapForTopic.containsKey("") && !trigger.getContractAddress().equals("")) {
+            maybeMatchFilters.add(filterQueryMapForTopic.get(""));
+          }
         }
       }
-    } else {
-      if (fromBlockNumber == FilterQuery.EARLIEST_BLOCK_NUM) {
-        if (blockNumber <= toBlockNumber) {
-          matched = true;
+      if (filterQueryMap.containsKey("")) {
+        Map<String, List<FilterQuery>> filterQueryMapForTopic = filterQueryMap.get("");
+        if (filterQueryMapForTopic.containsKey(trigger.getContractAddress())) {
+          maybeMatchFilters.add(filterQueryMapForTopic.get(trigger.getContractAddress()));
         }
-      } else {
-        if (blockNumber >= fromBlockNumber && blockNumber <= toBlockNumber) {
-          matched = true;
+        if (filterQueryMapForTopic.containsKey("") && !trigger.getContractAddress().equals("")) {
+          maybeMatchFilters.add(filterQueryMapForTopic.get(""));
         }
       }
-    }
+      for (List<FilterQuery> maybeMatchFilterList : maybeMatchFilters) {
+        for (FilterQuery maybeMatchFilter : maybeMatchFilterList) {
 
-    if (!matched) {
-      return false;
-    }
+          long fromBlockNumber = maybeMatchFilter.getFromBlock();
+          long toBlockNumber = maybeMatchFilter.getToBlock();
 
-    return filterContractAddress(trigger, filterQuery.getContractAddressList())
-        && filterContractTopicList(trigger, filterQuery.getContractTopicList());
+          boolean matched = false;
+          if (fromBlockNumber == FilterQuery.LATEST_BLOCK_NUM
+              || toBlockNumber == FilterQuery.EARLIEST_BLOCK_NUM) {
+            logger.error("invalid filter {}: fromBlockNumber: {}, toBlockNumber: {}",
+                maybeMatchFilter.getName(), fromBlockNumber, toBlockNumber);
+            continue;
+          }
+          if (toBlockNumber == FilterQuery.LATEST_BLOCK_NUM) {
+            if (fromBlockNumber == FilterQuery.EARLIEST_BLOCK_NUM) {
+              matched = true;
+            } else {
+              if (blockNumber >= fromBlockNumber) {
+                matched = true;
+              }
+            }
+          } else {
+            if (fromBlockNumber == FilterQuery.EARLIEST_BLOCK_NUM) {
+              if (blockNumber <= toBlockNumber) {
+                matched = true;
+              }
+            } else {
+              if (blockNumber >= fromBlockNumber && blockNumber <= toBlockNumber) {
+                matched = true;
+              }
+            }
+          }
+          if (matched) {
+            matchedFilterName.add(maybeMatchFilter.getName());
+          }
+        }
+      }
+      return new ArrayList<>(matchedFilterName);
+    } catch (Exception e){
+      logger.error("matchFilter failed trigger:{}", trigger, e);
+      return Lists.newArrayList("default");
+    }
   }
 
   private static boolean filterContractAddress(ContractTrigger trigger, List<String> addressList) {
@@ -419,6 +467,17 @@ public class EventPluginLoader {
       if (!useNativeQueue) {
         setPluginTopic(Trigger.SOLIDITY_LOG_TRIGGER, triggerConfig.getTopic());
       }
+    } else if (EventPluginConfig.BLOCK_CONTRACTLOG_TRIGGER_NAME
+        .equalsIgnoreCase(triggerConfig.getTriggerName())) {
+      // === DeFi Feature ===
+      if (triggerConfig.isEnabled()) {
+        blockContractLogTriggerEnable = true;
+      } else {
+        blockContractLogTriggerEnable = false;
+      }
+      if (!useNativeQueue) {
+        setPluginTopic(Trigger.BLOCK_CONTRACTLOG_TRIGGER, triggerConfig.getTopic());
+      }
     } else if (EventPluginConfig.BALANCE_TRACKER
         .equalsIgnoreCase(triggerConfig.getTriggerName())) {
       // === TronLink Feature ===
@@ -569,6 +628,15 @@ public class EventPluginLoader {
     return contractLogTriggerEnable;
   }
 
+  public synchronized boolean isContractLogTriggerRedundancy() {
+    return contractLogTriggerRedundancy;
+  }
+
+  // === DeFi Feature ===
+  public synchronized boolean isBlockContractLogTriggerEnable() {
+    return blockContractLogTriggerEnable;
+  }
+
   // === TronLink Feature ===
   public synchronized boolean isBalanceTrackerTriggerEnable() {
     return balanceTrackerTriggerEnable;
@@ -602,11 +670,6 @@ public class EventPluginLoader {
   // === TronLink Feature ===
   public synchronized boolean isShieldedTRC20TrackerTriggerEnable() {
     return shieldedTRC20TrackerTriggerEnable;
-  }
-
-  // === TronLink Feature ===
-  public synchronized boolean isContractLogTriggerRedundancy() {
-    return contractLogTriggerRedundancy;
   }
 
   // === JustLend Feature ===
@@ -725,6 +788,18 @@ public class EventPluginLoader {
     } else {
       eventListeners.forEach(listener ->
           listener.handleContractEventTrigger(toJsonString(trigger)));
+    }
+  }
+
+  // === DeFi Feature ===
+  public void postBlockContractLogTrigger(BlockContractLogTrigger trigger) {
+    if (useNativeQueue) {
+      NativeMessageQueue.getInstance()
+          .publishTrigger(toJsonString(trigger), trigger.getTriggerName());
+    } else {
+      logger.info("postBlockContractLogTrigger {}", trigger.getBlockNumber());
+      eventListeners.forEach(listener ->
+          listener.handleBlockContractLogTrigger(toJsonString(trigger)));
     }
   }
 
@@ -899,17 +974,122 @@ public class EventPluginLoader {
     try {
       jsonData = objectMapper.writeValueAsString(data);
     } catch (JsonProcessingException e) {
-      logger.error("'{}'", e);
+      logger.error("toJsonString error {}", data, e);
     }
 
     return jsonData;
   }
 
-  public synchronized FilterQuery getFilterQuery() {
-    return filterQuery;
+  // === DeFi Feature ===
+  public Map<String, Map<String, List<FilterQuery>>> getFilterQuery() {
+    if(System.currentTimeMillis() - this.filterQueryLastUpdate > 60000*10 || this.filterQuery==null){
+      String eventFilters = null;
+      for(IPluginEventListener eventListener : eventListeners){
+        eventFilters = eventListener.getEventFilterList();
+        logger.info("eventFilters:{}", eventFilters);
+        if(eventFilters != null && !eventFilters.isEmpty()){
+          break;
+        }
+      }
+      if(eventFilters != null && !eventFilters.isEmpty()) {
+        List<FilterQuery> newFilterQuery = parseEventFilters(eventFilters);
+        if(!newFilterQuery.isEmpty()) {
+          setFilterQuery(newFilterQuery);
+          this.filterQueryLastUpdate = System.currentTimeMillis();
+        }
+      }
+    }
+    if (this.filterQuery == null || this.filterQuery.isEmpty()) {
+      FilterQuery eventFilter = Args.getInstance().getEventFilter();
+      if (Objects.isNull(eventFilter)) {
+        eventFilter = new FilterQuery();
+      }
+      eventFilter.setName("default");
+      setFilterQuery(eventFilter);
+      this.filterQueryLastUpdate = System.currentTimeMillis();
+    }
+    return this.filterQueryMap;
   }
 
-  public synchronized void setFilterQuery(FilterQuery filterQuery) {
+  // === DeFi Feature ===
+  public void setFilterQuery(FilterQuery filterQuery) {
+    setFilterQuery(Lists.newArrayList(filterQuery));
+  }
+
+  // === DeFi Feature ===
+  public void setFilterQuery(List<FilterQuery> filterQuery) {
     this.filterQuery = filterQuery;
+    this.filterQueryMap = filterQueryListToMap(filterQuery);
+  }
+
+  // === DeFi Feature ===
+  private List<FilterQuery> parseEventFilters(String eventFilters) {
+    try {
+      JSONArray filterObjs = JSONArray.parseArray(eventFilters);
+      List<FilterQuery> queries = new ArrayList<>(filterObjs.size());
+      for (Object o : filterObjs) {
+        JSONObject filterObj = (JSONObject) o;
+        FilterQuery filter = new FilterQuery();
+        long fromBlockLong;
+        long toBlockLong;
+
+        String name = filterObj.getString("name");
+        filter.setName(name);
+
+        String fromBlock = filterObj.getString("fromBlock");
+        fromBlockLong = FilterQuery.parseFromBlockNumber(fromBlock);
+        filter.setFromBlock(fromBlockLong);
+
+        String toBlock = filterObj.getString("toBlock");
+        toBlockLong = FilterQuery.parseToBlockNumber(toBlock);
+        filter.setToBlock(toBlockLong);
+
+        List<String> addressList = filterObj.getObject("contractAddressList", List.class);
+        addressList = addressList.stream().filter(org.apache.commons.lang3.StringUtils::isNotEmpty)
+            .collect(
+                Collectors.toList());
+        filter.setContractAddressList(addressList);
+
+        List<String> topicList = filterObj.getObject("contractTopicList", List.class);
+        topicList = topicList.stream().filter(org.apache.commons.lang3.StringUtils::isNotEmpty)
+            .collect(
+                Collectors.toList());
+        filter.setContractTopicList(topicList);
+        queries.add(filter);
+      }
+      logger.info("parseEventFilters:{}", queries);
+      return queries;
+    } catch (Exception e){
+      logger.error("parseEventFilters error:{}", eventFilters, e);
+      return new ArrayList<>();
+    }
+  }
+
+  // === DeFi Feature ===
+  private Map<String, Map<String, List<FilterQuery>>> filterQueryListToMap(List<FilterQuery> filterQueryList){
+    // if filter accept all topic, an empty topic will be used.
+    // if filter accept all contract address, an empty contract address will be used.
+
+    // Map< topic, Map< contract, List<FilterQuery> > >
+    Map<String, Map<String, List<FilterQuery>>> filterQueryMap = new HashMap<>(filterQueryList.size());
+    for(FilterQuery filter : filterQueryList){
+      List<String> topicList = filter.getContractTopicList();
+      if(topicList.isEmpty()){
+        topicList.add("");
+      }
+      for(String topic : topicList){
+        Map<String, List<FilterQuery>> filterQueryMapForTopic = filterQueryMap.computeIfAbsent(topic, k->new HashMap<>());
+        List<String> contractList = filter.getContractAddressList();
+        if(contractList.isEmpty()){
+          contractList.add("");
+        }
+        for(String contract : contractList){
+          List<FilterQuery> filterQueries = filterQueryMapForTopic.computeIfAbsent(contract, k->new ArrayList<>());
+          filterQueries.add(filter);
+        }
+      }
+    }
+    logger.info("filterQueryListToMap:{}", filterQueryMap);
+    return filterQueryMap;
   }
 }
