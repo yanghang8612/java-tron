@@ -560,7 +560,7 @@ public class Program {
     }
 
     // transfer balance and trc10
-    createAccountIfNotExist(getContractState(), obtainer);
+    createAccountIfNotExist(getContractState(), obtainer, SUICIDE);
     try {
       MUtil.transfer(getContractState(), owner, obtainer, balance);
       if (VMConfig.allowTvmTransferTrc10()) {
