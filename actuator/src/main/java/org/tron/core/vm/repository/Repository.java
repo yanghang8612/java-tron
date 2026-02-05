@@ -58,6 +58,10 @@ public interface Repository {
 
   void updateContractState(byte[] address, ContractStateCapsule contractStateCapsule);
 
+  void putNewContract(byte[] address);
+
+  boolean isNewContract(byte[] address);
+
   void updateAccountState(byte[] address, ContractStateCapsule contractStateCapsule);
 
   void addNewAddrRecord(SmartContractOuterClass.NewAddressTypeCode type);
