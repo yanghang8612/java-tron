@@ -65,7 +65,7 @@ public class TransactionResultTest extends BaseTest {
     Assert.assertEquals("0x5691531881bc44adbc722060d85fdf29265823db8e884b0d104fcfbba253cf11",
         transactionResult.getHash());
     Assert.assertEquals(transactionResult.getGasPrice(), "0x");
-    Assert.assertEquals(transactionResult.getNonce(), "0x0000000000000000");
+    Assert.assertEquals(transactionResult.getNonce(), "0x0");
   }
 
 }
