@@ -117,6 +117,13 @@ public class ByteArray {
     return x == null || x.length == 0 ? "0x" : "0x" + Hex.toHexString(x);
   }
 
+  public static String toEthJsonHex(byte[] x) {
+    if (x == null || x.length == 0) return "0x";
+    String hex = Hex.toHexString(x);
+    hex = hex.replaceFirst("^0+(?!$)", "");
+    return "0x" + hex;
+  }
+
   // ignore the 41
   public static String toJsonHexAddress(byte[] x) {
     if (x == null || x.length == 0) {
@@ -132,7 +139,10 @@ public class ByteArray {
   }
 
   public static String toJsonHex(Long x) {
-    return x == null ? null : "0x" + Long.toHexString(x);
+    if (x == null) return null;
+    String hex = Long.toHexString(x);
+    hex = hex.replaceFirst("^0+(?!$)", "");
+    return "0x" + hex;
   }
 
   public static String toJsonHex(int x) {

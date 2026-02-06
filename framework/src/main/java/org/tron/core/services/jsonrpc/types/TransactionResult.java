@@ -66,8 +66,8 @@ public class TransactionResult {
 
     ByteString signature = tx.getSignature(0); // r[32] + s[32] + v[1]
     Rsv rsv = Rsv.fromSignature(signature.toByteArray());
-    r = ByteArray.toJsonHex(rsv.getR());
-    s = ByteArray.toJsonHex(rsv.getS());
+    r = ByteArray.toEthJsonHex(rsv.getR());
+    s = ByteArray.toEthJsonHex(rsv.getS());
     v = ByteArray.toJsonHex(rsv.getV());
   }
 
