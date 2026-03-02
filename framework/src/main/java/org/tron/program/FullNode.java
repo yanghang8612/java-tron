@@ -4,6 +4,8 @@ import static org.tron.protos.Protocol.Transaction.Contract.ContractType.Account
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
@@ -67,11 +69,10 @@ public class FullNode {
     context.register(DefaultConfig.class);
     context.refresh();
 
-    DynamicPropertiesStore dps = context.getBean(DynamicPropertiesStore.class);
     Wallet wallet = context.getBean(Wallet.class);
 
-    long startNum = 60000000;
-    long endNum = dps.getLatestBlockHeaderNumber();
+    long startNum = 75600000;
+    long endNum = 77100000;
 
     ByteString userA = ByteString.copyFrom(Hex.decode("416f3dbF0c26C768BFe6CDd45c6C2Aef572A3B8d68"));
     ByteString userB = ByteString.copyFrom(Hex.decode("4168624F542Fd16682160DC929D972D1A69D2353CF"));
@@ -80,6 +81,7 @@ public class FullNode {
     userSet.add(userA);
     userSet.add(userB);
     userSet.add(userC);
+    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     for (long i = startNum; i < endNum; i++) {
       Protocol.Block block = wallet.getBlockByNum(i);
@@ -93,13 +95,21 @@ public class FullNode {
           AccountContract.AccountPermissionUpdateContract contract = tx.getRawData().getContract(0).getParameter()
               .unpack(AccountContract.AccountPermissionUpdateContract.class);
           if (contain(contract.getOwner(), userSet)) {
-            logger.info("block num: {}, tx id: {}", i, new TransactionCapsule(tx).getTransactionId().toString());
+            logger.info("{} {} {} {}",
+                sdf.format(new Date(block.getBlockHeader().getRawData().getTimestamp())),
+                i,
+                StringUtil.encode58Check(contract.getOwnerAddress().toByteArray()),
+                new TransactionCapsule(tx).getTransactionId().toString());
             continue;
           }
 
           for (Protocol.Permission permission : contract.getActivesList()) {
             if (contain(permission, userSet)) {
-              logger.info("block num: {}, tx id: {}", i, new TransactionCapsule(tx).getTransactionId().toString());
+              logger.info("{} {} {} {}",
+                  sdf.format(new Date(block.getBlockHeader().getRawData().getTimestamp())),
+                  i,
+                  StringUtil.encode58Check(contract.getOwnerAddress().toByteArray()),
+                  new TransactionCapsule(tx).getTransactionId().toString());
               break;
             }
           }
