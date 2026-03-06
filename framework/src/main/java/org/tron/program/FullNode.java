@@ -1,10 +1,12 @@
 package org.tron.program;
 
 import static org.tron.protos.Protocol.Transaction.Contract.ContractType.AccountPermissionUpdateContract;
+import static org.tron.protos.Protocol.Transaction.Contract.ContractType.TriggerSmartContract;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
@@ -30,6 +32,7 @@ import org.tron.core.db.BlockStore;
 import org.tron.core.store.DynamicPropertiesStore;
 import org.tron.protos.Protocol;
 import org.tron.protos.contract.AccountContract;
+import org.tron.protos.contract.SmartContractOuterClass;
 
 @Slf4j(topic = "app")
 public class FullNode {
@@ -72,7 +75,7 @@ public class FullNode {
     Wallet wallet = context.getBean(Wallet.class);
 
     long startNum = 75600000;
-    long endNum = 77100000;
+    long endNum = 80698872;
 
     ByteString userA = ByteString.copyFrom(Hex.decode("416f3dbF0c26C768BFe6CDd45c6C2Aef572A3B8d68"));
     ByteString userB = ByteString.copyFrom(Hex.decode("4168624F542Fd16682160DC929D972D1A69D2353CF"));
@@ -82,6 +85,7 @@ public class FullNode {
     userSet.add(userB);
     userSet.add(userC);
     SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    Set<ByteString> vitimSet = new HashSet<>();
 
     for (long i = startNum; i < endNum; i++) {
       Protocol.Block block = wallet.getBlockByNum(i);
@@ -95,6 +99,7 @@ public class FullNode {
           AccountContract.AccountPermissionUpdateContract contract = tx.getRawData().getContract(0).getParameter()
               .unpack(AccountContract.AccountPermissionUpdateContract.class);
           if (contain(contract.getOwner(), userSet)) {
+            vitimSet.add(contract.getOwnerAddress());
             logger.info("{} {} {} {}",
                 sdf.format(new Date(block.getBlockHeader().getRawData().getTimestamp())),
                 i,
@@ -105,6 +110,7 @@ public class FullNode {
 
           for (Protocol.Permission permission : contract.getActivesList()) {
             if (contain(permission, userSet)) {
+              vitimSet.add(contract.getOwnerAddress());
               logger.info("{} {} {} {}",
                   sdf.format(new Date(block.getBlockHeader().getRawData().getTimestamp())),
                   i,
@@ -112,6 +118,27 @@ public class FullNode {
                   new TransactionCapsule(tx).getTransactionId().toString());
               break;
             }
+          }
+        } else {
+          if (vitimSet.contains(ByteString.copyFrom(new TransactionCapsule(tx).getOwnerAddress()))) {
+            String token = "TRX";
+            byte[] toAddress = TransactionCapsule.getToAddress(tx.getRawData().getContract(0));
+            if (tx.getRawData().getContract(0).getType() == TriggerSmartContract) {
+              SmartContractOuterClass.TriggerSmartContract contract = tx.getRawData().getContract(0).getParameter()
+                  .unpack(SmartContractOuterClass.TriggerSmartContract.class);
+              token = StringUtil.encode58Check(contract.getContractAddress().toByteArray());
+              toAddress = Arrays.copyOfRange(contract.getData().toByteArray(), 4+11, 4+11+21);
+              toAddress[0] = 0x41;
+            }
+            logger.info("{} {} {} {} {} {} {} {} shabi",
+                sdf.format(new Date(block.getBlockHeader().getRawData().getTimestamp())),
+                i,
+                tx.getRet(0).getContractRet(),
+                tx.getRawData().getContract(0).getType(),
+                token,
+                StringUtil.encode58Check(new TransactionCapsule(tx).getOwnerAddress()),
+                StringUtil.encode58Check(toAddress),
+                new TransactionCapsule(tx).getTransactionId().toString());
           }
         }
       }
