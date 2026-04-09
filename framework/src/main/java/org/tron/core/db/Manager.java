@@ -1065,6 +1065,11 @@ public class Manager {
       Metrics.gaugeInc(MetricKeys.Gauge.MANAGER_QUEUE, oldHeadBlock.getTransactions().size(),
           MetricLabels.Gauge.QUEUE_POPPED);
 
+      // Clear solidity event cache for the erased block to prevent stale fork events
+      long erasedBlockNum = oldHeadBlock.getNum();
+      Args.getSolidityContractLogTriggerMap().remove(erasedBlockNum);
+      Args.getSolidityContractEventTriggerMap().remove(erasedBlockNum);
+
     } catch (ItemNotFoundException | BadItemException e) {
       logger.warn(e.getMessage(), e);
     }
@@ -1212,6 +1217,9 @@ public class Manager {
             | BadBlockException e) {
           logger.warn(e.getMessage(), e);
           exception = e;
+          // Clear solidity event cache for the failed block
+          Args.getSolidityContractLogTriggerMap().remove(item.getBlk().getNum());
+          Args.getSolidityContractEventTriggerMap().remove(item.getBlk().getNum());
           throw e;
         } finally {
           if (exception != null) {
@@ -1437,6 +1445,9 @@ public class Manager {
             } catch (Throwable throwable) {
               logger.error(throwable.getMessage(), throwable);
               khaosDb.removeBlk(block.getBlockId());
+              // Clear solidity event cache for the failed block
+              Args.getSolidityContractLogTriggerMap().remove(newBlock.getNum());
+              Args.getSolidityContractEventTriggerMap().remove(newBlock.getNum());
               throw throwable;
             }
             long newSolidNum = getDynamicPropertiesStore().getLatestSolidifiedBlockNum();
@@ -2049,20 +2060,33 @@ public class Manager {
     }
     BlockingQueue contractLogTriggersQueue = Args.getSolidityContractLogTriggerMap()
         .get(blockNum);
+    if (contractLogTriggersQueue == null) {
+      return;
+    }
+
+    // Get canonical block hash to filter out stale fork events
+    String canonicalBlockHash = getCanonicalBlockHash(blockNum);
+
     while (!contractLogTriggersQueue.isEmpty()) {
       ContractLogTrigger triggerCapsule = (ContractLogTrigger) contractLogTriggersQueue.poll();
       if (triggerCapsule == null) {
         break;
       }
-      if (containsTransaction(ByteArray.fromHexString(triggerCapsule
-          .getTransactionId()))) {
-        triggerCapsule.setTriggerName(Trigger.SOLIDITYLOG_TRIGGER_NAME);
-        EventPluginLoader.getInstance().postSolidityLogTrigger(triggerCapsule);
-      } else {
-        // when switch fork, block will be post to triggerCapsuleQueue, transaction may be not found
+      if (!containsTransaction(ByteArray.fromHexString(triggerCapsule.getTransactionId()))) {
         logger.error("PostSolidityLogContractTrigger txId = {} not contains transaction.",
             triggerCapsule.getTransactionId());
+        continue;
       }
+      if (canonicalBlockHash != null
+          && !canonicalBlockHash.equals(triggerCapsule.getBlockHash())) {
+        logger.warn("PostSolidityLogContractTrigger txId = {} blockHash mismatch, "
+                + "expected: {}, actual: {}, skip stale fork event.",
+            triggerCapsule.getTransactionId(), canonicalBlockHash,
+            triggerCapsule.getBlockHash());
+        continue;
+      }
+      triggerCapsule.setTriggerName(Trigger.SOLIDITYLOG_TRIGGER_NAME);
+      EventPluginLoader.getInstance().postSolidityLogTrigger(triggerCapsule);
     }
     Args.getSolidityContractLogTriggerMap().remove(blockNum);
   }
@@ -2073,19 +2097,45 @@ public class Manager {
     }
     BlockingQueue contractEventTriggersQueue = Args.getSolidityContractEventTriggerMap()
         .get(blockNum);
+    if (contractEventTriggersQueue == null) {
+      return;
+    }
+
+    // Get canonical block hash to filter out stale fork events
+    String canonicalBlockHash = getCanonicalBlockHash(blockNum);
+
     while (!contractEventTriggersQueue.isEmpty()) {
       ContractEventTrigger triggerCapsule = (ContractEventTrigger) contractEventTriggersQueue
           .poll();
       if (triggerCapsule == null) {
         break;
       }
-      if (containsTransaction(ByteArray.fromHexString(triggerCapsule
-          .getTransactionId()))) {
-        triggerCapsule.setTriggerName(Trigger.SOLIDITYEVENT_TRIGGER_NAME);
-        EventPluginLoader.getInstance().postSolidityEventTrigger(triggerCapsule);
+      if (!containsTransaction(ByteArray.fromHexString(triggerCapsule.getTransactionId()))) {
+        logger.error("PostSolidityEventContractTrigger txId = {} not contains transaction.",
+            triggerCapsule.getTransactionId());
+        continue;
       }
+      if (canonicalBlockHash != null
+          && !canonicalBlockHash.equals(triggerCapsule.getBlockHash())) {
+        logger.warn("PostSolidityEventContractTrigger txId = {} blockHash mismatch, "
+                + "expected: {}, actual: {}, skip stale fork event.",
+            triggerCapsule.getTransactionId(), canonicalBlockHash,
+            triggerCapsule.getBlockHash());
+        continue;
+      }
+      triggerCapsule.setTriggerName(Trigger.SOLIDITYEVENT_TRIGGER_NAME);
+      EventPluginLoader.getInstance().postSolidityEventTrigger(triggerCapsule);
     }
     Args.getSolidityContractEventTriggerMap().remove(blockNum);
+  }
+
+  private String getCanonicalBlockHash(long blockNum) {
+    try {
+      return chainBaseManager.getBlockByNum(blockNum).getBlockId().toString();
+    } catch (Exception e) {
+      logger.error("Failed to get canonical block hash for blockNum: {}", blockNum, e);
+      return null;
+    }
   }
 
   private void updateTransHashCache(BlockCapsule block) {
