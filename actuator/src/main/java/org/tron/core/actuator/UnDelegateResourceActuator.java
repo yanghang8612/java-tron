@@ -17,6 +17,7 @@ import org.tron.core.capsule.DelegatedResourceCapsule;
 import org.tron.core.capsule.TransactionResultCapsule;
 import org.tron.core.db.BandwidthProcessor;
 import org.tron.core.db.EnergyProcessor;
+import org.tron.core.db.accountchange.StakeChangeRecord;
 import org.tron.core.exception.ContractExeException;
 import org.tron.core.exception.ContractValidateException;
 import org.tron.core.store.AccountStore;
@@ -134,10 +135,16 @@ public class UnDelegateResourceActuator extends AbstractActuator {
     AccountCapsule ownerCapsule = accountStore.get(ownerAddress);
     switch (unDelegateResourceContract.getResource()) {
       case BANDWIDTH: {
+        final long frozenBalanceForBandwidth = unlockResource.getFrozenBalanceForBandwidth();
+        final long expireTimeForBandwidth = unlockResource.getExpireTimeForBandwidth();
         unlockResource.addFrozenBalanceForBandwidth(-unDelegateBalance, 0);
 
         ownerCapsule.addDelegatedFrozenV2BalanceForBandwidth(-unDelegateBalance);
         ownerCapsule.addFrozenBalanceForBandwidthV2(unDelegateBalance);
+
+        // === TronLink Feature ===
+        StakeChangeRecord.recordResource(ownerAddress, receiverAddress, BANDWIDTH,
+                frozenBalanceForBandwidth - unDelegateBalance, 0L, frozenBalanceForBandwidth, expireTimeForBandwidth, false);
 
         BandwidthProcessor processor = new BandwidthProcessor(chainBaseManager);
 
@@ -149,10 +156,17 @@ public class UnDelegateResourceActuator extends AbstractActuator {
       }
       break;
       case ENERGY: {
+        final long frozenBalanceForEnergy = unlockResource.getFrozenBalanceForEnergy();
+        final long expireTimeForEnergy = unlockResource.getExpireTimeForEnergy();
+
         unlockResource.addFrozenBalanceForEnergy(-unDelegateBalance, 0);
 
         ownerCapsule.addDelegatedFrozenV2BalanceForEnergy(-unDelegateBalance);
         ownerCapsule.addFrozenBalanceForEnergyV2(unDelegateBalance);
+
+        // === TronLink Feature ===
+        StakeChangeRecord.recordResource(ownerAddress, receiverAddress, ENERGY,
+                frozenBalanceForEnergy - unDelegateBalance, 0L, frozenBalanceForEnergy, expireTimeForEnergy, false);
 
         EnergyProcessor processor = new EnergyProcessor(dynamicStore, accountStore);
 

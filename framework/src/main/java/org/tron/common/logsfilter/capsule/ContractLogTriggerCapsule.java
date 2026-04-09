@@ -2,6 +2,7 @@ package org.tron.common.logsfilter.capsule;
 
 import static org.tron.common.logsfilter.EventPluginLoader.matchFilter;
 
+import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 import org.tron.common.logsfilter.EventPluginLoader;
@@ -23,7 +24,10 @@ public class ContractLogTriggerCapsule extends TriggerCapsule {
 
   @Override
   public void processTrigger() {
-    if (matchFilter(contractLogTrigger)) {
+    // === DeFi Feature ===
+    List<String> filterNames = matchFilter(contractLogTrigger);
+    if (!filterNames.isEmpty()) {
+      contractLogTrigger.setFilterNameList(filterNames);
       EventPluginLoader.getInstance().postContractLogTrigger(contractLogTrigger);
     }
   }

@@ -19,6 +19,7 @@ import org.tron.core.capsule.DelegatedResourceAccountIndexCapsule;
 import org.tron.core.capsule.DelegatedResourceCapsule;
 import org.tron.core.db.BandwidthProcessor;
 import org.tron.core.db.EnergyProcessor;
+import org.tron.core.db.accountchange.StakeChangeRecord;
 import org.tron.core.exception.ContractValidateException;
 import org.tron.core.store.DelegatedResourceAccountIndexStore;
 import org.tron.core.store.DynamicPropertiesStore;
@@ -26,6 +27,7 @@ import org.tron.core.vm.config.VMConfig;
 import org.tron.core.vm.nativecontract.param.DelegateResourceParam;
 import org.tron.core.vm.repository.Repository;
 import org.tron.protos.Protocol;
+import org.tron.protos.contract.Common;
 
 @Slf4j(topic = "VMProcessor")
 public class DelegateResourceProcessor {
@@ -158,9 +160,22 @@ public class DelegateResourceProcessor {
           ByteString.copyFrom(receiverAddress));
     }
     if (isBandwidth) {
+      final long frozenBalanceForBandwidth = delegatedResourceCapsule.getFrozenBalanceForBandwidth();
+      final long expireTimeForBandwidth = delegatedResourceCapsule.getExpireTimeForBandwidth();
       delegatedResourceCapsule.addFrozenBalanceForBandwidth(delegateBalance, 0);
+
+      // === TronLink Feature ===
+      StakeChangeRecord.recordResource(ownerAddress, receiverAddress, Common.ResourceCode.BANDWIDTH,
+              frozenBalanceForBandwidth + delegateBalance, 0L, frozenBalanceForBandwidth, expireTimeForBandwidth, false);
+
     } else {
+      final long frozenBalanceForEnergy = delegatedResourceCapsule.getFrozenBalanceForEnergy();
+      final long expireTimeForEnergy = delegatedResourceCapsule.getExpireTimeForEnergy();
       delegatedResourceCapsule.addFrozenBalanceForEnergy(delegateBalance, 0);
+
+      // TronLink feature
+      StakeChangeRecord.recordResource(ownerAddress, receiverAddress, Common.ResourceCode.ENERGY,
+              frozenBalanceForEnergy + delegateBalance, 0L, frozenBalanceForEnergy, expireTimeForEnergy, false);
     }
 
     //modify DelegatedResourceAccountIndex

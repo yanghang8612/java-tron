@@ -22,6 +22,7 @@ import org.tron.core.capsule.DelegatedResourceCapsule;
 import org.tron.core.capsule.TransactionResultCapsule;
 import org.tron.core.db.BandwidthProcessor;
 import org.tron.core.db.EnergyProcessor;
+import org.tron.core.db.accountchange.StakeChangeRecord;
 import org.tron.core.exception.ContractExeException;
 import org.tron.core.exception.ContractValidateException;
 import org.tron.core.store.AccountStore;
@@ -33,6 +34,7 @@ import org.tron.protos.Protocol.AccountType;
 import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 import org.tron.protos.Protocol.Transaction.Result.code;
 import org.tron.protos.contract.BalanceContract.DelegateResourceContract;
+import org.tron.protos.contract.Common;
 
 @Slf4j(topic = "actuator")
 public class DelegateResourceActuator extends AbstractActuator {
@@ -304,9 +306,21 @@ public class DelegateResourceActuator extends AbstractActuator {
     }
 
     if (isBandwidth) {
+      final long frozenBalanceForBandwidth = delegatedResourceCapsule.getFrozenBalanceForBandwidth();
+      final long expireTimeForBandwidth = delegatedResourceCapsule.getExpireTimeForBandwidth();
       delegatedResourceCapsule.addFrozenBalanceForBandwidth(balance, expireTime);
+
+      // === TronLink Feature ===
+      StakeChangeRecord.recordResource(ownerAddress, receiverAddress, Common.ResourceCode.BANDWIDTH,
+              frozenBalanceForBandwidth + balance, expireTime, frozenBalanceForBandwidth, expireTimeForBandwidth, lock);
     } else {
+      final long frozenBalanceForEnergy = delegatedResourceCapsule.getFrozenBalanceForEnergy();
+      final long expireTimeForEnergy = delegatedResourceCapsule.getExpireTimeForEnergy();
       delegatedResourceCapsule.addFrozenBalanceForEnergy(balance, expireTime);
+
+      // TronLink feature
+      StakeChangeRecord.recordResource(ownerAddress, receiverAddress, Common.ResourceCode.ENERGY,
+              frozenBalanceForEnergy + balance, expireTime, frozenBalanceForEnergy, expireTimeForEnergy, lock);
     }
     delegatedResourceStore.put(key, delegatedResourceCapsule);
 

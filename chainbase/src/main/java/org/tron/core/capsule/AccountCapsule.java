@@ -1092,6 +1092,10 @@ public class AccountCapsule implements ProtoCapsule<Account>, Comparable<Account
     return this.account.getAccountResource().getFrozenBalanceForEnergy().getFrozenBalance();
   }
 
+  public long getEnergyFrozenBalanceExpireTime() {
+    return this.account.getAccountResource().getFrozenBalanceForEnergy().getExpireTime();
+  }
+
   public long getFrozenV2BalanceForEnergy() {
     List<FreezeV2> frozenList = getFrozenV2List();
     if (frozenList.isEmpty()) {

@@ -14,6 +14,7 @@ import org.tron.common.utils.DecodeUtil;
 import org.tron.common.utils.StringUtil;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.TransactionResultCapsule;
+import org.tron.core.db.accountchange.StakeChangeRecord;
 import org.tron.core.exception.ContractExeException;
 import org.tron.core.exception.ContractValidateException;
 import org.tron.core.store.AccountStore;
@@ -52,10 +53,15 @@ public class WithdrawExpireUnfreezeActuator extends AbstractActuator {
         withdrawExpireUnfreezeContract.getOwnerAddress().toByteArray());
     long now = dynamicStore.getLatestBlockHeaderTimestamp();
     List<UnFreezeV2> unfrozenV2List = accountCapsule.getInstance().getUnfrozenV2List();
+    final List<UnFreezeV2> totalWithdrawList = getTotalWithdrawList(unfrozenV2List, now);
     long totalWithdrawUnfreeze = getTotalWithdrawUnfreeze(unfrozenV2List, now);
     accountCapsule.setInstance(accountCapsule.getInstance().toBuilder()
         .setBalance(accountCapsule.getBalance() + totalWithdrawUnfreeze)
         .build());
+
+    // === TronLink Feature ===
+    StakeChangeRecord.withdrawUnfreeze(accountCapsule.getAddress().toByteArray(), totalWithdrawList);
+
     List<UnFreezeV2> newUnFreezeList = getRemainWithdrawList(unfrozenV2List, now);
     accountCapsule.clearUnfrozenV2();
     accountCapsule.addAllUnfrozenV2(newUnFreezeList);

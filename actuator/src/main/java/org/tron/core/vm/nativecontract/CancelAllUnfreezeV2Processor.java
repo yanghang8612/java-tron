@@ -7,13 +7,16 @@ import static org.tron.core.config.Parameter.ChainConstant.TRX_PRECISION;
 import static org.tron.protos.contract.Common.ResourceCode.BANDWIDTH;
 import static org.tron.protos.contract.Common.ResourceCode.ENERGY;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.tron.common.utils.DecodeUtil;
 import org.tron.common.utils.StringUtil;
 import org.tron.core.capsule.AccountCapsule;
+import org.tron.core.db.accountchange.StakeChangeRecord;
 import org.tron.core.exception.ContractExeException;
 import org.tron.core.exception.ContractValidateException;
 import org.tron.core.vm.VMConstant;
@@ -47,7 +50,10 @@ public class CancelAllUnfreezeV2Processor {
     AccountCapsule ownerCapsule = repo.getAccount(ownerAddress);
     long now = repo.getDynamicPropertiesStore().getLatestBlockHeaderTimestamp();
     long withdrawExpireBalance = 0L;
+    final List<Protocol.Account.UnFreezeV2> totalWithdrawList = new ArrayList<>();
     for (Protocol.Account.UnFreezeV2 unFreezeV2: ownerCapsule.getUnfrozenV2List()) {
+      totalWithdrawList.add(unFreezeV2);
+
       if (unFreezeV2.getUnfreezeExpireTime() > now) {
         String resourceName = unFreezeV2.getType().name();
         result.put(resourceName, result.getOrDefault(resourceName, 0L) + unFreezeV2.getUnfreezeAmount());
@@ -62,6 +68,9 @@ public class CancelAllUnfreezeV2Processor {
       ownerCapsule.setBalance(ownerCapsule.getBalance() + withdrawExpireBalance);
     }
     ownerCapsule.clearUnfrozenV2();
+
+    // === TronLink Feature ===
+    StakeChangeRecord.withdrawUnfreeze(ownerAddress, totalWithdrawList);
 
     repo.updateAccount(ownerCapsule.createDbKey(), ownerCapsule);
 

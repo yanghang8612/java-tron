@@ -7,10 +7,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.tron.common.parameter.CommonParameter;
+import org.tron.common.utils.ByteUtil;
 import org.tron.common.utils.Commons;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.db.TronStoreWithRevoking;
+import org.tron.core.db.accountchange.AccountChangeRecord;
 import org.tron.core.db.accountstate.AccountStateCallBackUtils;
 import org.tron.core.exception.TronError;
 import org.tron.protos.contract.BalanceContract.TransactionBalanceTrace;
@@ -27,6 +29,9 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
   private static String ACCOUNT_BLACKHOLE = "Blackhole";
 
   private static Map<String, byte[]> assertsAddress = new HashMap<>(); // key = name , value = address
+
+  @Autowired
+  private AccountChangeRecord accountChangeRecord;
 
   @Autowired
   private AccountStateCallBackUtils accountStateCallBackUtils;
@@ -84,8 +89,20 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
         }
       }
     }
+
+    AccountCapsule oldAccount = get(key);
     super.put(key, item);
     accountStateCallBackUtils.accountCallBack(key, item);
+
+    // === TronLink Feature ===
+    if (getBlackhole() == null) {
+      return;
+    }
+
+    // === TronLink Feature ===
+    if (!ByteUtil.equals(key, getBlackhole().getAddress().toByteArray())) {
+      accountChangeRecord.recordChangedAccount(key, oldAccount, item);
+    }
   }
 
   @Override
@@ -101,7 +118,15 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
         accountTraceStore.recordBalanceWithBlock(key, blockId.getNum(), 0);
       }
     }
+
+    final AccountCapsule oldAccount = get(key);
+
     super.delete(key);
+
+    // === TronLink Feature ===
+    if (!ByteUtil.equals(key, getBlackhole().getAddress().toByteArray())) {
+      accountChangeRecord.delete(key, oldAccount);
+    }
   }
 
   /**

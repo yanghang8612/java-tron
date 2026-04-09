@@ -1,0 +1,528 @@
+package org.tron.core.db.accountchange;
+
+import com.google.common.collect.Maps;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+import org.bouncycastle.util.encoders.Hex;
+import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
+import org.tron.common.logsfilter.trigger.FreezeBalanceTrigger;
+import org.tron.common.utils.StringUtil;
+import org.tron.core.capsule.AccountCapsule;
+import org.tron.protos.Protocol;
+
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * === TronLink Feature ===
+ */
+@Slf4j
+@Service
+public class AccountChangeRecord {
+
+  private static volatile boolean recordBalance = false;
+  private static volatile boolean recordFreeze = false;
+
+  private static final int DELETE = 2;
+  private static final int CREATE = 1;
+  private static final int UPDATE = 3;
+
+  // not byte[]! because the same byte[] but not hashCode.
+  private static Map<String, AccountInfo> tempAccountMap = new HashMap<>();
+  private static Map<String, FreezeBalanceTrigger.FreezeBalance> tempFreezeMap = new HashMap<>();
+
+  public void startRecord(boolean record) {
+    this.recordBalance = record;
+  }
+
+  public void startRecordFreeze(boolean record) {
+    this.recordFreeze = record;
+  }
+
+
+  public void clear() {
+    this.recordBalance = false;
+    tempAccountMap.clear();
+  }
+
+  public void clearFreeze() {
+    this.recordFreeze = false;
+    tempFreezeMap.clear();
+  }
+
+  public Map<String, AccountInfo> getTempAccountMap() {
+    return Maps.newHashMap(tempAccountMap);
+  }
+
+  public Map<String, FreezeBalanceTrigger.FreezeBalance> getTempFreezeMap() {
+    return Maps.newHashMap(tempFreezeMap);
+  }
+
+  public void recordChangedAccount(byte[] key, AccountCapsule oldAccount, AccountCapsule newAccount) {
+    if (recordFreeze && newAccount != null) {
+      handlerFreeze(oldAccount, newAccount);
+    }
+
+    handlerBalance(key, oldAccount, newAccount);
+  }
+
+  private void handlerFreeze(AccountCapsule oldAccount, AccountCapsule newAccount) {
+    long incrementFrozenBandwidth = 0;
+    long incrementFrozenBandwidthExpireTime = 0;
+    long incrementFrozenEnergy = 0;
+    long incrementFrozenEnergyExpireTime = 0;
+    long frozenBandwidth = 0;
+    long frozenBandwidthExpireTime = 0;
+    long frozenEnergy = 0;
+    long frozenEnergyExpireTime = 0;
+
+    frozenBandwidth = newAccount.getFrozenBalance();
+    frozenEnergy = newAccount.getEnergyFrozenBalance();
+
+    final List<Protocol.Account.Frozen> frozenList = newAccount.getFrozenList();
+    if (CollectionUtils.isEmpty(frozenList)) {
+      frozenBandwidthExpireTime = 0L;
+    } else {
+      frozenBandwidthExpireTime = frozenList.get(0).getExpireTime();
+    }
+
+    frozenEnergyExpireTime = newAccount.getEnergyFrozenBalanceExpireTime();
+
+    if (oldAccount == null) {
+      incrementFrozenBandwidth = frozenBandwidth;
+      incrementFrozenEnergy = frozenEnergy;
+      incrementFrozenBandwidthExpireTime = frozenBandwidthExpireTime;
+      incrementFrozenEnergyExpireTime = frozenEnergyExpireTime;
+    } else {
+      incrementFrozenBandwidth = frozenBandwidth - oldAccount.getFrozenBalance();
+      incrementFrozenEnergy = frozenEnergy - oldAccount.getEnergyFrozenBalance();
+
+      final List<Protocol.Account.Frozen> frozenList1 = oldAccount.getFrozenList();
+      if (CollectionUtils.isEmpty(frozenList1)) {
+        incrementFrozenBandwidthExpireTime = frozenBandwidthExpireTime;
+      } else {
+        incrementFrozenBandwidthExpireTime = frozenBandwidthExpireTime - frozenList1.get(0).getExpireTime();
+      }
+
+      incrementFrozenEnergyExpireTime = frozenEnergyExpireTime - oldAccount.getEnergyFrozenBalanceExpireTime();
+    }
+
+    if (incrementFrozenBandwidth == 0 && incrementFrozenEnergy == 0) {
+      return;
+    }
+
+    final String accountAddress = StringUtil.encode58Check(newAccount.getAddress().toByteArray());
+    if (incrementFrozenBandwidth != 0) {
+      handlerResource(accountAddress, 2, frozenBandwidth, incrementFrozenBandwidth, frozenBandwidthExpireTime, incrementFrozenBandwidthExpireTime);
+    }
+
+    if (incrementFrozenEnergy != 0) {
+      handlerResource(accountAddress, 1, frozenEnergy, incrementFrozenEnergy, frozenEnergyExpireTime, incrementFrozenEnergyExpireTime);
+    }
+  }
+
+  private void handlerResource(String accountAddress, int type, long frozenBandwidth, long incrementFrozenBandwidth,
+                               long frozenBandwidthExpireTime, long incrementFrozenBandwidthExpireTime) {
+    String key = accountAddress + "-" + type;
+    FreezeBalanceTrigger.FreezeBalance freezeBalance = tempFreezeMap.get(key);
+
+    if (freezeBalance == null) {
+      freezeBalance = new FreezeBalanceTrigger.FreezeBalance();
+      freezeBalance.setResource(type);
+      freezeBalance.setFromAddress(accountAddress);
+      freezeBalance.setToAddress(accountAddress);
+      freezeBalance.setFreezeBalance(String.valueOf(frozenBandwidth));
+      freezeBalance.setIncrementFreezeBalance(String.valueOf(incrementFrozenBandwidth));
+      freezeBalance.setExpireTime(String.valueOf(frozenBandwidthExpireTime));
+      freezeBalance.setIncrementExpireTime(String.valueOf(incrementFrozenBandwidthExpireTime));
+      tempFreezeMap.put(key, freezeBalance);
+    }
+    else {
+      freezeBalance.setFreezeBalance(String.valueOf(frozenBandwidth));
+      freezeBalance.setExpireTime(String.valueOf(frozenBandwidthExpireTime));
+      Long value = Long.valueOf(freezeBalance.getIncrementFreezeBalance()) + incrementFrozenBandwidth;
+      freezeBalance.setIncrementFreezeBalance(String.valueOf(value));
+      value = Long.valueOf(freezeBalance.getIncrementExpireTime()) + incrementFrozenBandwidthExpireTime;
+      freezeBalance.setIncrementExpireTime(String.valueOf(value));
+    }
+  }
+
+  private void handlerBalance(byte[] key, AccountCapsule oldAccount, AccountCapsule newAccount) {
+    if (!recordBalance || newAccount == null) {
+      return;
+    }
+
+    AccountInfo accountInfo = null;
+    try {
+      if (oldAccount == null) {
+        accountInfo = AccountInfo.of(newAccount);
+        accountInfo.getActions().add(CREATE);
+      }
+      else {
+        accountInfo = AccountInfo.of(oldAccount, newAccount);
+
+        if (accountInfo == null) {
+          return;
+        }
+
+        accountInfo.getActions().add(UPDATE);
+      }
+    }
+    catch (Exception ex) {
+      logger.error("", ex);
+      return;
+    }
+
+    // if null, means balance not change, return.
+    if (accountInfo == null) {
+      return;
+    }
+
+    merge(key, accountInfo);
+  }
+
+  private static final String errorMsg = " delete account but balance is not 0";
+
+  public void delete(byte[] key, AccountCapsule oldAccount) {
+    if (!recordBalance) {
+      return;
+    }
+
+    // check balance == 0; 否则报错
+    logger.info(" >>> delete account:{}", oldAccount.getAddress());
+    logger.info(" >>> delete account:{}", oldAccount.getBalance());
+    logger.info(" >>> delete account:{}", oldAccount.getFrozenBalance());
+    logger.info(" >>> delete account:{}", oldAccount.getEnergyFrozenBalance());
+    logger.info(" >>> delete account:{}", oldAccount.getDelegatedFrozenBalanceForEnergy());
+    logger.info(" >>> delete account:{}", oldAccount.getDelegatedFrozenBalanceForBandwidth());
+    logger.info(" >>> delete account:{}", oldAccount.getFrozenSupplyBalance());
+
+    AccountInfo accountInfo = AccountInfo.of(oldAccount);
+    accountInfo.getActions().add(DELETE);
+    merge(key, accountInfo);
+  }
+
+  private void merge(byte[] key, AccountInfo accountInfo) {
+    final String keyString = Hex.toHexString(key);
+    final AccountInfo inMapInfo = tempAccountMap.get(keyString);
+
+    if (inMapInfo == null) {
+      tempAccountMap.put(keyString, accountInfo);
+      return;
+    }
+
+    try {
+      mergeInfo(inMapInfo, accountInfo);
+    }
+    catch (Exception ex) {
+      logger.error("", ex);
+    }
+  }
+
+  private void mergeInfo(AccountInfo inMapInfo, AccountInfo addInfo) {
+    //  merge：update balance， add incrementBalance.
+    AccountInfo.setBalance(inMapInfo, addInfo);
+    inMapInfo.getActions().addAll(addInfo.getActions());
+
+    inMapInfo.setIncrementBalance(inMapInfo.getIncrementBalance() + addInfo.getIncrementBalance());
+    inMapInfo.setIncrementFrozenBalance(inMapInfo.getIncrementFrozenBalance() + addInfo.getIncrementFrozenBalance());
+    inMapInfo.setIncrementEnergyFrozenBalance(inMapInfo.getIncrementEnergyFrozenBalance() + addInfo.getIncrementEnergyFrozenBalance());
+    inMapInfo.setIncrementDelegatedFrozenBalanceForEnergy(inMapInfo.getIncrementDelegatedFrozenBalanceForEnergy() + addInfo.getIncrementDelegatedFrozenBalanceForEnergy());
+    inMapInfo.setIncrementDelegatedFrozenBalanceForBandwidth(inMapInfo.getIncrementDelegatedFrozenBalanceForBandwidth() + addInfo.getIncrementDelegatedFrozenBalanceForBandwidth());
+    inMapInfo.setIncrementFrozenSupplyBalance(inMapInfo.getIncrementFrozenSupplyBalance() + addInfo.getIncrementFrozenSupplyBalance());
+    inMapInfo.setIncrementAcquiredDelegatedFrozenBalanceForEnergy(inMapInfo.getIncrementAcquiredDelegatedFrozenBalanceForEnergy() + addInfo.getIncrementAcquiredDelegatedFrozenBalanceForEnergy());
+    inMapInfo.setIncrementAcquiredDelegatedFrozenBalanceForBandwidth(inMapInfo.getIncrementAcquiredDelegatedFrozenBalanceForBandwidth() + addInfo.getIncrementAcquiredDelegatedFrozenBalanceForBandwidth());
+
+    inMapInfo.setIncrementFrozenBalanceForBandwidthV2(inMapInfo.getIncrementFrozenBalanceForBandwidthV2() + addInfo.getIncrementFrozenBalanceForBandwidthV2());
+    inMapInfo.setIncrementFrozenBalanceForEnergyV2(inMapInfo.getIncrementFrozenBalanceForEnergyV2() + addInfo.getIncrementFrozenBalanceForEnergyV2());
+    inMapInfo.setIncrementFrozenForTronPowerV2(inMapInfo.getIncrementFrozenForTronPowerV2() + addInfo.getIncrementFrozenForTronPowerV2());
+    inMapInfo.setIncrementDelegatedFrozenV2BalanceForBandwidth(inMapInfo.getIncrementDelegatedFrozenV2BalanceForBandwidth() + addInfo.getIncrementDelegatedFrozenV2BalanceForBandwidth());
+    inMapInfo.setIncrementDelegatedFrozenV2BalanceForEnergy(inMapInfo.getIncrementDelegatedFrozenV2BalanceForEnergy() + addInfo.getIncrementDelegatedFrozenV2BalanceForEnergy());
+
+    Map<String, Trc10Info> trc10Map = inMapInfo.getTrc10Map();
+    Map<String, Trc10Info> addMap = addInfo.getTrc10Map();
+
+    if (trc10Map == null) {
+      trc10Map = new HashMap<>();
+      inMapInfo.setTrc10Map(trc10Map);
+    }
+
+    if (addMap == null) {
+      return;
+    }
+
+    trc10Map.forEach((tokenId, info) -> {
+      final Trc10Info addTrc10Info = addMap.get(tokenId);
+      if (addTrc10Info == null) {
+        // is null 表示10币没有变动， 所以不需要merge
+        return;
+      }
+
+      info.setBalance(addTrc10Info.getBalance());
+      info.setIncrementBalance(info.getIncrementBalance() + addTrc10Info.getIncrementBalance());
+      addMap.remove(tokenId);
+    });
+
+    if (addMap != null && addMap.size() > 0) {
+      trc10Map.putAll(addMap);
+    }
+  }
+
+
+  @Data
+  public static class AccountInfo {
+    private String accountAddress;
+    // 2=delete; 1=add; 0=update;
+    private List<Integer> actions = new LinkedList<>();
+
+    private long balance;
+    private long frozenBalance;
+    private long energyFrozenBalance;
+    private long delegatedFrozenBalanceForEnergy;
+    private long delegatedFrozenBalanceForBandwidth;
+    private long frozenSupplyBalance;
+    private long acquiredDelegatedFrozenBalanceForEnergy;
+    private long acquiredDelegatedFrozenBalanceForBandwidth;
+
+    private long incrementBalance;
+    private long incrementFrozenBalance;
+    private long incrementEnergyFrozenBalance;
+    private long incrementDelegatedFrozenBalanceForEnergy;
+    private long incrementDelegatedFrozenBalanceForBandwidth;
+    private long incrementFrozenSupplyBalance;
+    private long incrementAcquiredDelegatedFrozenBalanceForEnergy;
+    private long incrementAcquiredDelegatedFrozenBalanceForBandwidth;
+
+    // for stake2.0
+    private long frozenBalanceForBandwidthV2;
+    private long frozenBalanceForEnergyV2;
+    private long frozenForTronPowerV2;
+    private long delegatedFrozenV2BalanceForBandwidth;
+    private long delegatedFrozenV2BalanceForEnergy;
+
+    private long incrementFrozenBalanceForBandwidthV2;
+    private long incrementFrozenBalanceForEnergyV2;
+    private long incrementFrozenForTronPowerV2;
+    private long incrementDelegatedFrozenV2BalanceForBandwidth;
+    private long incrementDelegatedFrozenV2BalanceForEnergy;
+
+
+    private Map<String, Trc10Info> trc10Map;
+
+    public static AccountInfo of(AccountCapsule account) {
+      AccountInfo info = new AccountInfo();
+      final String address = StringUtil.encode58Check(account.getAddress().toByteArray());
+      info.setAccountAddress(address);
+
+      setBalance(info, account);
+
+      info.setIncrementBalance(account.getBalance());
+      info.setIncrementFrozenBalance(account.getFrozenBalance());
+      info.setIncrementEnergyFrozenBalance(account.getEnergyFrozenBalance());
+      info.setIncrementDelegatedFrozenBalanceForEnergy(account.getDelegatedFrozenBalanceForEnergy());
+      info.setIncrementDelegatedFrozenBalanceForBandwidth(account.getDelegatedFrozenBalanceForBandwidth());
+      info.setIncrementFrozenSupplyBalance(account.getFrozenSupplyBalance());
+      info.setIncrementAcquiredDelegatedFrozenBalanceForEnergy(account.getAcquiredDelegatedFrozenBalanceForEnergy());
+      info.setIncrementAcquiredDelegatedFrozenBalanceForBandwidth(account.getAcquiredDelegatedFrozenBalanceForBandwidth());
+
+      info.setIncrementFrozenBalanceForBandwidthV2(account.getFrozenV2BalanceForBandwidth());
+      info.setIncrementFrozenBalanceForEnergyV2(account.getFrozenV2BalanceForEnergy());
+      info.setIncrementFrozenForTronPowerV2(account.getTronPowerFrozenV2Balance());
+      info.setIncrementDelegatedFrozenV2BalanceForBandwidth(account.getDelegatedFrozenV2BalanceForBandwidth());
+      info.setIncrementDelegatedFrozenV2BalanceForEnergy(account.getDelegatedFrozenV2BalanceForEnergy());
+
+      info.setTrc10Map(Trc10Info.of(account.getAssetMapV2(), true));
+      return info;
+    }
+
+    // 检查余额是否有变动，没有变动 return null.
+    public static AccountInfo of(AccountCapsule oldAccount, AccountCapsule newAccount) {
+      AccountInfo info = new AccountInfo();
+      final String address = StringUtil.encode58Check(newAccount.getAddress().toByteArray());
+      info.setAccountAddress(address);
+
+      setBalance(info, newAccount);
+
+      info.setIncrementBalance(newAccount.getBalance() - oldAccount.getBalance());
+      info.setIncrementFrozenBalance(newAccount.getFrozenBalance() - oldAccount.getFrozenBalance());
+      info.setIncrementEnergyFrozenBalance(newAccount.getEnergyFrozenBalance() - oldAccount.getEnergyFrozenBalance());
+      info.setIncrementDelegatedFrozenBalanceForEnergy(newAccount.getDelegatedFrozenBalanceForEnergy() - oldAccount.getDelegatedFrozenBalanceForEnergy());
+      info.setIncrementDelegatedFrozenBalanceForBandwidth(newAccount.getDelegatedFrozenBalanceForBandwidth() - oldAccount.getDelegatedFrozenBalanceForBandwidth());
+      info.setIncrementFrozenSupplyBalance(newAccount.getFrozenSupplyBalance() - oldAccount.getFrozenSupplyBalance());
+      info.setIncrementAcquiredDelegatedFrozenBalanceForEnergy(newAccount.getAcquiredDelegatedFrozenBalanceForEnergy() - oldAccount.getAcquiredDelegatedFrozenBalanceForEnergy());
+      info.setIncrementAcquiredDelegatedFrozenBalanceForBandwidth(newAccount.getAcquiredDelegatedFrozenBalanceForBandwidth() - oldAccount.getAcquiredDelegatedFrozenBalanceForBandwidth());
+
+      info.setIncrementFrozenBalanceForBandwidthV2(newAccount.getFrozenV2BalanceForBandwidth() - oldAccount.getFrozenV2BalanceForBandwidth());
+      info.setIncrementFrozenBalanceForEnergyV2(newAccount.getFrozenV2BalanceForEnergy() - oldAccount.getFrozenV2BalanceForEnergy());
+      info.setIncrementFrozenForTronPowerV2(newAccount.getTronPowerFrozenV2Balance() - oldAccount.getTronPowerFrozenV2Balance());
+      info.setIncrementDelegatedFrozenV2BalanceForBandwidth(newAccount.getDelegatedFrozenV2BalanceForBandwidth() - oldAccount.getDelegatedFrozenV2BalanceForBandwidth());
+      info.setIncrementDelegatedFrozenV2BalanceForEnergy(newAccount.getDelegatedFrozenV2BalanceForEnergy() - oldAccount.getDelegatedFrozenV2BalanceForEnergy());
+
+      info.setTrc10Map(Trc10Info.of(oldAccount.getAssetMapV2(), newAccount.getAssetMapV2()));
+
+      // 检查余额是否有变动，没有变动 return null.
+      if (info.getIncrementBalance() == 0
+              && info.getIncrementFrozenBalance() == 0
+              && info.getIncrementEnergyFrozenBalance() == 0
+              && info.getIncrementDelegatedFrozenBalanceForEnergy() == 0
+              && info.getIncrementDelegatedFrozenBalanceForBandwidth() == 0
+              && info.getIncrementFrozenSupplyBalance() == 0
+              && info.getIncrementAcquiredDelegatedFrozenBalanceForEnergy() == 0
+              && info.getIncrementAcquiredDelegatedFrozenBalanceForBandwidth() == 0
+              && info.getIncrementFrozenBalanceForBandwidthV2() == 0
+              && info.getIncrementFrozenBalanceForEnergyV2() == 0
+              && info.getIncrementFrozenForTronPowerV2() == 0
+              && info.getIncrementDelegatedFrozenV2BalanceForBandwidth() == 0
+              && info.getIncrementDelegatedFrozenV2BalanceForEnergy() == 0
+              && info.getTrc10Map() == null) {
+        return null;
+      }
+
+      return info;
+    }
+
+    public static void setBalance(AccountInfo info, AccountCapsule account) {
+      info.setBalance(account.getBalance());
+      info.setFrozenBalance(account.getFrozenBalance());
+      info.setEnergyFrozenBalance(account.getEnergyFrozenBalance());
+      info.setDelegatedFrozenBalanceForEnergy(account.getDelegatedFrozenBalanceForEnergy());
+      info.setDelegatedFrozenBalanceForBandwidth(account.getDelegatedFrozenBalanceForBandwidth());
+      info.setFrozenSupplyBalance(account.getFrozenSupplyBalance());
+      info.setAcquiredDelegatedFrozenBalanceForEnergy(account.getAcquiredDelegatedFrozenBalanceForEnergy());
+      info.setAcquiredDelegatedFrozenBalanceForBandwidth(account.getAcquiredDelegatedFrozenBalanceForBandwidth());
+
+      info.setFrozenBalanceForBandwidthV2(account.getFrozenV2BalanceForBandwidth());
+      info.setFrozenBalanceForEnergyV2(account.getFrozenV2BalanceForEnergy());
+      info.setFrozenForTronPowerV2(account.getTronPowerFrozenV2Balance());
+      info.setDelegatedFrozenV2BalanceForBandwidth(account.getDelegatedFrozenV2BalanceForBandwidth());
+      info.setDelegatedFrozenV2BalanceForEnergy(account.getDelegatedFrozenV2BalanceForEnergy());
+    }
+
+    public static void setBalance(AccountInfo info, AccountInfo account) {
+      info.setBalance(account.getBalance());
+      info.setFrozenBalance(account.getFrozenBalance());
+      info.setEnergyFrozenBalance(account.getEnergyFrozenBalance());
+      info.setDelegatedFrozenBalanceForEnergy(account.getDelegatedFrozenBalanceForEnergy());
+      info.setDelegatedFrozenBalanceForBandwidth(account.getDelegatedFrozenBalanceForBandwidth());
+      info.setFrozenSupplyBalance(account.getFrozenSupplyBalance());
+      info.setAcquiredDelegatedFrozenBalanceForEnergy(account.getAcquiredDelegatedFrozenBalanceForEnergy());
+      info.setAcquiredDelegatedFrozenBalanceForBandwidth(account.getAcquiredDelegatedFrozenBalanceForBandwidth());
+
+
+      info.setFrozenBalanceForBandwidthV2(account.getFrozenBalanceForBandwidthV2());
+      info.setFrozenBalanceForEnergyV2(account.getFrozenBalanceForEnergyV2());
+      info.setFrozenForTronPowerV2(account.getFrozenForTronPowerV2());
+      info.setDelegatedFrozenV2BalanceForBandwidth(account.getDelegatedFrozenV2BalanceForBandwidth());
+      info.setDelegatedFrozenV2BalanceForEnergy(account.getDelegatedFrozenV2BalanceForEnergy());
+    }
+  }
+
+
+  @Data
+  public static class Trc10Info {
+    private String tokenId;
+    private long balance;
+    private long incrementBalance;
+
+    public static Map<String, Trc10Info> of(Map<String, Long> assetMapV2, boolean isNew) {
+      Map<String, Trc10Info> trc10Map = new HashMap<>();
+      if (CollectionUtils.isEmpty(assetMapV2)) {
+        return trc10Map;
+      }
+
+      assetMapV2.forEach((key, val) -> {
+        Trc10Info trc10Info = null;
+        if (isNew) {
+          trc10Info = of(key, val);
+        }
+        else {
+          trc10Info = of(key, val, 0);
+        }
+
+        if (trc10Info != null) {
+          trc10Map.put(key, trc10Info);
+        }
+      });
+
+      return trc10Map;
+    }
+
+    // if not change return null;
+    public static Map<String, Trc10Info> of(Map<String, Long> oldAssetMapV2, Map<String, Long> newAssetMapV2) {
+      final boolean oldEmpty = CollectionUtils.isEmpty(oldAssetMapV2);
+      final boolean newEmpty = CollectionUtils.isEmpty(newAssetMapV2);
+
+      // trc10 没有修改的， return null
+      if (oldEmpty && newEmpty) {
+        return null;
+      }
+
+      if (oldEmpty) {
+        return of(newAssetMapV2, true);
+      }
+
+      if (newEmpty) {
+        return of(oldAssetMapV2, false);
+      }
+
+      Map<String, Trc10Info> trc10Map = new HashMap<>();
+      newAssetMapV2.forEach((key, val) -> {
+        Long oldVal = oldAssetMapV2.get(key);
+
+        if (oldVal == null) {
+          oldVal = 0L;
+        }
+
+        final Trc10Info trc10Info = of(key, oldVal, val);
+
+        if (trc10Info != null) {
+          trc10Map.put(key, trc10Info);
+        }
+      });
+
+      oldAssetMapV2.forEach((key, oldVal) -> {
+        if (newAssetMapV2.containsKey(key)) {
+          return;
+        }
+
+        final Trc10Info trc10Info = of(key, oldVal, 0);
+
+        if (trc10Info != null) {
+          trc10Map.put(key, trc10Info);
+        }
+      });
+
+      // trc10 没有修改的， return null
+      if (CollectionUtils.isEmpty(trc10Map)) {
+        return null;
+      }
+
+      return trc10Map;
+    }
+
+    private static Trc10Info of(String tokenId, long val) {
+      Trc10Info info = new Trc10Info();
+      info.setTokenId(tokenId);
+      info.setBalance(val);
+      info.setIncrementBalance(val);
+      return info;
+    }
+
+    private static Trc10Info of(String tokenId, long oldVal, long val) {
+      Trc10Info info = new Trc10Info();
+      info.setTokenId(tokenId);
+      info.setBalance(val);
+      info.setIncrementBalance(val - oldVal);
+
+      // not change
+      if (info.getIncrementBalance() == 0) {
+        return null;
+      }
+      return info;
+    }
+  }
+
+}

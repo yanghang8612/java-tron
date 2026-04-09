@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.tron.common.utils.DecodeUtil;
 import org.tron.common.utils.StringUtil;
 import org.tron.core.capsule.AccountCapsule;
+import org.tron.core.db.accountchange.StakeChangeRecord;
 import org.tron.core.exception.ContractExeException;
 import org.tron.core.exception.ContractValidateException;
 import org.tron.core.store.DynamicPropertiesStore;
@@ -70,6 +71,7 @@ public class WithdrawExpireUnfreezeProcessor {
     AccountCapsule ownerCapsule = repo.getAccount(ownerAddress);
     long now = dynamicStore.getLatestBlockHeaderTimestamp();
     List<Protocol.Account.UnFreezeV2> unfrozenV2List = ownerCapsule.getInstance().getUnfrozenV2List();
+    final List<Protocol.Account.UnFreezeV2> totalWithdrawList = getTotalWithdrawList(unfrozenV2List, now);
     long totalWithdrawUnfreeze = getTotalWithdrawUnfreeze(unfrozenV2List, now);
     if (totalWithdrawUnfreeze <= 0) {
       return 0;
@@ -77,6 +79,10 @@ public class WithdrawExpireUnfreezeProcessor {
     ownerCapsule.setInstance(ownerCapsule.getInstance().toBuilder()
         .setBalance(ownerCapsule.getBalance() + totalWithdrawUnfreeze)
         .build());
+
+    // === TronLink Feature ===
+    StakeChangeRecord.withdrawUnfreeze(ownerAddress, totalWithdrawList);
+
     List<Protocol.Account.UnFreezeV2> newUnFreezeList = getRemainWithdrawList(unfrozenV2List, now);
     ownerCapsule.clearUnfrozenV2();
     ownerCapsule.addAllUnfrozenV2(newUnFreezeList);

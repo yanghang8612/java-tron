@@ -21,6 +21,7 @@ import org.tron.common.utils.DecodeUtil;
 import org.tron.common.utils.StringUtil;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.TransactionResultCapsule;
+import org.tron.core.db.accountchange.StakeChangeRecord;
 import org.tron.core.exception.ContractExeException;
 import org.tron.core.exception.ContractValidateException;
 import org.tron.core.store.AccountStore;
@@ -71,6 +72,9 @@ public class CancelAllUnfreezeV2Actuator extends AbstractActuator {
     for (UnFreezeV2 unFreezeV2 : unfrozenV2List) {
       updateAndCalculate(triple, ownerCapsule, now, atomicWithdrawExpireBalance, unFreezeV2);
     }
+
+    // === TronLink Feature ===
+    StakeChangeRecord.withdrawUnfreeze(ownerAddress, unfrozenV2List);
     ownerCapsule.clearUnfrozenV2();
     addTotalResourceWeight(dynamicStore, triple);
 

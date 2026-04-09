@@ -668,8 +668,12 @@ public class VMActuator implements Actuator2 {
 
 
   private double getCpuLimitInUsRatio() {
-
     double cpuLimitRatio;
+
+    if (isConstantCall) {
+      cpuLimitRatio = CommonParameter.getInstance().getMaxTimeRatio();
+      return cpuLimitRatio;
+    }
 
     if (ExecutorType.ET_NORMAL_TYPE == executorType) {
       // self witness generates block

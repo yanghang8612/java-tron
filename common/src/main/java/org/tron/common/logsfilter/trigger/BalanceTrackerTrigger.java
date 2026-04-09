@@ -1,0 +1,186 @@
+package org.tron.common.logsfilter.trigger;
+
+import java.util.ArrayList;
+import java.util.List;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+
+/**
+ * === TronLink Feature ===
+ */
+@Data
+@EqualsAndHashCode(callSuper = false)
+public class BalanceTrackerTrigger extends Trigger {
+
+  @Data
+  public static class AssetStatusPojo {
+
+    private String accountAddress;
+    private String tokenAddress;
+    private String balance;
+    private String incrementBalance;
+    private String decimals;
+  }
+
+  @Data
+  public static class Trc10StatusPojo {
+
+    private String accountAddress;
+    private String tokenAddress;
+    private String balance;
+    private String incrementBalance;
+  }
+
+  @Data
+  public static class TrxStatusPojo {
+
+    private String accountAddress;
+    private List<Integer> actions;
+
+    private String balance;
+    private String frozenBalance;
+    private String energyFrozenBalance;
+    private String delegatedFrozenBalanceForEnergy;
+    private String delegatedFrozenBalanceForBandwidth;
+    private String frozenSupplyBalance;
+    private String acquiredDelegatedFrozenBalanceForEnergy;
+    private String acquiredDelegatedFrozenBalanceForBandwidth;
+
+    private String incrementBalance;
+    private String incrementFrozenBalance;
+    private String incrementEnergyFrozenBalance;
+    private String incrementDelegatedFrozenBalanceForEnergy;
+    private String incrementDelegatedFrozenBalanceForBandwidth;
+    private String incrementFrozenSupplyBalance;
+    private String incrementAcquiredDelegatedFrozenBalanceForEnergy;
+    private String incrementAcquiredDelegatedFrozenBalanceForBandwidth;
+
+    // for stake2.0
+    private String frozenBalanceForBandwidthV2;
+    private String frozenBalanceForEnergyV2;
+    private String frozenForTronPowerV2;
+    private String delegatedFrozenV2BalanceForBandwidth;
+    private String delegatedFrozenV2BalanceForEnergy;
+
+    private String incrementFrozenBalanceForBandwidthV2;
+    private String incrementFrozenBalanceForEnergyV2;
+    private String incrementFrozenForTronPowerV2;
+    private String incrementDelegatedFrozenV2BalanceForBandwidth;
+    private String incrementDelegatedFrozenV2BalanceForEnergy;
+
+  }
+
+  @Data
+  public static class Trc721Info {
+
+    public String fromAccountAddress;
+
+    public String toAccountAddress;
+
+    public String tokenAddress;
+
+    public String assetId;
+
+    public String assetUrl;
+
+    public Long assetUrlTime;
+  }
+
+  @Data
+  public static class Trc1155Info {
+    // 可能为空，表示没有transfer, 只有变动的url
+    public String accountAddress = "";
+
+    // 不能为空
+    public String tokenAddress;
+
+    // 不能为空
+    public String assetId;
+
+    public String balance = "";
+
+    public String incrementBalance = "0";
+
+    // 计算每个assetId的totalSupply
+    public String incrementTotalSupply = "0";
+
+    // 如果有值，就表示有变动，需要更新
+    public String assetUrl = "";
+  }
+
+    public enum ConcernTopics {
+    TRANSFER("Transfer(address,address,uint256)",
+        "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
+    TRANSFER_SHARES("TransferShares(address,address,uint256)",
+        "9d9c909296d9c674451c0c24f02cb64981eb3b727f99865939192f880a755dcb"),
+    Withdrawal("Withdrawal(address,uint256)",
+        "7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65"),
+    TransferSingle("TransferSingle(address,address,address,uint256,uint256)",
+        "c3d58168c5ae7397731d063d5bbf3d657854427343f4c083240f7aacaa2d0f62"),
+    TransferBatch("TransferBatch(address,address,address,uint256[],uint256[])",
+        "4a39dc06d4c0dbc64b70af90fd698a233a518aa5d07e595d983b8c0526c8f7fb"),
+    URI("URI(string,uint256)",
+        "6bb7ff708619ba0610cba295a58592e0451dee2622938c8755667688daf3529b"),
+    Deposit("Deposit(address,uint256)",
+        "e1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c"),
+    UNKNOWN("UNKNOWN()",
+        "0c78932dd210147f42a4ec6c5a353697626c4043d49be5f063518e57f3399e61");
+
+    @Getter
+    private String sign;
+    @Getter
+    private String signHash;
+
+
+    ConcernTopics(String sign, String signHash) {
+      this.sign = sign;
+      this.signHash = signHash;
+    }
+
+    public static Boolean MatchSignHash(String dist) {
+      for (ConcernTopics value : ConcernTopics.values()) {
+        if (value.signHash.equals(dist)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    public static ConcernTopics getBySH(String signHa) {
+      for (ConcernTopics value : ConcernTopics.values()) {
+        if (value.signHash.equals(signHa)) {
+          return value;
+        }
+      }
+      return UNKNOWN;
+    }
+  }
+
+
+  private long blockNumber;
+
+  private String parentHash;
+
+  private String blockHash;
+
+  private Boolean solidity = false;
+
+  private List<AssetStatusPojo> assetStatusList = new ArrayList<>();
+
+  private List<Trc10StatusPojo> trc10StatusList = new ArrayList<>();
+
+  private List<TrxStatusPojo> trxStatusList = new ArrayList<>();
+
+  private List<Trc721Info> trc721InfoList = new ArrayList<>();
+
+  private List<Trc1155Info> trc1155InfoList = new ArrayList<>();
+
+  public BalanceTrackerTrigger() {
+    super();
+    setTriggerName(Trigger.TRC20TRACKER_TRIGGER_NAME);
+  }
+
+}
+
+

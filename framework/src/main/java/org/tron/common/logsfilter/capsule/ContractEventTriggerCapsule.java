@@ -56,7 +56,10 @@ public class ContractEventTriggerCapsule extends TriggerCapsule {
     contractEventTrigger
         .setDataMap(ContractEventParserAbi.parseEventData(data, topicList, abiEntry));
 
-    if (matchFilter(contractEventTrigger)) {
+    // === DeFi Feature ===
+    List<String> filterNames = matchFilter(contractEventTrigger);
+    if (!filterNames.isEmpty()) {
+      contractEventTrigger.setFilterNameList(filterNames);
       EventPluginLoader.getInstance().postContractEventTrigger(contractEventTrigger);
     }
   }
