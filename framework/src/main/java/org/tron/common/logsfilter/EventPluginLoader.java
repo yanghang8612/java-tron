@@ -282,6 +282,10 @@ public class EventPluginLoader {
       return false;
     }
 
+    triggerConfigList.forEach(triggerConfig -> {
+      setSingleTriggerConfig(triggerConfig);
+    });
+
     // === JustLend Feature ===
     if (justlendTrackerTriggerEnable &&
         (CollectionUtils.isEmpty(config.getJustlendTokens()) || StringUtils.isEmpty(config.getJustlendRentMarket()))) {
@@ -291,10 +295,6 @@ public class EventPluginLoader {
               Constant.EVENT_SUBSCRIBE_JUSTLEND_RENT_MARKET),
           TronError.ErrCode.EVENT_SUBSCRIBE_INIT);
     }
-
-    triggerConfigList.forEach(triggerConfig -> {
-      setSingleTriggerConfig(triggerConfig);
-    });
 
     return true;
   }
@@ -984,11 +984,13 @@ public class EventPluginLoader {
   public Map<String, Map<String, List<FilterQuery>>> getFilterQuery() {
     if(System.currentTimeMillis() - this.filterQueryLastUpdate > 60000*10 || this.filterQuery==null){
       String eventFilters = null;
-      for(IPluginEventListener eventListener : eventListeners){
-        eventFilters = eventListener.getEventFilterList();
-        logger.info("eventFilters:{}", eventFilters);
-        if(eventFilters != null && !eventFilters.isEmpty()){
-          break;
+      if (eventListeners != null) {
+        for(IPluginEventListener eventListener : eventListeners){
+          eventFilters = eventListener.getEventFilterList();
+          logger.info("eventFilters:{}", eventFilters);
+          if(eventFilters != null && !eventFilters.isEmpty()){
+            break;
+          }
         }
       }
       if(eventFilters != null && !eventFilters.isEmpty()) {
