@@ -1,0 +1,189 @@
+plugins {
+    id "org.sonarqube" version "2.6"
+}
+
+apply plugin: 'application'
+apply plugin: 'checkstyle'
+
+def versions = [
+        checkstyle: '8.7',
+]
+mainClassName = 'org.tron.plugins.ArchiveManifest'
+group 'org.tron'
+version '1.0.0'
+
+configurations {
+    checkstyleConfig
+}
+
+configurations.getByName('checkstyleConfig') {
+    transitive = false
+}
+
+sourceSets {
+    main {
+        java.srcDirs = rootProject.archInfo.sourceSets.main.java.srcDirs
+    }
+    test {
+        java.srcDirs = rootProject.archInfo.sourceSets.test.java.srcDirs
+    }
+}
+
+dependencies {
+    //local libraries
+    implementation fileTree(dir: 'libs', include: '*.jar')
+    testImplementation project(":framework")
+    testImplementation project(":framework").sourceSets.test.output
+    implementation group: 'info.picocli', name: 'picocli', version: '4.6.3'
+    implementation group: 'com.typesafe', name: 'config', version: '1.3.2'
+    implementation group: 'me.tongfei', name: 'progressbar', version: '0.9.3'
+    implementation group: 'org.bouncycastle', name: 'bcprov-jdk18on', version: '1.79'
+    if (rootProject.archInfo.isArm64) {
+        testRuntimeOnly group: 'org.fusesource.hawtjni', name: 'hawtjni-runtime', version: '1.18' // for test
+        implementation project(":platform")
+    } else {
+        implementation project(":platform"), {
+            exclude(group: 'org.fusesource.leveldbjni', module: 'leveldbjni-all')
+            exclude(group: 'io.github.tronprotocol', module: 'zksnark-java-sdk')
+            exclude(group: 'commons-io', module: 'commons-io')
+        }
+        implementation 'io.github.tronprotocol:leveldbjni-all:1.18.2'
+        implementation 'io.github.tronprotocol:leveldb:1.18.2'
+    }
+    implementation project(":protocol")
+}
+
+check.dependsOn 'lint'
+
+checkstyle {
+    toolVersion = "${versions.checkstyle}"
+    configFile = file("../framework/config/checkstyle/checkStyleAll.xml")
+}
+
+checkstyleMain {
+    source = 'src/main/java'
+}
+
+task lint(type: Checkstyle) {
+    // Cleaning the old log because of the creation of the new ones (not sure if totaly needed)
+    delete fileTree(dir: "${project.rootDir}/app/build/reports")
+    source 'src'
+    include '**/*.java'
+    exclude 'main/gen/**'
+    exclude 'test/**'
+    // empty classpath
+    classpath = files()
+    //Failing the build
+    ignoreFailures = false
+}
+
+tasks.matching { it instanceof Test }.all {
+    testLogging.events = ["failed", "passed", "skipped"]
+}
+
+if (project.hasProperty("mainClass")) {
+    mainClassName = mainClass
+}
+
+test {
+    testLogging {
+        exceptionFormat = 'full'
+    }
+    maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
+    jacoco {
+        destinationFile = file("../framework/build/jacoco/jacocoTest1.exec")
+        classDumpDir = file("$buildDir/jacoco/classpathdumps")
+    }
+
+    if (rootProject.archInfo.isArm64) {
+        exclude 'org/tron/plugins/leveldb/**'
+        filter {
+            excludeTestsMatching '*.*leveldb*'
+            excludeTestsMatching '*.*Leveldb*'
+            excludeTestsMatching '*.*LevelDB*'
+            excludeTestsMatching '*.*LevelDb*'
+            excludeTestsMatching '*.*Archive*'
+        }
+    }
+}
+
+jacocoTestReport {
+    reports {
+        xml.enabled true
+        csv.enabled false
+        html.destination file("${buildDir}/jacocoHtml")
+    }
+    getExecutionData().setFrom(fileTree('../framework/build/jacoco').include("**.exec"))
+}
+
+def binaryRelease(taskName, jarName, mainClass) {
+    return tasks.create("${taskName}", Jar) {
+        baseName = jarName
+        version = null
+        from(sourceSets.main.output) {
+            include "/**"
+        }
+        dependsOn (project(':protocol').jar, project(':platform').jar) // explicit_dependency
+        from {
+            configurations.runtimeClasspath.collect { // https://docs.gradle.org/current/userguide/upgrading_version_6.html#changes_6.3
+                it.isDirectory() ? it : zipTree(it)
+            }
+        }
+
+        // exclude these files for bouncycastle
+        exclude "META-INF/*.SF"
+        exclude "META-INF/*.DSA"
+        exclude "META-INF/*.RSA"
+
+        manifest {
+            attributes "Main-Class": "${mainClass}"
+        }
+    }
+}
+
+def createScript(project, mainClass, name) {
+    project.tasks.create(name: name, type: CreateStartScripts) {
+        outputDir = new File(project.buildDir, 'scripts')
+        mainClassName = mainClass
+        applicationName = name
+        classpath = project.tasks[JavaPlugin.JAR_TASK_NAME].outputs.files + project.configurations.runtimeClasspath
+    }
+    project.tasks[name].dependsOn(project.jar)
+    project.applicationDistribution.with {
+        into("bin") {
+            from(project.tasks[name])
+            fileMode = 0755
+        }
+    }
+}
+applicationDistribution.from(rootProject.archInfo.VMOptions) {
+    into "bin"
+}
+createScript(project, 'org.tron.plugins.ArchiveManifest', 'ArchiveManifest')
+createScript(project, 'org.tron.plugins.Toolkit', 'Toolkit')
+
+def releaseBinary = hasProperty('binaryRelease') ? getProperty('binaryRelease') : 'true'
+def skipArchive = hasProperty('skipArchive') ? true : false
+def skipAll = hasProperty('skipAll') ? true : false
+if (releaseBinary == 'true') {
+    artifacts {
+        archives(binaryRelease('buildToolkitJar', 'Toolkit', 'org.tron.plugins.Toolkit'))
+    }
+    if (!skipAll) {
+        if (!skipArchive) {
+            artifacts {
+                archives(binaryRelease('buildArchiveManifestJar', 'ArchiveManifest', 'org.tron.plugins.ArchiveManifest'))
+            }
+        }
+    }
+}
+
+task copyToParent(type: Copy) {
+    into "../build/distributions"
+    from "$buildDir/distributions"
+    include "*.zip"
+}
+
+
+
+build.finalizedBy(copyToParent)

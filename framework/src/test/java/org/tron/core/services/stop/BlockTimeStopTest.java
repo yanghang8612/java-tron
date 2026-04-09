@@ -1,0 +1,42 @@
+package org.tron.core.services.stop;
+
+import java.text.ParseException;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.Date;
+import java.util.TimeZone;
+import lombok.extern.slf4j.Slf4j;
+import org.junit.Assert;
+import org.tron.common.cron.CronExpression;
+import org.tron.common.parameter.CommonParameter;
+
+@Slf4j
+public class BlockTimeStopTest extends ConditionallyStopTest {
+  private static final DateTimeFormatter pattern = DateTimeFormatter
+      .ofPattern("ss mm HH dd MM ? yyyy");
+
+  private static CronExpression cronExpression;
+
+
+  static {
+    try {
+      cronExpression = new CronExpression(localDateTime.plusSeconds(12 * 3).format(pattern));
+      cronExpression.setTimeZone(TimeZone.getTimeZone(ZoneOffset.UTC));
+    } catch (ParseException e) {
+      logger.error("{}", e.getMessage());
+    }
+  }
+
+
+  protected void initParameter(CommonParameter parameter) {
+    parameter.setShutdownBlockTime(cronExpression);
+  }
+
+  @Override
+  protected void check() throws Exception {
+    long height = dbManager
+        .getDynamicPropertiesStore().getLatestBlockHeaderNumberFromDB();
+    Assert.assertTrue(cronExpression.isSatisfiedBy(new Date(chainManager
+        .getBlockById(chainManager.getBlockIdByNum(height)).getTimeStamp())));
+  }
+}
