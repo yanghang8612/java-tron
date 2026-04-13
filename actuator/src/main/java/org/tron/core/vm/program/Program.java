@@ -545,7 +545,7 @@ public class Program {
 
     increaseNonce();
 
-    InternalTransaction internalTx = addInternalTx(null, owner, obtainer, balance, null,
+    InternalTransaction internalTx = addInternalTx(getEnergyLimitLeft(), owner, obtainer, balance, null,
         "suicide", nonce, getContractState().getAccount(owner).getAssetMapV2());
 
     if (FastByteComparisons.isEqual(owner, obtainer)) {
