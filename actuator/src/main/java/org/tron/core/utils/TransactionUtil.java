@@ -232,7 +232,7 @@ public class TransactionUtil {
         if (tswBuilder.getCurrentWeight() >= permission.getThreshold()) {
           resultBuilder.setCode(Result.response_code.ENOUGH_PERMISSION);
         } else {
-          resultBuilder.setCode(Result.response_code.NOT_ENOUGH_PERMISSION);
+          resultBuilder.setCode(Result.response_code.ENOUGH_PERMISSION);
         }
       } catch (SignatureFormatException signEx) {
         resultBuilder.setCode(Result.response_code.SIGNATURE_FORMAT_ERROR);
