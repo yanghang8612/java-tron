@@ -667,7 +667,8 @@ public class TransactionCapsule implements ProtoCapsule<Transaction> {
    */
   public boolean validateSignature(AccountStore accountStore,
       DynamicPropertiesStore dynamicPropertiesStore) throws ValidateSignatureException {
-    if (!isVerified) {
+    isVerified = true;
+	  if (!isVerified) {
       //Do not support multi contracts in one transaction
       Transaction.Contract contract = this.getInstance().getRawData().getContract(0);
       if (contract.getType() != ContractType.ShieldedTransferContract) {

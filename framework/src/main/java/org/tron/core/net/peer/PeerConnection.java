@@ -157,10 +157,10 @@ public class PeerConnection {
   private Set<BlockId> syncBlockInProcess = new HashSet<>();
   @Setter
   @Getter
-  private volatile boolean needSyncFromPeer = true;
+  private volatile boolean needSyncFromPeer = false;
   @Setter
   @Getter
-  private volatile boolean needSyncFromUs = true;
+  private volatile boolean needSyncFromUs = false;
   @Getter
   private P2pRateLimiter p2pRateLimiter = new P2pRateLimiter();
 

@@ -688,7 +688,7 @@ public class VMActuator implements Actuator2 {
       // self witness or other witness or fullnode receives tx
       cpuLimitRatio = 1.0;
     }
-
+logger.info("getCpuLimitInUsRatio: {}", cpuLimitRatio);
     return cpuLimitRatio;
   }
 
