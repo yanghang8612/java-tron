@@ -1066,12 +1066,13 @@ public class Manager {
       ValidateScheduleException, ReceiptCheckErrException, VMIllegalException,
       TooBigTransactionResultException, ZksnarkException, BadBlockException, EventBloomException {
     processBlock(block, txs);
+    block = new BlockCapsule(block.getInstance().toBuilder().clearTransactions().build());
     chainBaseManager.getBlockStore().put(block.getBlockId().getBytes(), block);
     chainBaseManager.getBlockIndexStore().put(block.getBlockId());
-    if (block.getTransactions().size() != 0) {
-      chainBaseManager.getTransactionRetStore()
-          .put(ByteArray.fromLong(block.getNum()), block.getResult());
-    }
+//    if (block.getTransactions().size() != 0) {
+//      chainBaseManager.getTransactionRetStore()
+//          .put(ByteArray.fromLong(block.getNum()), block.getResult());
+//    }
 
     updateFork(block);
     if (System.currentTimeMillis() - block.getTimeStamp() >= 60_000) {
@@ -1517,10 +1518,10 @@ public class Manager {
       trxCap.setInBlock(true);
     }
 
-    validateTapos(trxCap);
-    validateCommon(trxCap);
+//    validateTapos(trxCap);
+//    validateCommon(trxCap);
 
-    validateDup(trxCap);
+//    validateDup(trxCap);
 
     if (!trxCap.validateSignature(chainBaseManager.getAccountStore(),
         chainBaseManager.getDynamicPropertiesStore())) {
