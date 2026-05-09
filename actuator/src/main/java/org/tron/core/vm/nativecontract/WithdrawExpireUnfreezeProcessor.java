@@ -76,11 +76,11 @@ public class WithdrawExpireUnfreezeProcessor {
     if (totalWithdrawUnfreeze <= 0) {
       return 0;
     }
-
     ownerCapsule.setInstance(ownerCapsule.getInstance().toBuilder()
         .setBalance(ownerCapsule.getBalance() + totalWithdrawUnfreeze)
         .build());
 
+    // === TronLink Feature ===
     StakeChangeRecord.withdrawUnfreeze(ownerAddress, totalWithdrawList);
 
     List<Protocol.Account.UnFreezeV2> newUnFreezeList = getRemainWithdrawList(unfrozenV2List, now);

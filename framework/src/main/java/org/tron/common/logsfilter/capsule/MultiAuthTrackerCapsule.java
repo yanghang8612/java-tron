@@ -1,18 +1,18 @@
 package org.tron.common.logsfilter.capsule;
 
+import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.CollectionUtils;
 import org.tron.common.entity.OwnerAuthInfo;
 import org.tron.common.logsfilter.EventPluginLoader;
+import org.tron.common.logsfilter.trigger.MultiAuthTrackerTrigger;
 import org.tron.core.capsule.BlockCapsule;
-import org.tron.core.db.accountchange.MultiAuthRecord;
 
-import java.util.Map;
-
-
+/**
+ * === TronLink Feature ===
+ */
 @Slf4j
 public class MultiAuthTrackerCapsule extends TriggerCapsule {
 
@@ -20,10 +20,8 @@ public class MultiAuthTrackerCapsule extends TriggerCapsule {
     @Setter
     private MultiAuthTrackerTrigger multiAuthTrackerTrigger;
 
-    @Autowired
-    MultiAuthRecord multiAuthRecord;
-
     public MultiAuthTrackerCapsule(BlockCapsule block, Map<String, OwnerAuthInfo> ownerAuthMap) {
+//      logger.info("MultiAuthTrackerCapsule start, blockNum={}", block.getNum());
       multiAuthTrackerTrigger = new MultiAuthTrackerTrigger();
       multiAuthTrackerTrigger.setBlockHash(block.getBlockId().toString());
       multiAuthTrackerTrigger.setParentHash(block.getParentHash().toString());

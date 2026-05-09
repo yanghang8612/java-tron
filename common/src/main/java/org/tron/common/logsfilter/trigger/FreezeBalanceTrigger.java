@@ -7,6 +7,9 @@ import java.math.BigInteger;
 import java.util.LinkedList;
 import java.util.List;
 
+/**
+ * === TronLink Feature ===
+ */
 @Data
 @EqualsAndHashCode(callSuper = false)
 public class FreezeBalanceTrigger extends Trigger {
@@ -29,6 +32,9 @@ public class FreezeBalanceTrigger extends Trigger {
     public Integer resource;  // 1=能量， 2=带宽
   }
 
+  /**
+   * === TronLink Feature ===
+   */
   @Data
   public static class AssetTransfer {
 

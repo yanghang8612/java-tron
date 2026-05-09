@@ -1,9 +1,13 @@
-package org.tron.common.utils;
+package org.tron.common.logsfilter.capsule.utils;
 
 import java.util.Arrays;
 import lombok.Getter;
 import org.tron.common.crypto.Hash;
+import org.tron.common.utils.ByteArray;
 
+/**
+ * === TronLink Feature ===
+ */
 public enum ShieldedTRC20EventsEnum {
 
   MINT_NEW_LEAF(1, "MintNewLeaf(uint256,bytes32,bytes32,bytes32,bytes32[21])", "mint"),
@@ -13,15 +17,17 @@ public enum ShieldedTRC20EventsEnum {
   TOKEN_BURN(4, "TokenBurn(address,uint256,bytes32[3])", "burn"),
   NOTE_SPENT(6, "NoteSpent(bytes32)", "unknown");
 
+  @Getter
+  private final int typeId;
 
   @Getter
-  private int typeId;
+  private final String signature;
+
   @Getter
-  private String signature;
+  private final String method;
+
   @Getter
-  private String method;
-  @Getter
-  private byte[] hash;
+  private final byte[] hash;
 
   ShieldedTRC20EventsEnum(int typeId, String signature, String method) {
     this.typeId = typeId;

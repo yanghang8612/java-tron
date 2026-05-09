@@ -6,9 +6,7 @@ import org.tron.common.runtime.vm.LogInfo;
 import java.util.List;
 
 /**
- * @author ：Tron
- * @description ：
- * @date ：2021/6/15
+ * === TronLink Feature ===
  */
 @Data
 public class AssetTransferLogInfo {

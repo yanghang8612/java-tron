@@ -41,5 +41,8 @@ public class ContractLogTrigger extends ContractTrigger {
     setBlockNumber(eventTrigger.getBlockNumber());
     setTimeStamp(eventTrigger.getTimeStamp());
     setBlockHash(eventTrigger.getBlockHash());
+
+    // === DeFi Feature ===
+    setFilterNameList(eventTrigger.getFilterNameList());
   }
 }

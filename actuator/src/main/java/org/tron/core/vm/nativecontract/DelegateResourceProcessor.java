@@ -163,6 +163,8 @@ public class DelegateResourceProcessor {
       final long frozenBalanceForBandwidth = delegatedResourceCapsule.getFrozenBalanceForBandwidth();
       final long expireTimeForBandwidth = delegatedResourceCapsule.getExpireTimeForBandwidth();
       delegatedResourceCapsule.addFrozenBalanceForBandwidth(delegateBalance, 0);
+
+      // === TronLink Feature ===
       StakeChangeRecord.recordResource(ownerAddress, receiverAddress, Common.ResourceCode.BANDWIDTH,
               frozenBalanceForBandwidth + delegateBalance, 0L, frozenBalanceForBandwidth, expireTimeForBandwidth, false);
 
@@ -170,6 +172,8 @@ public class DelegateResourceProcessor {
       final long frozenBalanceForEnergy = delegatedResourceCapsule.getFrozenBalanceForEnergy();
       final long expireTimeForEnergy = delegatedResourceCapsule.getExpireTimeForEnergy();
       delegatedResourceCapsule.addFrozenBalanceForEnergy(delegateBalance, 0);
+
+      // TronLink feature
       StakeChangeRecord.recordResource(ownerAddress, receiverAddress, Common.ResourceCode.ENERGY,
               frozenBalanceForEnergy + delegateBalance, 0L, frozenBalanceForEnergy, expireTimeForEnergy, false);
     }

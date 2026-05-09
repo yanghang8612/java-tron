@@ -15,16 +15,20 @@ public class EventPluginConfig {
   public static final String SOLIDITY_EVENT_NAME = "solidityevent";
   public static final String SOLIDITY_LOG_NAME = "soliditylog";
 
+  // === DeFi Feature ===
+  public static final String BLOCK_CONTRACTLOG_TRIGGER_NAME = "blockcontractlog";
+
+  // === TronLink Feature ===
   public static final String BALANCE_TRACKER = "balanceTracker";
   public static final String FREEZE_BALANCE_TRACKER = "freezeBalanceTracker";
   public static final String STAKE_BALANCE_TRACKER = "stakeBalanceTracker";
-  public static final String TRC20TRACKER_SOLIDITY_TRIGGER_NAME = "trc20SolidityTracker";
-  public static final String BLOCK_ERASE_TRIGGER_NAME = "blockErased";
   public static final String SHIELDED_TRC20_SOLIDITY_TRACKER = "shieldedTRC20SolidityTracker";
   public static final String SHIELDED_TRC20_TRACKER = "shieldedTRC20Tracker";
   public static final String TRANSFER_TRACKER = "transferTracker";
   public static final String MULTIAUTH_TRACKER = "multiAuthTracker";
 
+  // === JustLend Feature ===
+  public static final String JUSTLEND_TRACKER = "justlendTracker";
 
   @Getter
   @Setter
@@ -63,6 +67,16 @@ public class EventPluginConfig {
   @Setter
   private List<TriggerConfig> triggerConfigList;
 
+  // === JustLend Feature ===
+  @Getter
+  @Setter
+  private List<String> justlendTokens;
+
+  // === JustLend Feature ===
+  @Getter
+  @Setter
+  private String justlendRentMarket;
+
   public EventPluginConfig() {
     pluginPath = "";
     serverAddress = "";
@@ -71,5 +85,9 @@ public class EventPluginConfig {
     bindPort = 0;
     sendQueueLength = 0;
     triggerConfigList = new ArrayList<>();
+
+    // === JustLend Feature ===
+    justlendTokens = new ArrayList<>();
+    justlendRentMarket = "";
   }
 }

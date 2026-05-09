@@ -1,6 +1,8 @@
 package org.tron.common.logsfilter.capsule;
 
-import com.alibaba.fastjson.JSON;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -10,6 +12,7 @@ import org.tron.common.entity.AssetTransferInfo;
 import org.tron.common.entity.AssetTransferLogInfo;
 import org.tron.common.logsfilter.EventPluginLoader;
 import org.tron.common.logsfilter.TRC20Utils;
+import org.tron.common.logsfilter.trigger.TransferTrackerTrigger;
 import org.tron.common.runtime.InternalTransaction;
 import org.tron.common.runtime.vm.LogInfo;
 import org.tron.common.utils.StringUtil;
@@ -21,10 +24,9 @@ import org.tron.protos.contract.AssetIssueContractOuterClass;
 import org.tron.protos.contract.BalanceContract;
 import org.tron.protos.contract.SmartContractOuterClass;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
+/**
+ * === TronLink Feature ===
+ */
 @Slf4j
 public class TransferTrackerCapsule extends TriggerCapsule {
 
@@ -33,6 +35,7 @@ public class TransferTrackerCapsule extends TriggerCapsule {
   private TransferTrackerTrigger transferTrackerTrigger;
 
   public TransferTrackerCapsule(BlockCapsule block) {
+//    logger.info("TransferTrackerCapsule start, blocKNum={}", block.getNum());
     transferTrackerTrigger = new TransferTrackerTrigger();
     transferTrackerTrigger.setBlockHash(block.getBlockId().toString());
     transferTrackerTrigger.setParentHash(block.getParentHash().toString());
@@ -48,17 +51,15 @@ public class TransferTrackerCapsule extends TriggerCapsule {
       AssetTransferLogInfo assetTransferLogInfo = new AssetTransferLogInfo();
       List<LogInfo> innerList = transactionCapsule.getTrxTrace().getTransactionContext()
           .getProgramResult().getLogInfoList();
-      if (innerList != null && innerList.size() > 0) {
+      if (innerList != null && !innerList.isEmpty()) {
         assetTransferLogInfo.setLogInfoList(innerList);
         assetTransferLogInfo.setTxId(transactionCapsule.getTransactionId().toString());
         assetTransferLogInfo.setNote(convertNote(transactionCapsule));
 
         // 这里只能会得到true
-        if (Protocol.Transaction.Result.contractResult.SUCCESS == transactionCapsule.getInstance().getRet(0).getContractRet()) {
-          assetTransferLogInfo.setIsSuccess(true);
-        } else {
-          assetTransferLogInfo.setIsSuccess(false);
-        }
+        assetTransferLogInfo.setIsSuccess(
+            Protocol.Transaction.Result.contractResult.SUCCESS == transactionCapsule.getInstance().getRet(
+                0).getContractRet());
 
         assetTransferLogInfos.add(assetTransferLogInfo);
       }

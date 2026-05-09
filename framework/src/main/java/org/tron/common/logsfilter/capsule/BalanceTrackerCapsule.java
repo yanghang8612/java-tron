@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -18,9 +17,11 @@ import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.capsule.TransactionCapsule;
 import org.tron.core.db.accountchange.AccountChangeRecord;
 
+/**
+ * === TronLink Feature ===
+ */
 @Slf4j
 public class BalanceTrackerCapsule extends TriggerCapsule {
-
 
   @Getter
   @Setter
@@ -37,11 +38,11 @@ public class BalanceTrackerCapsule extends TriggerCapsule {
     for (TransactionCapsule transactionCapsule : transactionCapsules) {
       List<LogInfo> innerList = transactionCapsule.getTrxTrace().getTransactionContext()
           .getProgramResult().getLogInfoList();
-      if (innerList != null && innerList.size() > 0) {
+      if (innerList != null && !innerList.isEmpty()) {
         logInfos.addAll(innerList);
       }
     }
-    if (logInfos.size() > 0) {
+    if (!logInfos.isEmpty()) {
       Map<String, Object> result = TRC20Utils.parseTrc20AssetStatusPojo(block, logInfos);
       trc20TrackerTrigger.setAssetStatusList((List<AssetStatusPojo>) result.get(TRC20Utils.TRC20));
       trc20TrackerTrigger.setTrc721InfoList((List<BalanceTrackerTrigger.Trc721Info>) result.get(TRC20Utils.TRC721));

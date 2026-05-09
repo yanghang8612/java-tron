@@ -129,7 +129,10 @@ public class ContractTriggerCapsule extends TriggerCapsule {
     event.setTimeStamp(contractTrigger.getTimeStamp());
     event.setBlockHash(contractTrigger.getBlockHash());
 
-    if (matchFilter(contractTrigger)) {
+    // === DeFi Feature ===
+    List<String> filterNames = matchFilter(contractTrigger);
+    if (!filterNames.isEmpty()) {
+      event.setFilterNameList(filterNames);
       if (isEvent) {
         if (EventPluginLoader.getInstance().isContractEventTriggerEnable()) {
           EventPluginLoader.getInstance().postContractEventTrigger((ContractEventTrigger) event);

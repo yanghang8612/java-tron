@@ -76,6 +76,7 @@ public class CancelAllUnfreezeV2Actuator extends AbstractActuator {
       updateAndCalculate(triple, ownerCapsule, now, atomicWithdrawExpireBalance, unFreezeV2);
     }
 
+    // === TronLink Feature ===
     StakeChangeRecord.withdrawUnfreeze(ownerAddress, unfrozenV2List);
     ownerCapsule.clearUnfrozenV2();
     addTotalResourceWeight(dynamicStore, triple);

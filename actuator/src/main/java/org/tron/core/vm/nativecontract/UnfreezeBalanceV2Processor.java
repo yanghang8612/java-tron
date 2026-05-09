@@ -132,9 +132,9 @@ public class UnfreezeBalanceV2Processor {
     }
 
     long expireTime = this.calcUnfreezeExpireTime(now, repo);
-
     accountCapsule.addUnfrozenV2List(param.getResourceType(), unfreezeBalance, expireTime);
 
+    // === TronLink Feature ===
     StakeChangeRecord.recordUnfreeze(ownerAddress, param.getResourceType(), unfreezeBalance, expireTime);
 
     this.updateTotalResourceWeight(accountCapsule, param.getResourceType(), unfreezeBalance, repo);
@@ -166,6 +166,7 @@ public class UnfreezeBalanceV2Processor {
       }
     }
 
+    // === TronLink Feature ===
     StakeChangeRecord.withdrawUnfreeze(accountCapsule.getAddress().toByteArray(), expireList);
 
     accountCapsule.setInstance(

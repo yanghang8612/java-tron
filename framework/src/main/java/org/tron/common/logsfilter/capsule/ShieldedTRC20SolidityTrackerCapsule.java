@@ -7,9 +7,11 @@ import org.tron.common.logsfilter.EventPluginLoader;
 import org.tron.common.logsfilter.trigger.ShieldedTRC20TrackerTrigger;
 import org.tron.core.capsule.BlockCapsule;
 
+/**
+ * === TronLink Feature ===
+ */
 @Slf4j
 public class ShieldedTRC20SolidityTrackerCapsule extends TriggerCapsule {
-
 
   @Getter
   @Setter
@@ -32,5 +34,4 @@ public class ShieldedTRC20SolidityTrackerCapsule extends TriggerCapsule {
   public void processTrigger() {
     EventPluginLoader.getInstance().postShieldedTRC20TrackerTrigger(shieldedTRC20TrackerTrigger);
   }
-
 }

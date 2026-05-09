@@ -1,5 +1,12 @@
 package org.tron.common.logsfilter.capsule;
 
+import java.math.BigInteger;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -14,9 +21,9 @@ import org.tron.protos.contract.AssetIssueContractOuterClass;
 import org.tron.protos.contract.BalanceContract;
 import org.tron.protos.contract.Common;
 
-import java.math.BigInteger;
-import java.util.*;
-
+/**
+ * === TronLink Feature ===
+ */
 @Slf4j
 public class FreezeTrackerCapsule extends TriggerCapsule {
 

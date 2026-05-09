@@ -91,6 +91,7 @@ public class DataWord implements Comparable<DataWord> {
     }
   }
 
+  // === TronLink Feature ===
   public static DataWord getDataWord(byte[] bytes, int index) {
     if (index >= bytes.length / DataWord.WORD_SIZE) {
       throw new IndexOutOfBoundsException("length:" + bytes + " index:" + index);
@@ -387,7 +388,7 @@ public class DataWord implements Comparable<DataWord> {
     this.data = ByteUtil.copyToArray(result.and(MAX_VALUE));
   }
 
-  // TODO: improve with no BigInteger
+  // TODO: improve with no BigInteger1
   public void exp(DataWord word) {
     BigInteger result = value().modPow(word.value(), _2_256);
     this.data = ByteUtil.copyToArray(result);

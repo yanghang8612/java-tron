@@ -1,5 +1,6 @@
 package org.tron.common.logsfilter.trigger;
 
+import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 import org.tron.common.logsfilter.capsule.RawData;
@@ -83,4 +84,9 @@ public class ContractTrigger extends Trigger {
   @Getter
   @Setter
   private ABI abi;
+
+  // === DeFi Feature ===
+  @Getter
+  @Setter
+  private List<String> filterNameList;
 }
