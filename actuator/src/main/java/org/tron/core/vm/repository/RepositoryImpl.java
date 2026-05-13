@@ -10,6 +10,7 @@ import com.google.common.collect.HashBasedTable;
 import com.google.protobuf.ByteString;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.HashSet;
 import java.util.Optional;
 import lombok.Getter;
@@ -94,7 +95,9 @@ public class RepositoryImpl implements Repository {
   private final HashMap<Key, Value<SmartContract>> contractCache = new HashMap<>();
   private final HashMap<Key, Value<ContractState>> contractStateCache
       = new HashMap<>();
-  private final HashMap<Key, Storage> storageCache = new HashMap<>();
+  // LinkedHashMap so iteration follows TVM contract-touch order.
+  @Getter
+  private final LinkedHashMap<Key, Storage> storageCache = new LinkedHashMap<>();
 
   private final HashMap<Key, Value<AssetIssueContract>> assetIssueCache = new HashMap<>();
   private final HashMap<Key, Value<byte[]>> dynamicPropertiesCache = new HashMap<>();
