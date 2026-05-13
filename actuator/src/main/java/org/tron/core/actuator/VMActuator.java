@@ -74,6 +74,7 @@ public class VMActuator implements Actuator2 {
   private BlockCapsule blockCap;
 
   /* tvm execution context */
+  @Getter
   private Repository rootRepository;
   private Program program;
   private InternalTransaction rootInternalTx;
