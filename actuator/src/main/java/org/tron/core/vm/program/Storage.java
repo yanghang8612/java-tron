@@ -2,7 +2,7 @@ package org.tron.core.vm.program;
 
 import static java.lang.System.arraycopy;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
@@ -15,8 +15,9 @@ import org.tron.core.store.StorageRowStore;
 public class Storage {
 
   private static final int PREFIX_BYTES = 16;
+  // LinkedHashMap so iteration follows TVM access order.
   @Getter
-  private final Map<DataWord, StorageRowCapsule> rowCache = new HashMap<>();
+  private final Map<DataWord, StorageRowCapsule> rowCache = new LinkedHashMap<>();
   @Getter
   private byte[] addrHash;
   @Getter

@@ -1230,6 +1230,20 @@ message TransactionExtention {
   repeated TransactionInfo.Log logs = 6;
   repeated InternalTransaction internal_transactions = 7;
   int64 energy_penalty = 8;
+  // Storage slots actually loaded from disk during TVM execution,
+  // ordered by first-access. Notes: (1) SLOAD of an empty slot returns
+  // zero and is not recorded; (2) slots touched inside a sub-call that
+  // reverts are not propagated.
+  repeated ContractStorage touched_storages = 10;
+}
+
+message ContractStorage {
+  message Entry {
+    bytes slot = 1;
+    bytes value = 2;
+  }
+  bytes address = 1;
+  repeated Entry entries = 2;
 }
 
 message EstimateEnergyMessage {

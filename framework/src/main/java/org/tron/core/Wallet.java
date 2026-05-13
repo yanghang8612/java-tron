@@ -79,6 +79,7 @@ import org.tron.api.GrpcAPI.Address;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.BytesMessage;
+import org.tron.api.GrpcAPI.ContractStorage;
 import org.tron.api.GrpcAPI.DecryptNotes;
 import org.tron.api.GrpcAPI.DecryptNotes.NoteTx;
 import org.tron.api.GrpcAPI.DecryptNotesTRC20;
@@ -211,6 +212,8 @@ import org.tron.core.store.VotesStore;
 import org.tron.core.store.WitnessStore;
 import org.tron.core.utils.TransactionUtil;
 import org.tron.core.vm.program.Program;
+import org.tron.core.vm.program.Storage;
+import org.tron.core.vm.repository.RepositoryImpl;
 import org.tron.core.zen.ShieldedTRC20ParametersBuilder;
 import org.tron.core.zen.ShieldedTRC20ParametersBuilder.ShieldedTRC20ParametersType;
 import org.tron.core.zen.ZenTransactionBuilder;
@@ -3186,6 +3189,7 @@ public class Wallet {
         builder.addLogs(LogInfo.buildLog(logInfo)));
     result.getInternalTransactions().forEach(it ->
         builder.addInternalTransactions(buildInternalTransaction(it)));
+    addTouchedStorages(builder, vmActuator);
     ret.setStatus(0, code.SUCESS);
     if (StringUtils.isNoneEmpty(result.getRuntimeError())) {
       ret.setStatus(0, code.FAILED);
@@ -3200,6 +3204,22 @@ public class Wallet {
     }
     trxCap.setResult(ret);
     return trxCap.getInstance();
+  }
+
+  private static void addTouchedStorages(Builder builder, VMActuator vmActuator) {
+    RepositoryImpl rootRepo = (RepositoryImpl) vmActuator.getRootRepository();
+    rootRepo.getStorageCache().forEach((addrKey, storage) -> {
+      if (storage.getRowCache().isEmpty()) {
+        return;
+      }
+      ContractStorage.Builder cs = ContractStorage.newBuilder()
+          .setAddress(ByteString.copyFrom(storage.getAddress()));
+      storage.getRowCache().forEach((slot, row) -> cs.addEntries(
+          ContractStorage.Entry.newBuilder()
+              .setSlot(ByteString.copyFrom(slot.getData()))
+              .setValue(ByteString.copyFrom(row.getValue()))));
+      builder.addTouchedStorages(cs);
+    });
   }
 
   public SmartContract getContract(GrpcAPI.BytesMessage bytesMessage) {
