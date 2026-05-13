@@ -1230,11 +1230,18 @@ message TransactionExtention {
   repeated TransactionInfo.Log logs = 6;
   repeated InternalTransaction internal_transactions = 7;
   int64 energy_penalty = 8;
+  reserved 9;
+  reserved "opcode_count";
   // Storage slots actually loaded from disk during TVM execution,
   // ordered by first-access. Notes: (1) SLOAD of an empty slot returns
   // zero and is not recorded; (2) slots touched inside a sub-call that
   // reverts are not propagated.
   repeated ContractStorage touched_storages = 10;
+  // Ordered trace of executed TVM instructions. Only populated when the
+  // request sets `with_ops=true` (HTTP only). Steps from nested calls
+  // (including reverted ones) appear inline at the CALL site, in
+  // execution order. A step that halted with an exception is not recorded.
+  repeated OpStep ops = 11;
 }
 
 message ContractStorage {
@@ -1244,6 +1251,16 @@ message ContractStorage {
   }
   bytes address = 1;
   repeated Entry entries = 2;
+}
+
+message OpStep {
+  uint32 pc = 1;
+  string op = 2;
+  uint32 depth = 3;
+  // Energy charged for this instruction (includes dynamic-energy penalty).
+  int64 energy = 4;
+  // Operands of this instruction, top-of-stack first.
+  repeated bytes stack = 5;
 }
 
 message EstimateEnergyMessage {
