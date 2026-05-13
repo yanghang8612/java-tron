@@ -36,6 +36,9 @@ public class ProgramResult {
   //private ByteArraySet touchedAccounts = new ByteArraySet();
   private List<InternalTransaction> internalTransactions;
   private List<LogInfo> logInfoList;
+
+  @Getter
+  private List<OpStep> opSteps = new ArrayList<>();
   private TransactionResultCapsule ret = new TransactionResultCapsule();
 
   @Setter
@@ -176,6 +179,10 @@ public class ProgramResult {
     }
   }
 
+  public void addOpStep(int pc, String op, int depth, long energy, List<byte[]> stack) {
+    opSteps.add(new OpStep(pc, op, depth, energy, stack));
+  }
+
   public List<CallCreate> getCallCreateList() {
     if (callCreateList == null) {
       callCreateList = new ArrayList<>();
@@ -239,6 +246,7 @@ public class ProgramResult {
   public void merge(ProgramResult another) {
     addInternalTransactions(another.getInternalTransactions());
     addTotalPenalty(another.getEnergyPenaltyTotal());
+    opSteps.addAll(another.getOpSteps());
     if (another.getException() == null && !another.isRevert()) {
       addDeleteAccounts(another.getDeleteAccounts());
       addLogInfos(another.getLogInfoList());

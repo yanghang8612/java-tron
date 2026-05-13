@@ -96,6 +96,9 @@ public class VMActuator implements Actuator2 {
   @Setter
   private boolean isConstantCall;
 
+  @Setter
+  private boolean withOps;
+
   private long maxEnergyLimit;
 
   @Setter
@@ -195,7 +198,12 @@ public class VMActuator implements Actuator2 {
           throw e;
         }
 
-        VM.play(program, OperationRegistry.getTable());
+        VM.setRecordOps(withOps);
+        try {
+          VM.play(program, OperationRegistry.getTable());
+        } finally {
+          VM.setRecordOps(false);
+        }
         result = program.getResult();
 
         if (VMConfig.allowEnergyAdjustment()) {
