@@ -3115,11 +3115,19 @@ public class Wallet {
   public Transaction triggerConstantContract(TriggerSmartContract triggerSmartContract,
       TransactionCapsule trxCap, Builder builder, Return.Builder retBuilder)
       throws ContractValidateException, ContractExeException, HeaderNotFound, VMIllegalException {
-    return triggerConstantContract(triggerSmartContract, trxCap, builder, retBuilder, false);
+    return triggerConstantContract(triggerSmartContract, trxCap, builder, retBuilder, false, false);
   }
 
   public Transaction triggerConstantContract(TriggerSmartContract triggerSmartContract,
       TransactionCapsule trxCap, Builder builder, Return.Builder retBuilder, boolean isEstimating)
+      throws ContractValidateException, ContractExeException, HeaderNotFound, VMIllegalException {
+    return triggerConstantContract(
+        triggerSmartContract, trxCap, builder, retBuilder, isEstimating, false);
+  }
+
+  public Transaction triggerConstantContract(TriggerSmartContract triggerSmartContract,
+      TransactionCapsule trxCap, Builder builder, Return.Builder retBuilder,
+      boolean isEstimating, boolean withOps)
       throws ContractValidateException, ContractExeException, HeaderNotFound, VMIllegalException {
 
     if (triggerSmartContract.getContractAddress().isEmpty()) { // deploy contract
@@ -3145,11 +3153,17 @@ public class Wallet {
         throw new ContractValidateException("Smart contract is not exist.");
       }
     }
-    return callConstantContract(trxCap, builder, retBuilder, isEstimating);
+    return callConstantContract(trxCap, builder, retBuilder, isEstimating, withOps);
   }
 
   public Transaction callConstantContract(TransactionCapsule trxCap,
       Builder builder, Return.Builder retBuilder, boolean isEstimating)
+      throws ContractValidateException, ContractExeException, HeaderNotFound, VMIllegalException {
+    return callConstantContract(trxCap, builder, retBuilder, isEstimating, false);
+  }
+
+  public Transaction callConstantContract(TransactionCapsule trxCap,
+      Builder builder, Return.Builder retBuilder, boolean isEstimating, boolean withOps)
       throws ContractValidateException, ContractExeException, HeaderNotFound, VMIllegalException {
 
     if (!Args.getInstance().isSupportConstant()) {
@@ -3169,6 +3183,7 @@ public class Wallet {
     TransactionContext context = new TransactionContext(headBlockCapsule, trxCap,
         StoreFactory.getInstance(), true, false);
     VMActuator vmActuator = new VMActuator(true);
+    vmActuator.setWithOps(withOps);
 
     vmActuator.validate(context);
     vmActuator.execute(context);
@@ -3177,7 +3192,7 @@ public class Wallet {
     if (!isEstimating && result.getException() != null
         || result.getException() instanceof Program.OutOfTimeException) {
       builder.setEnergyUsed(result.getEnergyMark());
-      result.getOpcodeCountMap().forEach(builder::putOpcodeCount);
+      addOpSteps(builder, result);
       RuntimeException e = result.getException();
       logger.warn("Constant call failed for reason: {}", e.getMessage());
       throw e;
@@ -3191,7 +3206,7 @@ public class Wallet {
         builder.addLogs(LogInfo.buildLog(logInfo)));
     result.getInternalTransactions().forEach(it ->
         builder.addInternalTransactions(buildInternalTransaction(it)));
-    result.getOpcodeCountMap().forEach(builder::putOpcodeCount);
+    addOpSteps(builder, result);
     addTouchedStorages(builder, vmActuator);
     ret.setStatus(0, code.SUCESS);
     if (StringUtils.isNoneEmpty(result.getRuntimeError())) {
@@ -3207,6 +3222,20 @@ public class Wallet {
     }
     trxCap.setResult(ret);
     return trxCap.getInstance();
+  }
+
+  private static void addOpSteps(Builder builder, ProgramResult result) {
+    for (org.tron.common.runtime.OpStep step : result.getOpSteps()) {
+      GrpcAPI.OpStep.Builder b = GrpcAPI.OpStep.newBuilder()
+          .setPc(step.getPc())
+          .setOp(step.getOp())
+          .setDepth(step.getDepth())
+          .setEnergy(step.getEnergy());
+      for (byte[] s : step.getStack()) {
+        b.addStack(ByteString.copyFrom(s));
+      }
+      builder.addOps(b);
+    }
   }
 
   private static void addTouchedStorages(Builder builder, VMActuator vmActuator) {

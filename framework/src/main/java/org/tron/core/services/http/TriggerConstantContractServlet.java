@@ -59,10 +59,11 @@ public class TriggerConstantContractServlet extends RateLimiterServlet {
       TransactionCapsule trxCap = wallet
           .createTransactionCapsule(build.build(), ContractType.TriggerSmartContract);
 
+      boolean withOps = jsonObject.getBooleanValue("with_ops");
       Transaction trx = wallet
-          .triggerConstantContract(build.build(),trxCap,
+          .triggerConstantContract(build.build(), trxCap,
               trxExtBuilder,
-              retBuilder);
+              retBuilder, false, withOps);
       trx = Util.setTransactionPermissionId(jsonObject, trx);
       trx = Util.setTransactionExtraData(jsonObject, trx, visible);
       trxExtBuilder.setTransaction(trx);

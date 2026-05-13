@@ -6,7 +6,6 @@ import static org.tron.common.utils.ByteUtil.EMPTY_BYTE_ARRAY;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -43,7 +42,7 @@ public class ProgramResult {
   private List<LogInfo> logInfoList;
 
   @Getter
-  private Map<String, Integer> opcodeCountMap = new HashMap<>();
+  private List<OpStep> opSteps = new ArrayList<>();
   private TransactionResultCapsule ret = new TransactionResultCapsule();
 
   @Setter
@@ -184,8 +183,8 @@ public class ProgramResult {
     }
   }
 
-  public void increaseOpcodeCount(String opcode) {
-    opcodeCountMap.put(opcode, opcodeCountMap.getOrDefault(opcode, 0) + 1);
+  public void addOpStep(int pc, String op, int depth, long energy, List<byte[]> stack) {
+    opSteps.add(new OpStep(pc, op, depth, energy, stack));
   }
 
   public List<CallCreate> getCallCreateList() {
@@ -251,9 +250,7 @@ public class ProgramResult {
   public void merge(ProgramResult another) {
     addInternalTransactions(another.getInternalTransactions());
     addTotalPenalty(another.getEnergyPenaltyTotal());
-    for (Map.Entry<String, Integer> entry : another.getOpcodeCountMap().entrySet()) {
-      opcodeCountMap.merge(entry.getKey(), entry.getValue(), Integer::sum);
-    }
+    opSteps.addAll(another.getOpSteps());
     if (another.getException() == null && !another.isRevert()) {
       addDeleteAccounts(another.getDeleteAccounts());
       addLogInfos(another.getLogInfoList());
