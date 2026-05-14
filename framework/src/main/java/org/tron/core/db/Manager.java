@@ -599,6 +599,7 @@ public class Manager {
       ExecutorServiceManager.submit(triggerEs, triggerCapsuleProcessLoop);
     } else {
       // === TronLink Feature ===
+
       logger.info(" >>>>>>>>>>> has no --es , to close!!!!!!!!!!!!");
       throw new TronError("has no --es, to close!", TronError.ErrCode.EVENT_SUBSCRIBE_ERROR);
     }
