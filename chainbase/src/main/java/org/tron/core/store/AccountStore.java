@@ -90,25 +90,25 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
       }
     }
 
-    AccountCapsule preItem = super.getUnchecked(key);
-    long preStakedTRXForEnergy = preItem == null ? 0 : preItem.getAllStakedTRXForEnergy();
-    long curStakedTRXForEnergy = item == null ? 0 : item.getAllStakedTRXForEnergy();
-    if (preStakedTRXForEnergy != curStakedTRXForEnergy) {
-      if (curStakedTRXForEnergy == 0) {
-        topDelegatorService.removeStaker(preItem);
-      } else if (preStakedTRXForEnergy == 0) {
-        topDelegatorService.addStaker(item);
-      } else {
-        topDelegatorService.updateStaker(item);
-      }
-    }
-
-    long now = EnergyProcessor.getHeadSlot(dynamicPropertiesStore);
-    long preDelegated = preItem == null ? 0 : preItem.getDelegatedFrozenV2BalanceForEnergy();
-    if (item != null && (item.getLatestConsumeTimeForEnergy() == now
-        || item.getDelegatedFrozenV2BalanceForEnergy() > preDelegated)) {
-      topDelegatorService.updateMEU(item);
-    }
+//    AccountCapsule preItem = super.getUnchecked(key);
+//    long preStakedTRXForEnergy = preItem == null ? 0 : preItem.getAllStakedTRXForEnergy();
+//    long curStakedTRXForEnergy = item == null ? 0 : item.getAllStakedTRXForEnergy();
+//    if (preStakedTRXForEnergy != curStakedTRXForEnergy) {
+//      if (curStakedTRXForEnergy == 0) {
+//        topDelegatorService.removeStaker(preItem);
+//      } else if (preStakedTRXForEnergy == 0) {
+//        topDelegatorService.addStaker(item);
+//      } else {
+//        topDelegatorService.updateStaker(item);
+//      }
+//    }
+//
+//    long now = EnergyProcessor.getHeadSlot(dynamicPropertiesStore);
+//    long preDelegated = preItem == null ? 0 : preItem.getDelegatedFrozenV2BalanceForEnergy();
+//    if (item != null && (item.getLatestConsumeTimeForEnergy() == now
+//        || item.getDelegatedFrozenV2BalanceForEnergy() > preDelegated)) {
+//      topDelegatorService.updateMEU(item);
+//    }
 
     super.put(key, item);
     accountStateCallBackUtils.accountCallBack(key, item);

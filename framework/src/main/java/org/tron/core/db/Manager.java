@@ -448,7 +448,7 @@ public class Manager {
     revokingStore.check();
     transactionCache.initCache();
     rewardViCalService.init();
-    topDelegatorService.init(chainBaseManager.getAccountStore());
+//    topDelegatorService.init(chainBaseManager.getAccountStore());
     this.setProposalController(ProposalController.createInstance(this));
     this.setMerkleContainer(
         merkleContainer.createInstance(chainBaseManager.getMerkleTreeStore(),
@@ -2074,7 +2074,7 @@ public class Manager {
       }).start();
 
       // Do staker stats
-      topDelegatorService.doStats();
+//      topDelegatorService.doStats();
     }
 
     if (!consensus.applyBlock(block)) {
