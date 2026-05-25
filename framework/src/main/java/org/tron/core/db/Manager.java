@@ -238,6 +238,8 @@ public class Manager {
   @Autowired
   @Getter
   private ChainBaseManager chainBaseManager;
+  @Autowired
+  private org.tron.core.service.TopDelegatorService topDelegatorService;
   // transactions cache
   private BlockingQueue<TransactionCapsule> pendingTransactions;
   @Getter
@@ -1896,6 +1898,27 @@ public class Manager {
         <= block.getTimeStamp();
     if (flag) {
       proposalController.processProposals();
+      // fast-sync-stats 功能2:周期末异步统计 staker,避免阻塞区块处理。
+      // cycleNum 与 peakMeu 快照必须在主线程、consensus.applyBlock 推进 cycle 之前捕获:
+      // doStats 跑在新线程,届时 cycle 已被 doMaintenance 推进为 N+1,线程内再读会落到下一周期。
+      if (topDelegatorService.tryStartStats()) {
+        try {
+          long cycleNum = chainBaseManager.getDynamicPropertiesStore().getCurrentCycleNumber();
+          Map<ByteString, Long> meuSnapshot = topDelegatorService.swapPeakMeu();
+          new Thread(() -> {
+            try {
+              topDelegatorService.doStats(cycleNum, meuSnapshot);
+            } catch (Exception e) {
+              logger.error("staker doStats failed", e);
+            }
+          }).start();
+        } catch (Throwable t) {
+          // 捕获 cycle/快照 或线程创建启动失败(如 OOM 无法创建原生线程):释放 running,
+          // 否则后续所有周期的 staker 统计都会被永久跳过。
+          topDelegatorService.abortStats();
+          logger.error("staker doStats dispatch failed", t);
+        }
+      }
     }
 
     if (!consensus.applyBlock(block)) {

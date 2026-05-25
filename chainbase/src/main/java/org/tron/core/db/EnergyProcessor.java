@@ -128,6 +128,13 @@ public class EnergyProcessor extends ResourceProcessor {
     accountCapsule.setLatestOperationTime(latestOperationTime);
     accountCapsule.setLatestConsumeTimeForEnergy(now);
 
+    org.tron.core.service.TopDelegatorService tds =
+        org.tron.core.ChainBaseManager.getInstance() == null ? null
+            : org.tron.core.ChainBaseManager.getInstance().getTopDelegatorService();
+    if (tds != null && energyLimit > 0) {
+      tds.recordPeakMeu(accountCapsule.createDbKey(), newEnergyUsage, energyLimit);
+    }
+
     accountStore.put(accountCapsule.createDbKey(), accountCapsule);
 
     if (dynamicPropertiesStore.getAllowAdaptiveEnergy() == 1) {

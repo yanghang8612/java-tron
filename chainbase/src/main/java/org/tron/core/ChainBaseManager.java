@@ -33,6 +33,7 @@ import org.tron.core.exception.BadItemException;
 import org.tron.core.exception.HeaderNotFound;
 import org.tron.core.exception.ItemNotFoundException;
 import org.tron.core.service.MortgageService;
+import org.tron.core.service.TopDelegatorService;
 import org.tron.core.store.AbiStore;
 import org.tron.core.store.AccountAssetStore;
 import org.tron.core.store.AccountIdIndexStore;
@@ -172,6 +173,10 @@ public class ChainBaseManager {
   @Getter
   @Setter
   private MortgageService mortgageService;
+
+  @Autowired
+  @Getter
+  private TopDelegatorService topDelegatorService;
 
   @Autowired
   @Getter

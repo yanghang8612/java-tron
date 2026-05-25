@@ -1172,6 +1172,12 @@ public class AccountCapsule implements ProtoCapsule<Account>, Comparable<Account
         + getFrozenV2BalanceForEnergy() + getAcquiredDelegatedFrozenV2BalanceForEnergy();
   }
 
+  // staker 自己出资质押给能量的总额 = v1自留 + v2自留 + 代理出去(v1+v2);不含 acquired(别人代理给我的)
+  public long getAllStakedTRXForEnergy() {
+    return getEnergyFrozenBalance() + getFrozenV2BalanceForEnergy()
+        + getTotalDelegatedFrozenBalanceForEnergy();
+  }
+
   public long getLatestConsumeTimeForEnergy() {
     return this.account.getAccountResource().getLatestConsumeTimeForEnergy();
   }
