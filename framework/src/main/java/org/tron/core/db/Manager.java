@@ -1066,12 +1066,13 @@ public class Manager {
       ValidateScheduleException, ReceiptCheckErrException, VMIllegalException,
       TooBigTransactionResultException, ZksnarkException, BadBlockException, EventBloomException {
     processBlock(block, txs);
+    block = new BlockCapsule(block.getInstance().toBuilder().clearTransactions().build());
     chainBaseManager.getBlockStore().put(block.getBlockId().getBytes(), block);
     chainBaseManager.getBlockIndexStore().put(block.getBlockId());
-    if (block.getTransactions().size() != 0) {
-      chainBaseManager.getTransactionRetStore()
-          .put(ByteArray.fromLong(block.getNum()), block.getResult());
-    }
+//    if (block.getTransactions().size() != 0) {
+//      chainBaseManager.getTransactionRetStore()
+//          .put(ByteArray.fromLong(block.getNum()), block.getResult());
+//    }
 
     updateFork(block);
     if (System.currentTimeMillis() - block.getTimeStamp() >= 60_000) {
@@ -1293,12 +1294,13 @@ public class Manager {
         try (PendingManager pm = new PendingManager(this)) {
 
           if (!block.generatedByMyself) {
-            if (!block.calcMerkleRoot().equals(block.getMerkleRoot())) {
-              logger.warn("Num: {}, the merkle root doesn't match, expect is {} , actual is {}.",
-                  block.getNum(), block.getMerkleRoot(), block.calcMerkleRoot());
-              throw new BadBlockException(CALC_MERKLE_ROOT_FAILED,
-                      String.format("The merkle hash is not validated for %d", block.getNum()));
-            }
+            // fast-sync: skip merkle root check
+//          if (!block.calcMerkleRoot().equals(block.getMerkleRoot())) {
+//              logger.warn("Num: {}, the merkle root doesn't match, expect is {} , actual is {}.",
+//                  block.getNum(), block.getMerkleRoot(), block.calcMerkleRoot());
+//              throw new BadBlockException(CALC_MERKLE_ROOT_FAILED,
+//                      String.format("The merkle hash is not validated for %d", block.getNum()));
+//            }
             consensus.receiveBlock(block);
           }
 
@@ -1517,10 +1519,10 @@ public class Manager {
       trxCap.setInBlock(true);
     }
 
-    validateTapos(trxCap);
-    validateCommon(trxCap);
+//    validateTapos(trxCap);
+//    validateCommon(trxCap);
 
-    validateDup(trxCap);
+//    validateDup(trxCap);
 
     if (!trxCap.validateSignature(chainBaseManager.getAccountStore(),
         chainBaseManager.getDynamicPropertiesStore())) {
@@ -1559,7 +1561,7 @@ public class Manager {
     if (getDynamicPropertiesStore().supportVM()) {
       trxCap.setResult(trace.getTransactionContext());
     }
-    chainBaseManager.getTransactionStore().put(trxCap.getTransactionId().getBytes(), trxCap);
+//    chainBaseManager.getTransactionStore().put(trxCap.getTransactionId().getBytes(), trxCap);
 
     Optional.ofNullable(transactionCache)
         .ifPresent(t -> t.put(trxCap.getTransactionId().getBytes(),
