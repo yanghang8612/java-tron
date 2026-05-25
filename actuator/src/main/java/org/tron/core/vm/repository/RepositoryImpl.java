@@ -8,6 +8,7 @@ import static org.tron.core.config.Parameter.ChainConstant.TRX_PRECISION;
 
 import com.google.common.collect.HashBasedTable;
 import com.google.protobuf.ByteString;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Optional;
@@ -1017,6 +1018,23 @@ public class RepositoryImpl implements Repository {
         if (deposit != null) {
           deposit.putDynamicProperty(key, value);
         } else {
+          // fast-sync-stats 功能1:本节点目标网络 allowTvmFreeze 从未开启,链上无任何 VM v1 质押,
+          // 故 VM 内改动全量权重(TOTAL_NET_WEIGHT/TOTAL_ENERGY_WEIGHT)的只有 stake2.0 操作,
+          // 因此这里用「全量 delta」反推 stake2.0 delta 是准确的。
+          // 注意前提的脆弱性:VM UNFREEZE opcode(OperationActions.unfreezeAction)并无 allowTvmFreezeV2
+          // 门控(只有 FREEZE 在 v2 激活后变 no-op);若目标网络历史上开启过 allowTvmFreeze,则历史 v1
+          // 质押的 UNFREEZE 解冻、含 v1 质押合约的 suicide 退还都会改全量权重并被错误计入 total2,
+          // 届时必须改为在 VM 的 v2 processor(freezeBalanceV2/unfreezeBalanceV2/cancelAllUnfreezeV2)
+          // 内显式维护 total2,而不是此处的全量 delta 反推。
+          if (Arrays.equals(key.getData(), TOTAL_NET_WEIGHT)) {
+            long delta = ByteArray.toLong(value.getValue())
+                - getDynamicPropertiesStore().getTotalNetWeight();
+            getDynamicPropertiesStore().addTotalNetWeight2(delta);
+          } else if (Arrays.equals(key.getData(), TOTAL_ENERGY_WEIGHT)) {
+            long delta = ByteArray.toLong(value.getValue())
+                - getDynamicPropertiesStore().getTotalEnergyWeight();
+            getDynamicPropertiesStore().addTotalEnergyWeight2(delta);
+          }
           getDynamicPropertiesStore().put(key.getData(), new BytesCapsule(value.getValue()));
         }
       }

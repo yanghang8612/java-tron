@@ -293,6 +293,9 @@ public class FullNodeHttpApiService extends HttpService {
   @Autowired
   private CancelAllUnfreezeV2Servlet cancelAllUnfreezeV2Servlet;
 
+  @Autowired
+  private StakeWeightServlet stakeWeightServlet;
+
   public FullNodeHttpApiService() {
     port = Args.getInstance().getFullNodeHttpPort();
     enable = isFullNode() && Args.getInstance().isFullNodeHttpEnable();
@@ -513,6 +516,7 @@ public class FullNodeHttpApiService extends HttpService {
         "/wallet/undelegateresource");
     context.addServlet(new ServletHolder(cancelAllUnfreezeV2Servlet),
         "/wallet/cancelallunfreezev2");
+    context.addServlet(new ServletHolder(stakeWeightServlet), "/wallet/getstakeweight");
 
   }
 
