@@ -1534,200 +1534,200 @@ public class Manager {
       trxCap.setResult(trace.getTransactionContext());
 
       // Get total record
-      ContractStateCapsule totalCap = chainBaseManager.getContractStateStore().getTotalRecord();
-      if (totalCap == null) {
-        totalCap = new ContractStateCapsule(0);
-      }
-      totalCap.addTxCount();
+//      ContractStateCapsule totalCap = chainBaseManager.getContractStateStore().getTotalRecord();
+//      if (totalCap == null) {
+//        totalCap = new ContractStateCapsule(0);
+//      }
+//      totalCap.addTxCount();
 
       // Get personal record
-      byte[] owner = trxCap.getOwnerAddress();
-      ContractStateCapsule personalCap = chainBaseManager.getContractStateStore().getAccountRecord(owner);
-      if (personalCap == null) {
-        personalCap = new ContractStateCapsule(0);
-      }
-      personalCap.addTxCount();
+//      byte[] owner = trxCap.getOwnerAddress();
+//      ContractStateCapsule personalCap = chainBaseManager.getContractStateStore().getAccountRecord(owner);
+//      if (personalCap == null) {
+//        personalCap = new ContractStateCapsule(0);
+//      }
+//      personalCap.addTxCount();
 
       // Record something for smart contract
-      if (trxCap.isContractType()) {
-        // Record personal trx burn
-        personalCap.addEnergyUsage(trace.getReceipt().getEnergyUsageTotal());
-        personalCap.addEnergyPenaltyTotal(trace.getReceipt().getEnergyPenaltyTotal());
-        personalCap.addTrxBurn(trace.getReceipt().getEnergyFee());
-        personalCap.addTxTotalCount();
-
-        // Record total energy consumption
-        totalCap.addEnergyUsage(trace.getReceipt().getEnergyUsageTotal());
-        totalCap.addEnergyPenaltyTotal(trace.getReceipt().getEnergyPenaltyTotal());
-        totalCap.addTrxBurn(trace.getReceipt().getEnergyFee());
-        totalCap.addTxTotalCount();
-
-        // Get contract state
-        byte[] addr = trace.getRuntimeResult().getContractAddress();
-        ContractStateCapsule csc = getChainBaseManager().getContractStateStore().getContractRecord(addr);
-        if (csc == null) {
-          csc = new ContractStateCapsule(getDynamicPropertiesStore().getCurrentCycleNumber());
-        }
-
-        // Record total energy usage and penalty whatever the execution result
-        csc.addEnergyUsageTotal(trace.getReceipt().getEnergyUsageTotal());
-        csc.addEnergyPenaltyTotal(trace.getReceipt().getEnergyPenaltyTotal());
-        csc.addTrxBurn(trace.getReceipt().getEnergyFee());
-        csc.addTxTotalCount();
-
-        // Record usage and penalty for failed tx
-        if (trace.getRuntimeResult().getResultCode() != SUCCESS) {
-          csc.addEnergyUsageFailed(trace.getReceipt().getEnergyUsageTotal());
-          csc.addEnergyPenaltyFailed(trace.getReceipt().getEnergyPenaltyTotal());
-          csc.addTxFailedCount();
-
-          if (trace.getReceipt().getResult() == OUT_OF_ENERGY && csc.getEnergyFactor() > 0) {
-            csc.addTxOOECount();
-            if (trxCap.getFeeLimit() <= 6200000 * (1 + (double) csc.getEnergyFactor() / 10000)) {
-              logger.error("Feelimit is not enough ["
-                  + Hex.toHexString(trxCap.getTransactionId().getBytes()) + "] "
-                  + trxCap.getFeeLimit() + " [" + Time.getTimeString(blockCap.getTimeStamp()) + "]");
-            }
-          }
-        }
-
-        // Record trx penalty burn
-        long energyByTrxBurned = trace.getReceipt().getEnergyUsageTotal()
-            - trace.getReceipt().getEnergyUsage() - trace.getReceipt().getOriginEnergyUsage();
-
-        energyByTrxBurned = Math.min(
-            energyByTrxBurned,
-            trace.getReceipt().getEnergyPenaltyTotal());
-
-        totalCap.addTrxPenalty(energyByTrxBurned * getDynamicPropertiesStore().getEnergyFee());
-        csc.addTrxPenalty(energyByTrxBurned * getDynamicPropertiesStore().getEnergyFee());
-
-        // Save to db
-        chainBaseManager.getContractStateStore().setContractRecord(addr, csc);
-
-        // Deal with USDT
-        byte[] usdtAddr = Hex.decode("41a614f803B6FD780986A42c78Ec9c7f77e6DeD13C");
-
-        if (trace.getRuntimeResult().getResultCode() == SUCCESS && Arrays.equals(usdtAddr, addr)) {
-          try {
-            String calldata = Hex.toHexString(trxCap.getInstance().getRawData().getContract(0).getParameter()
-                    .unpack(SmartContractOuterClass.TriggerSmartContract.class).getData().toByteArray());
-            if (calldata.startsWith("a9059cbb") || calldata.startsWith("23b872dd")) {
-              BigInteger amount;
-              if (calldata.startsWith("a9059cbb")) {
-                if (calldata.length() < 136) {
-                  amount = BigInteger.valueOf(0);
-                } else {
-                  amount = new BigInteger(calldata.substring(36 * 2, 68 * 2), 16);
-                }
-              } else {
-                if (calldata.length() < 200) {
-                  amount = BigInteger.valueOf(0);
-                } else {
-                  amount = new BigInteger(calldata.substring(68 * 2, 100 * 2), 16);
-                }
-              }
-
-              if (amount.compareTo(BigInteger.valueOf(500000L)) > 0) {
-                ContractStateCapsule bigCap = chainBaseManager.getContractStateStore().getBigUSDTRecord();
-                if (bigCap == null) {
-                  bigCap = new ContractStateCapsule(0);
-                }
-                bigCap.addEnergyUsageTotal(trace.getReceipt().getEnergyUsageTotal());
-                bigCap.addEnergyPenaltyTotal(trace.getReceipt().getEnergyPenaltyTotal());
-                bigCap.addEnergyUsage(trace.getReceipt().getEnergyUsage());
-                bigCap.addTxTotalCount();
-                chainBaseManager.getContractStateStore().setBigUSDTRecord(bigCap);
-              } else {
-                ContractStateCapsule smallCap = chainBaseManager.getContractStateStore().getSmallUSDTRecord();
-                if (smallCap == null) {
-                  smallCap = new ContractStateCapsule(0);
-                }
-                smallCap.addEnergyUsageTotal(trace.getReceipt().getEnergyUsageTotal());
-                smallCap.addEnergyPenaltyTotal(trace.getReceipt().getEnergyPenaltyTotal());
-                smallCap.addEnergyUsage(trace.getReceipt().getEnergyUsage());
-                smallCap.addTxTotalCount();
-                chainBaseManager.getContractStateStore().setSmallUSDTRecord(smallCap);
-              }
-            }
-          } catch (InvalidProtocolBufferException e) {
-            throw new RuntimeException(e);
-          }
-        } else if (trace.getRuntimeResult().getResultCode() == SUCCESS) {
-          for (InternalTransaction it : trace.getRuntimeResult().getInternalTransactions()) {
-            byte[] iAddr = it.getTransferToAddress();
-            ContractStateCapsule iCsc = getChainBaseManager().getContractStateStore().getContractRecord(iAddr);
-            if (iCsc == null) {
-              iCsc = new ContractStateCapsule(getDynamicPropertiesStore().getCurrentCycleNumber());
-            }
-            iCsc.addTrxBurnInternal(trace.getReceipt().getEnergyFee()
-                    * (it.getEnergyUsed() + it.getEnergyPenalty()) / trace.getReceipt().getEnergyUsageTotal());
-            iCsc.addTxCountInternal();
-            chainBaseManager.getContractStateStore().setContractRecord(iAddr, iCsc);
-          }
-        }
-      } else {
-        try {
-          switch (trxCap.getInstance().getRawData().getContract(0).getType()) {
-            case TransferContract:
-              personalCap.addTxTrxCount();
-              totalCap.addTxTrxCount();
-              break;
-            case TransferAssetContract:
-              TransferAssetContract transferAssetContract =
-                      trxCap.getInstance().getRawData().getContract(0).getParameter()
-                              .unpack(TransferAssetContract.class);
-              ContractStateCapsule trc10Cap = chainBaseManager.getContractStateStore().getTRC10Record(
-                      transferAssetContract.getAssetName().toByteArray());
-              if (trc10Cap == null) {
-                trc10Cap = new ContractStateCapsule(0);
-              }
-              trc10Cap.addTxTrc10Count();
-              chainBaseManager.getContractStateStore().setTRC10Record(
-                      transferAssetContract.getAssetName().toByteArray(), trc10Cap);
-
-              personalCap.addTxTrc10Count();
-              totalCap.addTxTrc10Count();
-              break;
-            case UnfreezeBalanceContract:
-              personalCap.addUnstake(trace.getTransactionContext().getProgramResult().getRet().getUnfreezeAmount());
-              break;
-            case FreezeBalanceV2Contract:
-              FreezeBalanceV2Contract freezeBalanceV2Contract =
-                      trxCap.getInstance().getRawData().getContract(0).getParameter()
-                              .unpack(FreezeBalanceV2Contract.class);
-              personalCap.addStake2(freezeBalanceV2Contract.getFrozenBalance());
-              break;
-            case DelegateResourceContract:
-              DelegateResourceContract delegateResourceContract =
-                      trxCap.getInstance().getRawData().getContract(0).getParameter()
-                              .unpack(DelegateResourceContract.class);
-              if (delegateResourceContract.getResource() == Common.ResourceCode.ENERGY) {
-                personalCap.addDelegatedAmount(delegateResourceContract.getBalance());
-                personalCap.addDelegatedAccountToInstance(
-                        StringUtil.encode58Check(delegateResourceContract.getReceiverAddress().toByteArray()));
-              }
-              break;
-            case UnfreezeBalanceV2Contract:
-              UnfreezeBalanceV2Contract unfreezeBalanceV2Contract =
-                      trxCap.getInstance().getRawData().getContract(0).getParameter()
-                              .unpack(UnfreezeBalanceV2Contract.class);
-              personalCap.addUnstake2(unfreezeBalanceV2Contract.getUnfreezeBalance());
-              break;
-            case CancelAllUnfreezeV2Contract:
-              for (Map.Entry<String, Long> e : trace.getTransactionContext().getProgramResult().getRet()
-                      .getCancelUnfreezeV2AmountMap().entrySet()) {
-                personalCap.addCancel(e.getValue());
-              }
-              break;
-          }
-        } catch (InvalidProtocolBufferException e) {
-            throw new RuntimeException(e);
-        }
-      }
-
-      chainBaseManager.getContractStateStore().setAccountRecord(owner, personalCap);
-      chainBaseManager.getContractStateStore().setTotalRecord(totalCap);
+//      if (trxCap.isContractType()) {
+//        // Record personal trx burn
+//        personalCap.addEnergyUsage(trace.getReceipt().getEnergyUsageTotal());
+//        personalCap.addEnergyPenaltyTotal(trace.getReceipt().getEnergyPenaltyTotal());
+//        personalCap.addTrxBurn(trace.getReceipt().getEnergyFee());
+//        personalCap.addTxTotalCount();
+//
+//        // Record total energy consumption
+//        totalCap.addEnergyUsage(trace.getReceipt().getEnergyUsageTotal());
+//        totalCap.addEnergyPenaltyTotal(trace.getReceipt().getEnergyPenaltyTotal());
+//        totalCap.addTrxBurn(trace.getReceipt().getEnergyFee());
+//        totalCap.addTxTotalCount();
+//
+//        // Get contract state
+//        byte[] addr = trace.getRuntimeResult().getContractAddress();
+//        ContractStateCapsule csc = getChainBaseManager().getContractStateStore().getContractRecord(addr);
+//        if (csc == null) {
+//          csc = new ContractStateCapsule(getDynamicPropertiesStore().getCurrentCycleNumber());
+//        }
+//
+//        // Record total energy usage and penalty whatever the execution result
+//        csc.addEnergyUsageTotal(trace.getReceipt().getEnergyUsageTotal());
+//        csc.addEnergyPenaltyTotal(trace.getReceipt().getEnergyPenaltyTotal());
+//        csc.addTrxBurn(trace.getReceipt().getEnergyFee());
+//        csc.addTxTotalCount();
+//
+//        // Record usage and penalty for failed tx
+//        if (trace.getRuntimeResult().getResultCode() != SUCCESS) {
+//          csc.addEnergyUsageFailed(trace.getReceipt().getEnergyUsageTotal());
+//          csc.addEnergyPenaltyFailed(trace.getReceipt().getEnergyPenaltyTotal());
+//          csc.addTxFailedCount();
+//
+//          if (trace.getReceipt().getResult() == OUT_OF_ENERGY && csc.getEnergyFactor() > 0) {
+//            csc.addTxOOECount();
+//            if (trxCap.getFeeLimit() <= 6200000 * (1 + (double) csc.getEnergyFactor() / 10000)) {
+//              logger.error("Feelimit is not enough ["
+//                  + Hex.toHexString(trxCap.getTransactionId().getBytes()) + "] "
+//                  + trxCap.getFeeLimit() + " [" + Time.getTimeString(blockCap.getTimeStamp()) + "]");
+//            }
+//          }
+//        }
+//
+//        // Record trx penalty burn
+//        long energyByTrxBurned = trace.getReceipt().getEnergyUsageTotal()
+//            - trace.getReceipt().getEnergyUsage() - trace.getReceipt().getOriginEnergyUsage();
+//
+//        energyByTrxBurned = Math.min(
+//            energyByTrxBurned,
+//            trace.getReceipt().getEnergyPenaltyTotal());
+//
+//        totalCap.addTrxPenalty(energyByTrxBurned * getDynamicPropertiesStore().getEnergyFee());
+//        csc.addTrxPenalty(energyByTrxBurned * getDynamicPropertiesStore().getEnergyFee());
+//
+//        // Save to db
+//        chainBaseManager.getContractStateStore().setContractRecord(addr, csc);
+//
+//        // Deal with USDT
+//        byte[] usdtAddr = Hex.decode("41a614f803B6FD780986A42c78Ec9c7f77e6DeD13C");
+//
+//        if (trace.getRuntimeResult().getResultCode() == SUCCESS && Arrays.equals(usdtAddr, addr)) {
+//          try {
+//            String calldata = Hex.toHexString(trxCap.getInstance().getRawData().getContract(0).getParameter()
+//                    .unpack(SmartContractOuterClass.TriggerSmartContract.class).getData().toByteArray());
+//            if (calldata.startsWith("a9059cbb") || calldata.startsWith("23b872dd")) {
+//              BigInteger amount;
+//              if (calldata.startsWith("a9059cbb")) {
+//                if (calldata.length() < 136) {
+//                  amount = BigInteger.valueOf(0);
+//                } else {
+//                  amount = new BigInteger(calldata.substring(36 * 2, 68 * 2), 16);
+//                }
+//              } else {
+//                if (calldata.length() < 200) {
+//                  amount = BigInteger.valueOf(0);
+//                } else {
+//                  amount = new BigInteger(calldata.substring(68 * 2, 100 * 2), 16);
+//                }
+//              }
+//
+//              if (amount.compareTo(BigInteger.valueOf(500000L)) > 0) {
+//                ContractStateCapsule bigCap = chainBaseManager.getContractStateStore().getBigUSDTRecord();
+//                if (bigCap == null) {
+//                  bigCap = new ContractStateCapsule(0);
+//                }
+//                bigCap.addEnergyUsageTotal(trace.getReceipt().getEnergyUsageTotal());
+//                bigCap.addEnergyPenaltyTotal(trace.getReceipt().getEnergyPenaltyTotal());
+//                bigCap.addEnergyUsage(trace.getReceipt().getEnergyUsage());
+//                bigCap.addTxTotalCount();
+//                chainBaseManager.getContractStateStore().setBigUSDTRecord(bigCap);
+//              } else {
+//                ContractStateCapsule smallCap = chainBaseManager.getContractStateStore().getSmallUSDTRecord();
+//                if (smallCap == null) {
+//                  smallCap = new ContractStateCapsule(0);
+//                }
+//                smallCap.addEnergyUsageTotal(trace.getReceipt().getEnergyUsageTotal());
+//                smallCap.addEnergyPenaltyTotal(trace.getReceipt().getEnergyPenaltyTotal());
+//                smallCap.addEnergyUsage(trace.getReceipt().getEnergyUsage());
+//                smallCap.addTxTotalCount();
+//                chainBaseManager.getContractStateStore().setSmallUSDTRecord(smallCap);
+//              }
+//            }
+//          } catch (InvalidProtocolBufferException e) {
+//            throw new RuntimeException(e);
+//          }
+//        } else if (trace.getRuntimeResult().getResultCode() == SUCCESS) {
+//          for (InternalTransaction it : trace.getRuntimeResult().getInternalTransactions()) {
+//            byte[] iAddr = it.getTransferToAddress();
+//            ContractStateCapsule iCsc = getChainBaseManager().getContractStateStore().getContractRecord(iAddr);
+//            if (iCsc == null) {
+//              iCsc = new ContractStateCapsule(getDynamicPropertiesStore().getCurrentCycleNumber());
+//            }
+//            iCsc.addTrxBurnInternal(trace.getReceipt().getEnergyFee()
+//                    * (it.getEnergyUsed() + it.getEnergyPenalty()) / trace.getReceipt().getEnergyUsageTotal());
+//            iCsc.addTxCountInternal();
+//            chainBaseManager.getContractStateStore().setContractRecord(iAddr, iCsc);
+//          }
+//        }
+//      } else {
+//        try {
+//          switch (trxCap.getInstance().getRawData().getContract(0).getType()) {
+//            case TransferContract:
+//              personalCap.addTxTrxCount();
+//              totalCap.addTxTrxCount();
+//              break;
+//            case TransferAssetContract:
+//              TransferAssetContract transferAssetContract =
+//                      trxCap.getInstance().getRawData().getContract(0).getParameter()
+//                              .unpack(TransferAssetContract.class);
+//              ContractStateCapsule trc10Cap = chainBaseManager.getContractStateStore().getTRC10Record(
+//                      transferAssetContract.getAssetName().toByteArray());
+//              if (trc10Cap == null) {
+//                trc10Cap = new ContractStateCapsule(0);
+//              }
+//              trc10Cap.addTxTrc10Count();
+//              chainBaseManager.getContractStateStore().setTRC10Record(
+//                      transferAssetContract.getAssetName().toByteArray(), trc10Cap);
+//
+//              personalCap.addTxTrc10Count();
+//              totalCap.addTxTrc10Count();
+//              break;
+//            case UnfreezeBalanceContract:
+//              personalCap.addUnstake(trace.getTransactionContext().getProgramResult().getRet().getUnfreezeAmount());
+//              break;
+//            case FreezeBalanceV2Contract:
+//              FreezeBalanceV2Contract freezeBalanceV2Contract =
+//                      trxCap.getInstance().getRawData().getContract(0).getParameter()
+//                              .unpack(FreezeBalanceV2Contract.class);
+//              personalCap.addStake2(freezeBalanceV2Contract.getFrozenBalance());
+//              break;
+//            case DelegateResourceContract:
+//              DelegateResourceContract delegateResourceContract =
+//                      trxCap.getInstance().getRawData().getContract(0).getParameter()
+//                              .unpack(DelegateResourceContract.class);
+//              if (delegateResourceContract.getResource() == Common.ResourceCode.ENERGY) {
+//                personalCap.addDelegatedAmount(delegateResourceContract.getBalance());
+//                personalCap.addDelegatedAccountToInstance(
+//                        StringUtil.encode58Check(delegateResourceContract.getReceiverAddress().toByteArray()));
+//              }
+//              break;
+//            case UnfreezeBalanceV2Contract:
+//              UnfreezeBalanceV2Contract unfreezeBalanceV2Contract =
+//                      trxCap.getInstance().getRawData().getContract(0).getParameter()
+//                              .unpack(UnfreezeBalanceV2Contract.class);
+//              personalCap.addUnstake2(unfreezeBalanceV2Contract.getUnfreezeBalance());
+//              break;
+//            case CancelAllUnfreezeV2Contract:
+//              for (Map.Entry<String, Long> e : trace.getTransactionContext().getProgramResult().getRet()
+//                      .getCancelUnfreezeV2AmountMap().entrySet()) {
+//                personalCap.addCancel(e.getValue());
+//              }
+//              break;
+//          }
+//        } catch (InvalidProtocolBufferException e) {
+//            throw new RuntimeException(e);
+//        }
+//      }
+//
+//      chainBaseManager.getContractStateStore().setAccountRecord(owner, personalCap);
+//      chainBaseManager.getContractStateStore().setTotalRecord(totalCap);
     }
     chainBaseManager.getTransactionStore().put(trxCap.getTransactionId().getBytes(), trxCap);
 
@@ -2140,6 +2140,9 @@ public class Manager {
   public void doDynamicEnergyDayStats(long cycleNum, boolean forcedReport) {
     // Save total stake info
     ContractStateCapsule totalCap = chainBaseManager.getContractStateStore().getTotalRecord();
+    if (totalCap == null) {
+      totalCap = new ContractStateCapsule(0);
+    }
     totalCap.setBandwidthStake(getDynamicPropertiesStore().getTotalNetWeight());
     totalCap.setEnergyStake(getDynamicPropertiesStore().getTotalEnergyWeight());
     totalCap.setBandwidthStake2(getDynamicPropertiesStore().getTotalNetWeight2());
