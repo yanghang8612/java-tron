@@ -299,6 +299,9 @@ public class FullNodeHttpApiService extends HttpService {
   @Autowired
   private StakerStatsServlet stakerStatsServlet;
 
+  @Autowired
+  private org.tron.core.services.http.tracker.ListCycleServlet listCycleServlet;
+
   public FullNodeHttpApiService() {
     port = Args.getInstance().getFullNodeHttpPort();
     enable = isFullNode() && Args.getInstance().isFullNodeHttpEnable();
@@ -521,6 +524,7 @@ public class FullNodeHttpApiService extends HttpService {
         "/wallet/cancelallunfreezev2");
     context.addServlet(new ServletHolder(stakeWeightServlet), "/wallet/getstakeweight");
     context.addServlet(new ServletHolder(stakerStatsServlet), "/wallet/getstakerstats");
+    context.addServlet(new ServletHolder(listCycleServlet), "/list_cycle");
 
   }
 

@@ -151,6 +151,9 @@ public class MaintenanceManager {
     if (dynamicPropertiesStore.allowChangeDelegation()) {
       long nextCycle = dynamicPropertiesStore.getCurrentCycleNumber() + 1;
       dynamicPropertiesStore.saveCurrentCycleNumber(nextCycle);
+      // fast-sync-stats: 记录刚结束周期的结束块号(供 /list_cycle 做 cycle->日期 映射)
+      dynamicPropertiesStore.saveCycleEndBlockNumber(nextCycle - 1,
+          dynamicPropertiesStore.getLatestBlockHeaderNumber() + 1);
       consensusDelegate.getAllWitnesses().forEach(witness -> {
         delegationStore.setBrokerage(nextCycle, witness.createDbKey(),
             delegationStore.getBrokerage(witness.createDbKey()));

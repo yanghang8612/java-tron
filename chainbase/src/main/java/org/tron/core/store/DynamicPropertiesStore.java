@@ -2422,6 +2422,18 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
     this.put(CURRENT_CYCLE_NUMBER, new BytesCapsule(ByteArray.fromLong(number)));
   }
 
+  // fast-sync-stats: 记录每个 cycle 的结束块号(= 下个 cycle 起始块),供 /list_cycle 反查 cycle->日期
+  public long getCycleEndBlockNumber(long cycle) {
+    return Optional.ofNullable(getUnchecked(("CYCLE_END_" + cycle).getBytes()))
+        .map(BytesCapsule::getData)
+        .map(ByteArray::toLong)
+        .orElse(0L);
+  }
+
+  public void saveCycleEndBlockNumber(long cycle, long number) {
+    this.put(("CYCLE_END_" + cycle).getBytes(), new BytesCapsule(ByteArray.fromLong(number)));
+  }
+
   public void saveChangeDelegation(long number) {
     this.put(CHANGE_DELEGATION,
         new BytesCapsule(ByteArray.fromLong(number)));
