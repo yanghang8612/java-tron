@@ -50,6 +50,11 @@ public class StakerStatStore extends TronStoreWithRevoking<BytesCapsule> {
     return stats;
   }
 
+  public void pruneCycle(long cycleNumber) {
+    prefixQuery(("SS_" + cycleNumber + "_").getBytes())
+        .forEach((k, v) -> delete(k.getBytes()));
+  }
+
   private byte[] generateKey(byte[] address, long cycleNumber) {
     return String.format("SS_%d_%s", cycleNumber, ByteArray.toHexString(address)).getBytes();
   }

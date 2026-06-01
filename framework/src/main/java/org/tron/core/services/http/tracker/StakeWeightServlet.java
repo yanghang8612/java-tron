@@ -3,7 +3,9 @@ package org.tron.core.services.http.tracker;
 import com.alibaba.fastjson.JSONObject;
 import java.io.IOException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.tron.core.store.TrackerStore;
 
 /**
  * fast-sync-stats: /stake_weight — 全网质押权重按 stake1.0/2.0 拆分。
@@ -18,15 +20,18 @@ import org.springframework.stereotype.Component;
 @Slf4j(topic = "API")
 public class StakeWeightServlet extends BaseTrackerServlet {
 
+  @Autowired
+  private TrackerStore trackerStore;
+
   @Override
-  void responseGet() throws IOException, MissingParameterException {
+  void responseGet(TrackerRequest ctx) throws IOException, MissingParameterException {
     long net2;
     long energy2;
     long totalNet;
     long totalEnergy;
 
-    long[] snap = dps.getCycleStakeWeights(cycleNumber);
-    String cycleParam = request.getParameter("cycle_number");
+    long[] snap = trackerStore.getCycleStakeWeights(ctx.cycleNumber);
+    String cycleParam = ctx.request.getParameter("cycle_number");
 
     if (snap != null) {
       net2 = snap[0];
@@ -37,12 +42,12 @@ public class StakeWeightServlet extends BaseTrackerServlet {
       // 默认查询且快照尚未写入(预热期):回退到 live
       totalNet = dps.getTotalNetWeight();
       totalEnergy = dps.getTotalEnergyWeight();
-      net2 = dps.getTotalNetWeight2();
-      energy2 = dps.getTotalEnergyWeight2();
+      net2 = trackerStore.getTotalNetWeight2();
+      energy2 = trackerStore.getTotalEnergyWeight2();
     } else {
       JSONObject err = new JSONObject();
-      err.put("error", "no stake weight snapshot for cycle " + cycleNumber);
-      response.getWriter().println(err.toJSONString());
+      err.put("error", "no stake weight snapshot for cycle " + ctx.cycleNumber);
+      ctx.response.getWriter().println(err.toJSONString());
       return;
     }
 
@@ -53,6 +58,6 @@ public class StakeWeightServlet extends BaseTrackerServlet {
     obj.put("energy_stake1", Math.max(0, totalEnergy - energy2));
     obj.put("bandwidth_total", totalNet);
     obj.put("energy_total", totalEnergy);
-    response.getWriter().println(obj.toJSONString());
+    ctx.response.getWriter().println(obj.toJSONString());
   }
 }

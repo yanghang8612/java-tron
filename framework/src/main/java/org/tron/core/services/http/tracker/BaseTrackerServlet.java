@@ -23,29 +23,21 @@ public abstract class BaseTrackerServlet extends RateLimiterServlet {
   @Autowired
   protected DynamicPropertiesStore dps;
 
-  protected HttpServletRequest request;
-  protected HttpServletResponse response;
-
-  protected long cycleNumber;
-  protected long cycleCount;
-
   protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-    this.request = request;
-    this.response = response;
-    this.response.setContentType("application/json; charset=utf-8");
+    response.setContentType("application/json; charset=utf-8");
 
     long current = this.dps.getCurrentCycleNumber();
-    this.cycleNumber = this.request.getParameter("cycle_number") == null
+    long cycleNumber = request.getParameter("cycle_number") == null
         ? Math.max(0, current - 1)
-        : Long.parseLong(this.request.getParameter("cycle_number"));
-    this.cycleNumber = Math.min(this.cycleNumber, current);
+        : Long.parseLong(request.getParameter("cycle_number"));
+    cycleNumber = Math.min(cycleNumber, current);
 
-    this.cycleCount = this.request.getParameter("cycle_count") == null
+    long cycleCount = request.getParameter("cycle_count") == null
         ? 1
-        : Long.parseLong(this.request.getParameter("cycle_count"));
+        : Long.parseLong(request.getParameter("cycle_count"));
 
     try {
-      responseGet();
+      responseGet(new TrackerRequest(request, response, cycleNumber, cycleCount));
     } catch (MissingParameterException e) {
       JSONObject res = new JSONObject();
       res.put("code", 500);
@@ -54,18 +46,33 @@ public abstract class BaseTrackerServlet extends RateLimiterServlet {
     }
   }
 
-  protected String mustGetParameter(String name) {
-    String value = this.request.getParameter(name);
+  protected String mustGetParameter(TrackerRequest ctx, String name) {
+    String value = ctx.request.getParameter(name);
     if (value == null) {
       throw new MissingParameterException(name);
     }
     return value;
   }
 
-  protected String mayGetParameter(String name, String defaultValue) {
-    String value = this.request.getParameter(name);
+  protected String mayGetParameter(TrackerRequest ctx, String name, String defaultValue) {
+    String value = ctx.request.getParameter(name);
     return value == null ? defaultValue : value;
   }
 
-  abstract void responseGet() throws IOException, MissingParameterException;
+  abstract void responseGet(TrackerRequest ctx) throws IOException, MissingParameterException;
+
+  protected static class TrackerRequest {
+    final HttpServletRequest request;
+    final HttpServletResponse response;
+    final long cycleNumber;
+    final long cycleCount;
+
+    TrackerRequest(HttpServletRequest request, HttpServletResponse response,
+        long cycleNumber, long cycleCount) {
+      this.request = request;
+      this.response = response;
+      this.cycleNumber = cycleNumber;
+      this.cycleCount = cycleCount;
+    }
+  }
 }

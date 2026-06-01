@@ -50,6 +50,8 @@ import org.tron.core.store.DelegatedResourceAccountIndexStore;
 import org.tron.core.store.DelegatedResourceStore;
 import org.tron.core.store.DelegationStore;
 import org.tron.core.store.DynamicPropertiesStore;
+import org.tron.core.store.StakerIndexStore;
+import org.tron.core.store.TrackerStore;
 import org.tron.core.store.ExchangeStore;
 import org.tron.core.store.ExchangeV2Store;
 import org.tron.core.store.IncrementalMerkleTreeStore;
@@ -181,6 +183,14 @@ public class ChainBaseManager {
   @Autowired
   @Getter
   private DelegationStore delegationStore;
+
+  @Autowired
+  @Getter
+  private StakerIndexStore stakerIndexStore;
+
+  @Autowired
+  @Getter
+  private TrackerStore trackerStore;
 
   @Autowired
   @Getter
@@ -422,4 +432,3 @@ public class ChainBaseManager {
     }
   }
 }
-

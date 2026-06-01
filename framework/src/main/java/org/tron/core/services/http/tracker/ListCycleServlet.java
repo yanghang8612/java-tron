@@ -20,6 +20,8 @@ public class ListCycleServlet extends RateLimiterServlet {
   protected void doGet(HttpServletRequest request, HttpServletResponse response) {
     try {
       DynamicPropertiesStore dps = ChainBaseManager.getInstance().getDynamicPropertiesStore();
+      org.tron.core.store.TrackerStore trackerStore =
+          ChainBaseManager.getInstance().getTrackerStore();
 
       JSONObject resObj = new JSONObject();
       long currentCycleNumber = dps.getCurrentCycleNumber();
@@ -31,7 +33,8 @@ public class ListCycleServlet extends RateLimiterServlet {
       SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
       for (int i = 0; i < 31; i++) {
         long cycleStartTime = ChainBaseManager.getInstance()
-                .getBlockByNum(dps.getCycleEndBlockNumber(startCycleNumberInDay - 1)).getTimeStamp();
+                .getBlockByNum(trackerStore.getCycleEndBlockNumber(startCycleNumberInDay - 1))
+                .getTimeStamp();
         resObj.put(sdf.format(new Date(cycleStartTime)), startCycleNumberInDay);
         startCycleNumberInDay -= 4;
       }

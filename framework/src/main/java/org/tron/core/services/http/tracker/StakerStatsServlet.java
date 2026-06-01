@@ -25,14 +25,14 @@ public class StakerStatsServlet extends BaseTrackerServlet {
   private StakerStatStore stakerStatStore;
 
   @Override
-  void responseGet() throws IOException, MissingParameterException {
-    List<Protocol.StakerStat> stats = stakerStatStore.getStakerStat(cycleNumber);
+  void responseGet(TrackerRequest ctx) throws IOException, MissingParameterException {
+    List<Protocol.StakerStat> stats = stakerStatStore.getStakerStat(ctx.cycleNumber);
     stats.sort(Comparator.comparingLong(Protocol.StakerStat::getStakedTrxForEnergy).reversed());
 
-    String addressStr = mayGetParameter("address", "");
+    String addressStr = mayGetParameter(ctx, "address", "");
     if (addressStr.isEmpty()) {
       for (Protocol.StakerStat stat : stats) {
-        response.getWriter().printf("%s %d %d %d%n",
+        ctx.response.getWriter().printf("%s %d %d %d%n",
             StringUtil.encode58Check(stat.getAddress().toByteArray()),
             stat.getStakedTrxForEnergy(),
             stat.getMeu(),
@@ -41,7 +41,7 @@ public class StakerStatsServlet extends BaseTrackerServlet {
     } else {
       byte[] address = Commons.decode58Check(addressStr);
       if (address != null) {
-        String thresholdStr = mayGetParameter("threshold", "0");
+        String thresholdStr = mayGetParameter(ctx, "threshold", "0");
         long threshold = Long.parseLong(thresholdStr);
         for (Protocol.StakerStat stat : stats) {
           if (stat.getAddress().equals(ByteString.copyFrom(address))) {
@@ -51,7 +51,7 @@ public class StakerStatsServlet extends BaseTrackerServlet {
                 .comparingLong(Protocol.StakerStat.DelegateStat::getAmount).reversed());
             for (Protocol.StakerStat.DelegateStat delegate : delegates) {
               if (delegate.getAmount() >= threshold) {
-                response.getWriter().printf("%s %d %d%n",
+                ctx.response.getWriter().printf("%s %d %d%n",
                     StringUtil.encode58Check(delegate.getTo().toByteArray()),
                     delegate.getAmount(),
                     delegate.getMeu());
@@ -60,7 +60,7 @@ public class StakerStatsServlet extends BaseTrackerServlet {
             return;
           }
         }
-        response.getWriter().println("Not found");
+        ctx.response.getWriter().println("Not found");
       }
     }
   }
