@@ -39,7 +39,15 @@ public abstract class HttpService extends AbstractService {
   @Override
   public void innerStop() throws Exception {
     if (this.apiServer != null) {
-      this.apiServer.stop();
+      try {
+        this.apiServer.stop();
+      } catch (Exception e) {
+        if (hasLinkageError(e)) {
+          logger.warn("HTTP server stop hit a Jetty runtime linkage error; continuing shutdown", e);
+          return;
+        }
+        throw e;
+      }
     }
   }
 
@@ -71,5 +79,23 @@ public abstract class HttpService extends AbstractService {
 
   protected void addFilter(ServletContextHandler context) {
 
+  }
+
+  private boolean hasLinkageError(Throwable throwable) {
+    if (throwable == null) {
+      return false;
+    }
+    if (throwable instanceof LinkageError) {
+      return true;
+    }
+    if (hasLinkageError(throwable.getCause())) {
+      return true;
+    }
+    for (Throwable suppressed : throwable.getSuppressed()) {
+      if (hasLinkageError(suppressed)) {
+        return true;
+      }
+    }
+    return false;
   }
 }
