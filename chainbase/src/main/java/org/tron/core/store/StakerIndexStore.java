@@ -5,7 +5,6 @@ import com.google.protobuf.ByteString;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -13,7 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.tron.common.utils.ByteArray;
-import org.tron.common.utils.ByteUtil;
+import org.tron.common.utils.FastByteComparisons;
 import org.tron.core.capsule.BytesCapsule;
 import org.tron.core.db.TronStoreWithRevoking;
 
@@ -65,22 +64,30 @@ public class StakerIndexStore extends TronStoreWithRevoking<BytesCapsule> {
   }
 
   public List<Map.Entry<ByteString, Long>> getTopStakers(int limit) {
-    List<Map.Entry<byte[], byte[]>> rows = new ArrayList<>(
-        revokingDB.getNext(RANK_PREFIX, limit).entrySet());
-    rows.sort(Comparator.comparing(Map.Entry::getKey, ByteUtil::compare));
+    if (limit <= 0) {
+      return new ArrayList<>();
+    }
+    List<Map.Entry<byte[], BytesCapsule>> rows = new ArrayList<>();
+    prefixQuery(RANK_PREFIX).forEach((k, v) ->
+        rows.add(new AbstractMap.SimpleImmutableEntry<>(k.getBytes(), v)));
+    rows.sort((e1, e2) -> compareKeys(e1.getKey(), e2.getKey()));
 
     List<Map.Entry<ByteString, Long>> result = new ArrayList<>(Math.min(limit, rows.size()));
-    for (Map.Entry<byte[], byte[]> row : rows) {
+    for (Map.Entry<byte[], BytesCapsule> row : rows) {
       byte[] key = row.getKey();
       if (!startsWith(key, RANK_PREFIX)) {
-        break;
+        continue;
       }
       if (key.length <= RANK_ADDRESS_OFFSET) {
         continue;
       }
+      byte[] value = row.getValue() == null ? null : row.getValue().getData();
+      if (value == null) {
+        continue;
+      }
       byte[] address = Arrays.copyOfRange(key, RANK_ADDRESS_OFFSET, key.length);
       result.add(new AbstractMap.SimpleImmutableEntry<>(
-          ByteString.copyFrom(address), ByteArray.toLong(row.getValue())));
+          ByteString.copyFrom(address), ByteArray.toLong(value)));
       if (result.size() >= limit) {
         break;
       }
@@ -127,6 +134,10 @@ public class StakerIndexStore extends TronStoreWithRevoking<BytesCapsule> {
   private byte[] getData(byte[] key) {
     BytesCapsule capsule = getUnchecked(key);
     return capsule == null ? null : capsule.getData();
+  }
+
+  private int compareKeys(byte[] left, byte[] right) {
+    return FastByteComparisons.compareTo(left, 0, left.length, right, 0, right.length);
   }
 
   private boolean startsWith(byte[] key, byte[] prefix) {
