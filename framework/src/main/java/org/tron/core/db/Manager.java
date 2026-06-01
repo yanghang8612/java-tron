@@ -157,6 +157,7 @@ import org.tron.core.store.NullifierStore;
 import org.tron.core.store.ProposalStore;
 import org.tron.core.store.StorageRowStore;
 import org.tron.core.store.StoreFactory;
+import org.tron.core.store.TrackerStore;
 import org.tron.core.store.TransactionHistoryStore;
 import org.tron.core.store.TransactionRetStore;
 import org.tron.core.store.VotesStore;
@@ -175,6 +176,7 @@ import org.tron.protos.contract.BalanceContract;
 @Component
 public class Manager {
 
+  private static final boolean FAST_SYNC_STATS_MODE = true;
   private static final int SHIELDED_TRANS_IN_BLOCK_COUNTS = 1;
   private static final String SAVE_BLOCK = "Save block: {}";
   private static final int SLEEP_TIME_OUT = 50;
@@ -236,6 +238,8 @@ public class Manager {
   private ChainBaseManager chainBaseManager;
   @Autowired
   private org.tron.core.service.TopDelegatorService topDelegatorService;
+  @Autowired
+  private TrackerStore trackerStore;
   // transactions cache
   private BlockingQueue<TransactionCapsule> pendingTransactions;
   @Getter
@@ -481,7 +485,9 @@ public class Manager {
     trieService.setChainBaseManager(chainBaseManager);
     revokingStore.disable();
     revokingStore.check();
-    transactionCache.initCache();
+    if (!FAST_SYNC_STATS_MODE) {
+      transactionCache.initCache();
+    }
     rewardViCalService.init();
     // fast-sync-stats: 启动时一次性扫账户表,建立 staker in-memory 索引(对齐 track_dynamic_energy)
     topDelegatorService.init(chainBaseManager.getAccountStore());
@@ -545,8 +551,10 @@ public class Manager {
     //for test only
     chainBaseManager.getDynamicPropertiesStore().updateDynamicStoreByConfig();
 
-    // init liteFullNode
-    initLiteNode();
+    // fast-sync-stats: no mempool/event path, skip lite-node tx-index recovery.
+    if (!FAST_SYNC_STATS_MODE) {
+      initLiteNode();
+    }
 
     long headNum = chainBaseManager.getDynamicPropertiesStore().getLatestBlockHeaderNumber();
     logger.info("Current headNum is: {}.", headNum);
@@ -556,19 +564,21 @@ public class Manager {
       logger.info("Lite node lowestNum: {}", chainBaseManager.getLowestBlockNum());
     }
     revokingStore.enable();
-    validateSignService = ExecutorServiceManager
-        .newFixedThreadPool(validateSignName, Args.getInstance().getValidateSignThreadNum());
-    rePushEs = ExecutorServiceManager.newSingleThreadExecutor(rePushEsName, true);
-    ExecutorServiceManager.submit(rePushEs, rePushLoop);
+    if (!FAST_SYNC_STATS_MODE) {
+      validateSignService = ExecutorServiceManager
+          .newFixedThreadPool(validateSignName, Args.getInstance().getValidateSignThreadNum());
+      rePushEs = ExecutorServiceManager.newSingleThreadExecutor(rePushEsName, true);
+      ExecutorServiceManager.submit(rePushEs, rePushLoop);
+    }
     // add contract event listener for subscribing
-    if (Args.getInstance().isEventSubscribe()) {
+    if (!FAST_SYNC_STATS_MODE && Args.getInstance().isEventSubscribe()) {
       startEventSubscribing();
       triggerEs = ExecutorServiceManager.newSingleThreadExecutor(triggerEsName, true);
       ExecutorServiceManager.submit(triggerEs, triggerCapsuleProcessLoop);
     }
 
     // start json rpc filter process
-    if (CommonParameter.getInstance().isJsonRpcFilterEnabled()) {
+    if (!FAST_SYNC_STATS_MODE && CommonParameter.getInstance().isJsonRpcFilterEnabled()) {
       filterEs = ExecutorServiceManager.newSingleThreadExecutor(filterEsName);
       ExecutorServiceManager.submit(filterEs, filterProcessLoop);
     }
@@ -871,6 +881,9 @@ public class Manager {
       AccountResourceInsufficientException, DupTransactionException, TaposException,
       TooBigTransactionException, TransactionExpirationException,
       ReceiptCheckErrException, VMIllegalException, TooBigTransactionResultException {
+    if (FAST_SYNC_STATS_MODE) {
+      return false;
+    }
 
     if (isShieldedTransaction(trx.getInstance()) && !Args.getInstance()
         .isFullNodeAllowShieldedTransactionArgs()) {
@@ -1093,7 +1106,7 @@ public class Manager {
   // ===== fast-sync-stats: 交易体与收据滚动保留(约30天,3s/块)=====
   private static final long TX_RETENTION_BLOCKS = 864_000L;
   // 批量裁剪:每 PRUNE_BATCH_SIZE 个新块触发一次,一次裁掉累积的 N 个旧块,
-  // 把单块 ~1-2ms 的 I/O 摊薄到 0.01-0.02ms/块。游标持久化在 DPS 的 LAST_PRUNED_BLOCK_NUM
+  // 把单块 ~1-2ms 的 I/O 摊薄到 0.01-0.02ms/块。游标持久化在 tracker DB 的 LAST_PRUNED_BLOCK_NUM
   // 里(随当前区块 session 一起 flush,回滚天然安全)。
   private static final long PRUNE_BATCH_SIZE = 100L;
   // 仅首次真正裁剪时打一条 info 日志,便于运维区分"裁剪进行中"与"卡住"
@@ -1115,8 +1128,7 @@ public class Manager {
       return;
     }
 
-    DynamicPropertiesStore dps = chainBaseManager.getDynamicPropertiesStore();
-    long lastPruned = dps.getLastPrunedBlockNum();
+    long lastPruned = trackerStore.getLastPrunedBlockNum();
     if (lastPruned < 0) {
       // 首次启动/快照启动:跳过历史块,游标对齐到 target - 1
       lastPruned = target - 1;
@@ -1135,7 +1147,7 @@ public class Manager {
     for (long n = batchStart; n <= batchEnd; n++) {
       pruneOneBlock(n);
     }
-    dps.saveLastPrunedBlockNum(batchEnd);
+    trackerStore.saveLastPrunedBlockNum(batchEnd);
   }
 
   /**
@@ -1273,6 +1285,9 @@ public class Manager {
   }
 
   public List<TransactionCapsule> getVerifyTxs(BlockCapsule block) {
+    if (FAST_SYNC_STATS_MODE) {
+      return block.getTransactions();
+    }
 
     if (pendingTransactions.size() == 0) {
       return block.getTransactions();
@@ -1340,9 +1355,16 @@ public class Manager {
           latestSolidityNumShutDown = block.getNum();
         }
 
-        try (PendingManager pm = new PendingManager(this)) {
+        PendingManager pendingManager = null;
+        if (FAST_SYNC_STATS_MODE) {
+          session.reset();
+          shieldedTransInPendingCounts.set(0);
+        } else {
+          pendingManager = new PendingManager(this);
+        }
+        try {
 
-          if (!block.generatedByMyself) {
+          if (!FAST_SYNC_STATS_MODE && !block.generatedByMyself) {
             // fast-sync: skip merkle root check
 //          if (!block.calcMerkleRoot().equals(block.getMerkleRoot())) {
 //              logger.warn("Num: {}, the merkle root doesn't match, expect is {} , actual is {}.",
@@ -1353,7 +1375,7 @@ public class Manager {
             consensus.receiveBlock(block);
           }
 
-          if (block.getTransactions().stream()
+          if (!FAST_SYNC_STATS_MODE && block.getTransactions().stream()
                   .filter(tran -> isShieldedTransaction(tran.getInstance()))
                   .count() > SHIELDED_TRANS_IN_BLOCK_COUNTS) {
             throw new BadBlockException(
@@ -1431,12 +1453,18 @@ public class Manager {
               throw throwable;
             }
             long newSolidNum = getDynamicPropertiesStore().getLatestSolidifiedBlockNum();
-            blockTrigger(newBlock, oldSolidNum, newSolidNum);
+            if (!FAST_SYNC_STATS_MODE) {
+              blockTrigger(newBlock, oldSolidNum, newSolidNum);
+            }
           }
           logger.info(SAVE_BLOCK, newBlock);
+        } finally {
+          if (pendingManager != null) {
+            pendingManager.close();
+          }
         }
         //clear ownerAddressSet
-        if (CollectionUtils.isNotEmpty(ownerAddressSet)) {
+        if (!FAST_SYNC_STATS_MODE && CollectionUtils.isNotEmpty(ownerAddressSet)) {
           Set<String> result = new HashSet<>();
           for (TransactionCapsule transactionCapsule : rePushTransactions) {
             filterOwnerAddress(transactionCapsule, result);
@@ -1563,8 +1591,10 @@ public class Manager {
 
     long start = System.currentTimeMillis();
 
-    if (Objects.nonNull(blockCap)) {
+    if (!FAST_SYNC_STATS_MODE && Objects.nonNull(blockCap)) {
       chainBaseManager.getBalanceTraceStore().initCurrentTransactionBalanceTrace(trxCap);
+      trxCap.setInBlock(true);
+    } else if (Objects.nonNull(blockCap)) {
       trxCap.setInBlock(true);
     }
 
@@ -1573,7 +1603,9 @@ public class Manager {
 
 //    validateDup(trxCap);
 
-    if (!trxCap.validateSignature(chainBaseManager.getAccountStore(),
+    if (FAST_SYNC_STATS_MODE) {
+      trxCap.setVerified(true);
+    } else if (!trxCap.validateSignature(chainBaseManager.getAccountStore(),
         chainBaseManager.getDynamicPropertiesStore())) {
       throw new ValidateSignatureException(
           String.format(" %s transaction signature validate failed", txId));
@@ -1601,7 +1633,7 @@ public class Manager {
         logger.info("Retry result when push: {}, for tx id: {}, tx resultCode in receipt: {}.",
             blockCap.hasWitnessSignature(), txId, trace.getReceipt().getResult());
       }
-      if (blockCap.hasWitnessSignature()) {
+      if (!FAST_SYNC_STATS_MODE && blockCap.hasWitnessSignature()) {
         trace.check();
       }
     }
@@ -1612,27 +1644,29 @@ public class Manager {
     }
     chainBaseManager.getTransactionStore().put(trxCap.getTransactionId().getBytes(), trxCap);
 
-    Optional.ofNullable(transactionCache)
-        .ifPresent(t -> t.put(trxCap.getTransactionId().getBytes(),
-            new BytesCapsule(ByteArray.fromLong(trxCap.getBlockNum()))));
+    if (!FAST_SYNC_STATS_MODE) {
+      Optional.ofNullable(transactionCache)
+          .ifPresent(t -> t.put(trxCap.getTransactionId().getBytes(),
+              new BytesCapsule(ByteArray.fromLong(trxCap.getBlockNum()))));
+    }
 
     TransactionInfoCapsule transactionInfo = TransactionUtil
         .buildTransactionInfoInstance(trxCap, blockCap, trace);
 
     // if event subscribe is enabled, post contract triggers to queue
     // only trigger when process block
-    if (Objects.nonNull(blockCap) && !blockCap.isMerkleRootEmpty()
+    if (!FAST_SYNC_STATS_MODE && Objects.nonNull(blockCap) && !blockCap.isMerkleRootEmpty()
         && EventPluginLoader.getInstance().getVersion() == 0) {
       String blockHash = blockCap.getBlockId().toString();
       postContractTrigger(trace, false, blockHash);
     }
 
 
-    if (isMultiSignTransaction(trxCap.getInstance())) {
+    if (!FAST_SYNC_STATS_MODE && isMultiSignTransaction(trxCap.getInstance())) {
       ownerAddressSet.add(ByteArray.toHexString(trxCap.getOwnerAddress()));
     }
 
-    if (Objects.nonNull(blockCap)) {
+    if (!FAST_SYNC_STATS_MODE && Objects.nonNull(blockCap)) {
       chainBaseManager.getBalanceTraceStore()
           .updateCurrentTransactionStatus(
               trace.getRuntimeResult().getResultCode().name());
@@ -1858,16 +1892,18 @@ public class Manager {
     // todo set revoking db max size.
 
     // checkWitness
-    if (!consensus.validBlock(block)) {
+    if (!FAST_SYNC_STATS_MODE && !consensus.validBlock(block)) {
       throw new ValidateScheduleException("validateWitnessSchedule error");
     }
 
-    chainBaseManager.getBalanceTraceStore().initCurrentBlockBalanceTrace(block);
+    if (!FAST_SYNC_STATS_MODE) {
+      chainBaseManager.getBalanceTraceStore().initCurrentBlockBalanceTrace(block);
+    }
 
     //reset BlockEnergyUsage
     chainBaseManager.getDynamicPropertiesStore().saveBlockEnergyUsage(0);
     //parallel check sign
-    if (!block.generatedByMyself) {
+    if (!FAST_SYNC_STATS_MODE && !block.generatedByMyself) {
       try {
         preValidateTransactionSign(txs);
       } catch (InterruptedException e) {
@@ -1880,11 +1916,14 @@ public class Manager {
         new TransactionRetCapsule(block);
     try {
       merkleContainer.resetCurrentMerkleTree();
-      accountStateCallBack.preExecute(block);
+      if (!FAST_SYNC_STATS_MODE) {
+        accountStateCallBack.preExecute(block);
+      }
       List<TransactionInfo> results = new ArrayList<>();
       long num = block.getNum();
       for (TransactionCapsule transactionCapsule : block.getTransactions()) {
-        if (chainBaseManager.getDynamicPropertiesStore().allowConsensusLogicOptimization()
+        if (!FAST_SYNC_STATS_MODE
+            && chainBaseManager.getDynamicPropertiesStore().allowConsensusLogicOptimization()
             && transactionCapsule.retCountIsGreatThanContractCount()) {
           throw new BadBlockException(String.format("The result count %d of this transaction %s is "
                   + "greater than its contract count %d", transactionCapsule.getRetCount(),
@@ -1894,17 +1933,25 @@ public class Manager {
         if (block.generatedByMyself) {
           transactionCapsule.setVerified(true);
         }
-        accountStateCallBack.preExeTrans();
+        if (!FAST_SYNC_STATS_MODE) {
+          accountStateCallBack.preExeTrans();
+        }
         TransactionInfo result = processTransaction(transactionCapsule, block);
-        accountStateCallBack.exeTransFinish();
+        if (!FAST_SYNC_STATS_MODE) {
+          accountStateCallBack.exeTransFinish();
+        }
         if (Objects.nonNull(result)) {
           results.add(result);
         }
       }
       transactionRetCapsule.addAllTransactionInfos(results);
-      accountStateCallBack.executePushFinish();
+      if (!FAST_SYNC_STATS_MODE) {
+        accountStateCallBack.executePushFinish();
+      }
     } finally {
-      accountStateCallBack.exceptionFinish();
+      if (!FAST_SYNC_STATS_MODE) {
+        accountStateCallBack.exceptionFinish();
+      }
     }
     merkleContainer.saveCurrentMerkleTreeAsBestMerkleTree(block.getNum());
     block.setResult(transactionRetCapsule);
@@ -1936,18 +1983,22 @@ public class Manager {
       chainBaseManager.getForkController().reset();
     }
 
-//    updateTransHashCache(block);
-//    updateRecentBlock(block);
-//    updateRecentTransaction(block);
+    if (!FAST_SYNC_STATS_MODE) {
+      updateTransHashCache(block);
+      updateRecentBlock(block);
+      updateRecentTransaction(block);
+    }
     updateDynamicProperties(block);
 
-    chainBaseManager.getBalanceTraceStore().resetCurrentBlockTrace();
+    if (!FAST_SYNC_STATS_MODE) {
+      chainBaseManager.getBalanceTraceStore().resetCurrentBlockTrace();
 
-    if (CommonParameter.getInstance().isJsonRpcFilterEnabled()) {
-      Bloom blockBloom = chainBaseManager.getSectionBloomStore()
-          .initBlockSection(transactionRetCapsule);
-      chainBaseManager.getSectionBloomStore().write(block.getNum());
-      block.setBloom(blockBloom);
+      if (CommonParameter.getInstance().isJsonRpcFilterEnabled()) {
+        Bloom blockBloom = chainBaseManager.getSectionBloomStore()
+            .initBlockSection(transactionRetCapsule);
+        chainBaseManager.getSectionBloomStore().write(block.getNum());
+        block.setBloom(blockBloom);
+      }
     }
   }
 

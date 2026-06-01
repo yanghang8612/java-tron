@@ -60,6 +60,7 @@ import org.tron.core.store.DelegationStore;
 import org.tron.core.store.DynamicPropertiesStore;
 import org.tron.core.store.StorageRowStore;
 import org.tron.core.store.StoreFactory;
+import org.tron.core.store.TrackerStore;
 import org.tron.core.store.VotesStore;
 import org.tron.core.store.WitnessStore;
 import org.tron.core.vm.config.VMConfig;
@@ -87,6 +88,8 @@ public class RepositoryImpl implements Repository {
   private StoreFactory storeFactory;
   @Getter
   private DynamicPropertiesStore dynamicPropertiesStore;
+  @Getter
+  private TrackerStore trackerStore;
   @Getter
   private AccountStore accountStore;
   @Getter
@@ -153,6 +156,7 @@ public class RepositoryImpl implements Repository {
       this.storeFactory = storeFactory;
       ChainBaseManager manager = storeFactory.getChainBaseManager();
       dynamicPropertiesStore = manager.getDynamicPropertiesStore();
+      trackerStore = manager.getTrackerStore();
       accountStore = manager.getAccountStore();
       abiStore = manager.getAbiStore();
       codeStore = manager.getCodeStore();
@@ -1002,11 +1006,11 @@ public class RepositoryImpl implements Repository {
           if (Arrays.equals(key.getData(), TOTAL_NET_WEIGHT)) {
             long delta = ByteArray.toLong(value.getValue())
                 - getDynamicPropertiesStore().getTotalNetWeight();
-            getDynamicPropertiesStore().addTotalNetWeight2(delta);
+            trackerStore.addTotalNetWeight2(delta);
           } else if (Arrays.equals(key.getData(), TOTAL_ENERGY_WEIGHT)) {
             long delta = ByteArray.toLong(value.getValue())
                 - getDynamicPropertiesStore().getTotalEnergyWeight();
-            getDynamicPropertiesStore().addTotalEnergyWeight2(delta);
+            trackerStore.addTotalEnergyWeight2(delta);
           }
           getDynamicPropertiesStore().put(key.getData(), new BytesCapsule(value.getValue()));
         }

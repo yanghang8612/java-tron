@@ -24,6 +24,8 @@ import org.tron.core.capsule.VotesCapsule;
 import org.tron.core.capsule.WitnessCapsule;
 import org.tron.core.store.DelegationStore;
 import org.tron.core.store.DynamicPropertiesStore;
+import org.tron.core.store.StakerStatStore;
+import org.tron.core.store.TrackerStore;
 import org.tron.core.store.VotesStore;
 
 @Slf4j(topic = "consensus")
@@ -32,6 +34,12 @@ public class MaintenanceManager {
 
   @Autowired
   private ConsensusDelegate consensusDelegate;
+
+  @Autowired
+  private TrackerStore trackerStore;
+
+  @Autowired
+  private StakerStatStore stakerStatStore;
 
   @Autowired
   private IncentiveManager incentiveManager;
@@ -48,6 +56,7 @@ public class MaintenanceManager {
   private final List<ByteString> currentWitness = new ArrayList<>();
   @Getter
   private long beforeMaintenanceTime;
+  private static final long TRACKER_RETAIN_CYCLES = 160L;
 
   public void init() {
     currentWitness.addAll(consensusDelegate.getActiveWitnesses());
@@ -152,20 +161,30 @@ public class MaintenanceManager {
       long nextCycle = dynamicPropertiesStore.getCurrentCycleNumber() + 1;
       dynamicPropertiesStore.saveCurrentCycleNumber(nextCycle);
       // fast-sync-stats: 记录刚结束周期的结束块号(供 /list_cycle 做 cycle->日期 映射)
-      dynamicPropertiesStore.saveCycleEndBlockNumber(nextCycle - 1,
+      trackerStore.saveCycleEndBlockNumber(nextCycle - 1,
           dynamicPropertiesStore.getLatestBlockHeaderNumber() + 1);
       // fast-sync-stats Q1: 记录刚结束周期的全网质押权重快照(供 /wallet/getstakeweight 带 cycle 查)
-      dynamicPropertiesStore.saveCycleStakeWeights(nextCycle - 1,
-          dynamicPropertiesStore.getTotalNetWeight2(),
-          dynamicPropertiesStore.getTotalEnergyWeight2(),
+      trackerStore.saveCycleStakeWeights(nextCycle - 1,
+          trackerStore.getTotalNetWeight2(),
+          trackerStore.getTotalEnergyWeight2(),
           dynamicPropertiesStore.getTotalNetWeight(),
           dynamicPropertiesStore.getTotalEnergyWeight());
+      pruneTrackerStats(nextCycle - 1);
       consensusDelegate.getAllWitnesses().forEach(witness -> {
         delegationStore.setBrokerage(nextCycle, witness.createDbKey(),
             delegationStore.getBrokerage(witness.createDbKey()));
         delegationStore.setWitnessVote(nextCycle, witness.createDbKey(), witness.getVoteCount());
       });
     }
+  }
+
+  private void pruneTrackerStats(long latestFinishedCycle) {
+    long pruneCycle = latestFinishedCycle - TRACKER_RETAIN_CYCLES;
+    if (pruneCycle < 0) {
+      return;
+    }
+    trackerStore.pruneCycle(pruneCycle);
+    stakerStatStore.pruneCycle(pruneCycle);
   }
 
   private Map<ByteString, Long> countVote(VotesStore votesStore) {

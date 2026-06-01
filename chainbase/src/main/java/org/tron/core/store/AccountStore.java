@@ -25,6 +25,8 @@ import java.util.OptionalLong;
 @Component
 public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
 
+  private static final boolean FAST_SYNC_STATS_MODE = true;
+
   private static Map<String, byte[]> assertsAddress = new HashMap<>(); // key = name , value = address
 
   @Autowired
@@ -65,10 +67,9 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
 
   @Override
   public void put(byte[] key, AccountCapsule item) {
-    // fast-sync-stats: 读一次旧值,history-balance 与 staker hook 共用,避免重复 store read
-    AccountCapsule old = super.getUnchecked(key);
-
-    if (CommonParameter.getInstance().isHistoryBalanceLookup()) {
+    AccountCapsule old = null;
+    if (!FAST_SYNC_STATS_MODE && CommonParameter.getInstance().isHistoryBalanceLookup()) {
+      old = super.getUnchecked(key);
       if (old == null) {
         if (item.getBalance() != 0) {
           recordBalance(item, item.getBalance());
@@ -86,33 +87,25 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
       }
     }
 
-    // fast-sync-stats: staker stats 增量维护 hook(对齐 track_dynamic_energy)
-    long preStakedTRXForEnergy = old == null ? 0 : old.getAllStakedTRXForEnergy();
-    long curStakedTRXForEnergy = item == null ? 0 : item.getAllStakedTRXForEnergy();
-    if (preStakedTRXForEnergy != curStakedTRXForEnergy) {
-      if (curStakedTRXForEnergy == 0) {
-        topDelegatorService.removeStaker(old);
-      } else if (preStakedTRXForEnergy == 0) {
-        topDelegatorService.addStaker(item);
-      } else {
-        topDelegatorService.updateStaker(item);
-      }
-    }
+    // fast-sync-stats: TopDelegatorService keeps the old stake in memory, so account writes
+    // avoid an extra AccountStore/staker-index read on the hot path.
+    topDelegatorService.updateStaker(item);
 
     long now = EnergyProcessor.getHeadSlot(dynamicPropertiesStore);
-    long preDelegated = old == null ? 0 : old.getDelegatedFrozenV2BalanceForEnergy();
-    if (item != null && (item.getLatestConsumeTimeForEnergy() == now
-        || item.getDelegatedFrozenV2BalanceForEnergy() > preDelegated)) {
+    if (item != null && item.getLatestConsumeTimeForEnergy() == now) {
       topDelegatorService.updateMEU(item);
     }
 
     super.put(key, item);
-    accountStateCallBackUtils.accountCallBack(key, item);
+    if (!FAST_SYNC_STATS_MODE) {
+      accountStateCallBackUtils.accountCallBack(key, item);
+    }
   }
 
   @Override
   public void delete(byte[] key) {
-    if (CommonParameter.getInstance().isHistoryBalanceLookup()) {
+    topDelegatorService.removeStaker(com.google.protobuf.ByteString.copyFrom(key));
+    if (!FAST_SYNC_STATS_MODE && CommonParameter.getInstance().isHistoryBalanceLookup()) {
       AccountCapsule old = super.getUnchecked(key);
       if (old != null) {
         recordBalance(old, -old.getBalance());

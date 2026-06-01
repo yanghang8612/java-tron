@@ -3,8 +3,6 @@ package org.tron.core.service;
 import static org.tron.core.config.Parameter.ChainConstant.TRX_PRECISION;
 
 import com.google.protobuf.ByteString;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -22,7 +20,9 @@ import org.tron.core.store.AccountStore;
 import org.tron.core.store.DelegatedResourceAccountIndexStore;
 import org.tron.core.store.DelegatedResourceStore;
 import org.tron.core.store.DynamicPropertiesStore;
+import org.tron.core.store.StakerIndexStore;
 import org.tron.core.store.StakerStatStore;
+import org.tron.core.store.TrackerStore;
 import org.tron.protos.Protocol;
 
 /**
@@ -50,11 +50,15 @@ public class TopDelegatorService {
 
   private final StakerStatStore stakerStatStore;
 
+  private final StakerIndexStore stakerIndexStore;
+
   private final DelegatedResourceStore delegatedResourceStore;
 
   private final DelegatedResourceAccountIndexStore delegatedResourceAccountIndexStore;
 
   private final DynamicPropertiesStore dynamicPropertiesStore;
+
+  private final TrackerStore trackerStore;
 
   // 主线程单线程写(init 一次性扫 + 稳态期 AccountStore.put hook),ConcurrentHashMap 为防御性选择
   private final Set<ByteString> stakers = ConcurrentHashMap.newKeySet();
@@ -65,15 +69,21 @@ public class TopDelegatorService {
   // 仅主线程写(updateMEU 由 AccountStore.put hook 触发),每个 cycle 结束 clear
   private final Map<ByteString, Long> accountMEUs = new HashMap<>();
 
+  private volatile boolean initialized;
+
   @Autowired
   public TopDelegatorService(StakerStatStore stakerStatStore,
+                             StakerIndexStore stakerIndexStore,
                              DelegatedResourceStore delegatedResourceStore,
                              DelegatedResourceAccountIndexStore delegatedResourceAccountIndexStore,
-                             DynamicPropertiesStore dynamicPropertiesStore) {
+                             DynamicPropertiesStore dynamicPropertiesStore,
+                             TrackerStore trackerStore) {
     this.stakerStatStore = stakerStatStore;
+    this.stakerIndexStore = stakerIndexStore;
     this.delegatedResourceStore = delegatedResourceStore;
     this.delegatedResourceAccountIndexStore = delegatedResourceAccountIndexStore;
     this.dynamicPropertiesStore = dynamicPropertiesStore;
+    this.trackerStore = trackerStore;
   }
 
   /**
@@ -87,45 +97,170 @@ public class TopDelegatorService {
   public void init(AccountStore accountStore) {
     long startNanos = System.nanoTime();
     this.accountStore = accountStore;
+    this.stakers.clear();
+    this.stakerStakedForEnergy.clear();
+    this.accountMEUs.clear();
     this.dynamicPropertiesStore.removeMEUs();
 
-    logger.info("TopDelegatorService init: streaming scan starting (single-threaded, memory-safe)");
-
-    long total = 0;
-    Iterator<Map.Entry<byte[], AccountCapsule>> it = accountStore.iterator();
-    while (it.hasNext()) {
-      Map.Entry<byte[], AccountCapsule> e = it.next();
-      total++;
-      long staked = e.getValue().getAllStakedTRXForEnergy();
-      if (staked > 0) {
-        ByteString addr = ByteString.copyFrom(e.getKey());
-        stakers.add(addr);
-        stakerStakedForEnergy.put(addr, staked);
+    if (stakerIndexStore.isReady()) {
+      List<Map.Entry<ByteString, Long>> indexedStakers = stakerIndexStore.loadStakers();
+      for (Map.Entry<ByteString, Long> entry : indexedStakers) {
+        stakers.add(entry.getKey());
+        stakerStakedForEnergy.put(entry.getKey(), entry.getValue());
       }
-      if (total % 1_000_000 == 0) {
-        logger.info("TopDelegatorService init progress: {}M accounts processed, stakers so far: {}",
-            total / 1_000_000, stakers.size());
+      initialized = true;
+      long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
+      logger.info("TopDelegatorService init loaded staker index in {}ms, stakers={}",
+          elapsedMs, stakers.size());
+      if (!trackerStore.hasTotalNetWeight2()) {
+        initTotalWeight2(accountStore);
       }
+      return;
     }
 
+    logger.info("TopDelegatorService init: staker index missing, streaming account scan starting");
+    stakerIndexStore.clearIndex();
+
+    long total = 0;
+    boolean initTotal2 = !trackerStore.hasTotalNetWeight2();
+    long netWeight2 = 0;
+    long energyWeight2 = 0;
+    Iterator<Map.Entry<byte[], AccountCapsule>> it = accountStore.iterator();
+    try {
+      while (it.hasNext()) {
+        Map.Entry<byte[], AccountCapsule> e = it.next();
+        total++;
+        if (initTotal2) {
+          long bandwidth = e.getValue().getFrozenV2BalanceForBandwidth()
+              + e.getValue().getDelegatedFrozenV2BalanceForBandwidth();
+          long energy = e.getValue().getFrozenV2BalanceForEnergy()
+              + e.getValue().getDelegatedFrozenV2BalanceForEnergy();
+          if (bandwidth > 0) {
+            netWeight2 += bandwidth / TRX_PRECISION;
+          }
+          if (energy > 0) {
+            energyWeight2 += energy / TRX_PRECISION;
+          }
+        }
+        long staked = e.getValue().getAllStakedTRXForEnergy();
+        if (staked > 0) {
+          ByteString addr = ByteString.copyFrom(e.getKey());
+          stakers.add(addr);
+          stakerStakedForEnergy.put(addr, staked);
+          stakerIndexStore.updateStaker(addr, 0, staked);
+        }
+        if (total % 1_000_000 == 0) {
+          logger.info("TopDelegatorService init progress: {}M accounts processed, stakers so far: {}",
+              total / 1_000_000, stakers.size());
+        }
+      }
+    } finally {
+      if (it instanceof java.io.Closeable) {
+        try {
+          ((java.io.Closeable) it).close();
+        } catch (Exception e) {
+          logger.error("Close account iterator.", e);
+        }
+      }
+    }
+    stakerIndexStore.markReady();
+    if (initTotal2) {
+      trackerStore.saveTotalEnergyWeight2(energyWeight2);
+      trackerStore.saveTotalNetWeight2(netWeight2);
+      logger.info("TopDelegatorService init built stake2.0 weight, net={}, energy={}",
+          netWeight2, energyWeight2);
+    }
+    initialized = true;
+
     long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
-    logger.info("TopDelegatorService init done in {}ms, processed={}, stakers={}",
+    logger.info("TopDelegatorService init built staker index in {}ms, processed={}, stakers={}",
         elapsedMs, total, stakers.size());
   }
 
+  private void initTotalWeight2(AccountStore accountStore) {
+    logger.info("TopDelegatorService init: tracker total2 missing, streaming account scan starting");
+    long total = 0;
+    long netWeight2 = 0;
+    long energyWeight2 = 0;
+    Iterator<Map.Entry<byte[], AccountCapsule>> it = accountStore.iterator();
+    try {
+      while (it.hasNext()) {
+        AccountCapsule account = it.next().getValue();
+        total++;
+        long bandwidth = account.getFrozenV2BalanceForBandwidth()
+            + account.getDelegatedFrozenV2BalanceForBandwidth();
+        long energy = account.getFrozenV2BalanceForEnergy()
+            + account.getDelegatedFrozenV2BalanceForEnergy();
+        if (bandwidth > 0) {
+          netWeight2 += bandwidth / TRX_PRECISION;
+        }
+        if (energy > 0) {
+          energyWeight2 += energy / TRX_PRECISION;
+        }
+        if (total % 1_000_000 == 0) {
+          logger.info("TopDelegatorService total2 init progress: {}M accounts processed",
+              total / 1_000_000);
+        }
+      }
+    } finally {
+      if (it instanceof java.io.Closeable) {
+        try {
+          ((java.io.Closeable) it).close();
+        } catch (Exception e) {
+          logger.error("Close account iterator.", e);
+        }
+      }
+    }
+    trackerStore.saveTotalEnergyWeight2(energyWeight2);
+    trackerStore.saveTotalNetWeight2(netWeight2);
+    logger.info("TopDelegatorService total2 init done, processed={}, net={}, energy={}",
+        total, netWeight2, energyWeight2);
+  }
+
   public void addStaker(AccountCapsule accountCap) {
-    stakers.add(accountCap.getAddress());
-    stakerStakedForEnergy.put(accountCap.getAddress(), accountCap.getAllStakedTRXForEnergy());
+    updateStaker(accountCap);
   }
 
   public void removeStaker(AccountCapsule accountCap) {
-    stakers.remove(accountCap.getAddress());
-    stakerStakedForEnergy.remove(accountCap.getAddress());
+    if (accountCap != null) {
+      removeStaker(accountCap.getAddress());
+    }
+  }
+
+  public void removeStaker(ByteString address) {
+    if (!initialized) {
+      return;
+    }
+    long oldStake = stakerIndexStore.getStake(address);
+    if (oldStake > 0) {
+      stakers.remove(address);
+      stakerStakedForEnergy.remove(address);
+      stakerIndexStore.removeStaker(address, oldStake);
+    }
   }
 
   public void updateStaker(AccountCapsule accountCapsule) {
-    stakerStakedForEnergy.put(
-        accountCapsule.getAddress(), accountCapsule.getAllStakedTRXForEnergy());
+    if (!initialized || accountCapsule == null) {
+      return;
+    }
+    ByteString address = accountCapsule.getAddress();
+    long newStake = accountCapsule.getAllStakedTRXForEnergy();
+    Long oldStakeValue = stakerStakedForEnergy.get(address);
+    if (newStake == 0 && oldStakeValue == null) {
+      return;
+    }
+    long oldStake = oldStakeValue == null ? 0L : oldStakeValue;
+    if (oldStake == newStake) {
+      return;
+    }
+    if (newStake == 0) {
+      stakers.remove(address);
+      stakerStakedForEnergy.remove(address);
+    } else {
+      stakers.add(address);
+      stakerStakedForEnergy.put(address, newStake);
+    }
+    stakerIndexStore.updateStaker(address, oldStake, newStake);
   }
 
   public long getMEU(ByteString address) {
@@ -156,14 +291,11 @@ public class TopDelegatorService {
   public void doStats() {
     logger.info("TopDelegatorService doStats, Staker size: {}", stakers.size());
 
-    // 直接从 stakedForEnergy 映射构建 (address, staked) 列表,O(|stakers|),无需读 capsule
-    List<Map.Entry<ByteString, Long>> stakerList =
-        new ArrayList<>(stakerStakedForEnergy.entrySet());
-    stakerList.sort(Map.Entry.<ByteString, Long>comparingByValue().reversed());
+    List<Map.Entry<ByteString, Long>> stakerList = stakerIndexStore.getTopStakers(1000);
 
-    logger.info("TopDelegatorService finish sort, total={}", stakerList.size());
+    logger.info("TopDelegatorService loaded top stakers, total={}", stakerList.size());
 
-    for (int i = 0; i < 1000 && i < stakerList.size(); i++) {
+    for (int i = 0; i < stakerList.size(); i++) {
       Map.Entry<ByteString, Long> entry = stakerList.get(i);
       ByteString stakerAddr = entry.getKey();
       long staked = entry.getValue();
