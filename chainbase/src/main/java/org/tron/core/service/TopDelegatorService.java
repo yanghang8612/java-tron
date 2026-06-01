@@ -7,7 +7,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,9 +59,6 @@ public class TopDelegatorService {
 
   private final TrackerStore trackerStore;
 
-  // 主线程单线程写(init 一次性扫 + 稳态期 AccountStore.put hook),ConcurrentHashMap 为防御性选择
-  private final Set<ByteString> stakers = ConcurrentHashMap.newKeySet();
-
   // 只存 stakedForEnergy(Long),不再存完整 AccountCapsule
   private final Map<ByteString, Long> stakerStakedForEnergy = new ConcurrentHashMap<>();
 
@@ -97,7 +93,6 @@ public class TopDelegatorService {
   public void init(AccountStore accountStore) {
     long startNanos = System.nanoTime();
     this.accountStore = accountStore;
-    this.stakers.clear();
     this.stakerStakedForEnergy.clear();
     this.accountMEUs.clear();
     this.dynamicPropertiesStore.removeMEUs();
@@ -105,13 +100,12 @@ public class TopDelegatorService {
     if (stakerIndexStore.isReady()) {
       List<Map.Entry<ByteString, Long>> indexedStakers = stakerIndexStore.loadStakers();
       for (Map.Entry<ByteString, Long> entry : indexedStakers) {
-        stakers.add(entry.getKey());
         stakerStakedForEnergy.put(entry.getKey(), entry.getValue());
       }
       initialized = true;
       long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
       logger.info("TopDelegatorService init loaded staker index in {}ms, stakers={}",
-          elapsedMs, stakers.size());
+          elapsedMs, stakerStakedForEnergy.size());
       if (!trackerStore.hasTotalNetWeight2()) {
         initTotalWeight2(accountStore);
       }
@@ -145,13 +139,12 @@ public class TopDelegatorService {
         long staked = e.getValue().getAllStakedTRXForEnergy();
         if (staked > 0) {
           ByteString addr = ByteString.copyFrom(e.getKey());
-          stakers.add(addr);
           stakerStakedForEnergy.put(addr, staked);
           stakerIndexStore.updateStaker(addr, 0, staked);
         }
         if (total % 1_000_000 == 0) {
           logger.info("TopDelegatorService init progress: {}M accounts processed, stakers so far: {}",
-              total / 1_000_000, stakers.size());
+              total / 1_000_000, stakerStakedForEnergy.size());
         }
       }
     } finally {
@@ -174,7 +167,7 @@ public class TopDelegatorService {
 
     long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
     logger.info("TopDelegatorService init built staker index in {}ms, processed={}, stakers={}",
-        elapsedMs, total, stakers.size());
+        elapsedMs, total, stakerStakedForEnergy.size());
   }
 
   private void initTotalWeight2(AccountStore accountStore) {
@@ -233,7 +226,6 @@ public class TopDelegatorService {
     }
     long oldStake = stakerIndexStore.getStake(address);
     if (oldStake > 0) {
-      stakers.remove(address);
       stakerStakedForEnergy.remove(address);
       stakerIndexStore.removeStaker(address, oldStake);
     }
@@ -254,21 +246,25 @@ public class TopDelegatorService {
       return;
     }
     if (newStake == 0) {
-      stakers.remove(address);
       stakerStakedForEnergy.remove(address);
     } else {
-      stakers.add(address);
       stakerStakedForEnergy.put(address, newStake);
     }
     stakerIndexStore.updateStaker(address, oldStake, newStake);
   }
 
   public long getMEU(ByteString address) {
-    if (!accountMEUs.containsKey(address)) {
-      AccountCapsule accountCap = accountStore.get(address.toByteArray());
-      return calcMaxEnergyUtilization(accountCap);
+    return getMEU(address, dynamicPropertiesStore.getTotalEnergyCurrentLimit(),
+        dynamicPropertiesStore.getTotalEnergyWeight());
+  }
+
+  private long getMEU(ByteString address, long totalEnergyCurrentLimit, long totalEnergyWeight) {
+    Long meu = accountMEUs.get(address);
+    if (meu != null) {
+      return meu;
     }
-    return accountMEUs.get(address);
+    AccountCapsule accountCap = accountStore.get(address.toByteArray());
+    return calcMaxEnergyUtilization(accountCap, totalEnergyCurrentLimit, totalEnergyWeight);
   }
 
   public void updateMEU(AccountCapsule accountCap) {
@@ -279,9 +275,18 @@ public class TopDelegatorService {
   }
 
   private long calcMaxEnergyUtilization(AccountCapsule accountCap) {
+    return calcMaxEnergyUtilization(accountCap, dynamicPropertiesStore.getTotalEnergyCurrentLimit(),
+        dynamicPropertiesStore.getTotalEnergyWeight());
+  }
+
+  private long calcMaxEnergyUtilization(AccountCapsule accountCap, long totalEnergyCurrentLimit,
+                                        long totalEnergyWeight) {
+    if (accountCap == null || totalEnergyWeight <= 0) {
+      return -1;
+    }
     long currentUsage = accountCap.getRealEnergyUsage();
     long availableEnergy = (long) ((double) accountCap.getAllFrozenBalanceForEnergy() / TRX_PRECISION
-        * dynamicPropertiesStore.getTotalEnergyCurrentLimit() / dynamicPropertiesStore.getTotalEnergyWeight());
+        * totalEnergyCurrentLimit / totalEnergyWeight);
     if (availableEnergy == 0) {
       return -1;
     }
@@ -289,9 +294,11 @@ public class TopDelegatorService {
   }
 
   public void doStats() {
-    logger.info("TopDelegatorService doStats, Staker size: {}", stakers.size());
+    logger.info("TopDelegatorService doStats, Staker size: {}", stakerStakedForEnergy.size());
 
     List<Map.Entry<ByteString, Long>> stakerList = stakerIndexStore.getTopStakers(1000);
+    long totalEnergyCurrentLimit = dynamicPropertiesStore.getTotalEnergyCurrentLimit();
+    long totalEnergyWeight = dynamicPropertiesStore.getTotalEnergyWeight();
 
     logger.info("TopDelegatorService loaded top stakers, total={}", stakerList.size());
 
@@ -339,13 +346,13 @@ public class TopDelegatorService {
       Protocol.StakerStat.Builder stakerStatBuilder = Protocol.StakerStat.newBuilder();
       stakerStatBuilder.setAddress(stakerAddr);
       stakerStatBuilder.setStakedTrxForEnergy(staked);
-      stakerStatBuilder.setMeu(getMEU(stakerAddr));
+      stakerStatBuilder.setMeu(getMEU(stakerAddr, totalEnergyCurrentLimit, totalEnergyWeight));
       for (Map.Entry<ByteString, Long> d : delegateAmountMap.entrySet()) {
         stakerStatBuilder.addDelegateStats(
             Protocol.StakerStat.DelegateStat.newBuilder()
                 .setTo(d.getKey())
                 .setAmount(d.getValue())
-                .setMeu(getMEU(d.getKey()))
+                .setMeu(getMEU(d.getKey(), totalEnergyCurrentLimit, totalEnergyWeight))
                 .build());
       }
       stakerStatStore.recordStakerStat(staker, stakerStatBuilder.build().toByteArray());
