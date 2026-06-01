@@ -1336,15 +1336,17 @@ public class Manager {
     setBlockWaitLock(true);
     try {
       synchronized (this) {
-        Metrics.histogramObserve(blockedTimer.get());
+        if (!FAST_SYNC_STATS_MODE) {
+          Metrics.histogramObserve(blockedTimer.get());
+        }
         blockedTimer.remove();
         long headerNumber = getDynamicPropertiesStore().getLatestBlockHeaderNumber();
         if (block.getNum() <= headerNumber && khaosDb.containBlockInMiniStore(block.getBlockId())) {
           logger.info("Block {} is already exist.", block.getBlockId().getString());
           return;
         }
-        final Histogram.Timer timer = Metrics.histogramStartTimer(
-                MetricKeys.Histogram.BLOCK_PUSH_LATENCY);
+        final Histogram.Timer timer = FAST_SYNC_STATS_MODE ? null : Metrics.histogramStartTimer(
+            MetricKeys.Histogram.BLOCK_PUSH_LATENCY);
         long start = System.currentTimeMillis();
         List<TransactionCapsule> txs = getVerifyTxs(block);
         if (shouldLogBlock(block.getNum())) {
@@ -1482,14 +1484,18 @@ public class Manager {
         }
 
         long cost = System.currentTimeMillis() - start;
-        MetricsUtil.meterMark(MetricsKey.BLOCKCHAIN_BLOCK_PROCESS_TIME, cost);
+        if (!FAST_SYNC_STATS_MODE) {
+          MetricsUtil.meterMark(MetricsKey.BLOCKCHAIN_BLOCK_PROCESS_TIME, cost);
+        }
 
         if (shouldLogBlock(block.getNum()) || cost > FAST_SYNC_SLOW_BLOCK_MS) {
           logger.info("PushBlock block number: {}, cost/txs: {}/{} {}.",
                   block.getNum(), cost, block.getTransactions().size(), cost > 1000);
         }
 
-        Metrics.histogramObserve(timer);
+        if (!FAST_SYNC_STATS_MODE) {
+          Metrics.histogramObserve(timer);
+        }
       }
     } finally {
       setBlockWaitLock(false);
@@ -1552,8 +1558,10 @@ public class Manager {
             - chainBaseManager.getDynamicPropertiesStore().getLatestSolidifiedBlockNum()
             + 1));
     chainBaseManager.setLatestSaveBlockTime(System.currentTimeMillis());
-    Metrics.gaugeSet(MetricKeys.Gauge.HEADER_HEIGHT, block.getNum());
-    Metrics.gaugeSet(MetricKeys.Gauge.HEADER_TIME, block.getTimeStamp());
+    if (!FAST_SYNC_STATS_MODE) {
+      Metrics.gaugeSet(MetricKeys.Gauge.HEADER_HEIGHT, block.getNum());
+      Metrics.gaugeSet(MetricKeys.Gauge.HEADER_TIME, block.getTimeStamp());
+    }
   }
 
   /**
@@ -1601,7 +1609,7 @@ public class Manager {
               txId, trxCap.getInstance().getRawData().getContractList().size()));
     }
     Contract contract = trxCap.getInstance().getRawData().getContract(0);
-    final Histogram.Timer requestTimer = Metrics.histogramStartTimer(
+    final Histogram.Timer requestTimer = FAST_SYNC_STATS_MODE ? null : Metrics.histogramStartTimer(
         MetricKeys.Histogram.PROCESS_TRANSACTION_LATENCY,
         Objects.nonNull(blockCap) ? MetricLabels.BLOCK : MetricLabels.TRX,
         contract.getType().name());
@@ -1709,7 +1717,9 @@ public class Manager {
       logger.info("Process transaction {} cost {} ms during {}, {}",
              Hex.toHexString(transactionInfo.getId()), cost, type, contract.getType().name());
     }
-    Metrics.histogramObserve(requestTimer);
+    if (!FAST_SYNC_STATS_MODE) {
+      Metrics.histogramObserve(requestTimer);
+    }
     return transactionInfo.getInstance();
   }
 
