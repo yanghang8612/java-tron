@@ -16,6 +16,8 @@ import org.tron.core.config.args.Args;
 @Slf4j(topic = "app")
 public class FullNode {
 
+  private static final boolean FAST_SYNC_STATS_MODE = true;
+
   /**
    * Start the FullNode.
    */
@@ -41,8 +43,10 @@ public class FullNode {
       logger.info("not in debug mode, it will check energy time");
     }
 
-    // init metrics first
-    Metrics.init();
+    if (!FAST_SYNC_STATS_MODE) {
+      // init metrics first
+      Metrics.init();
+    }
 
     DefaultListableBeanFactory beanFactory = new DefaultListableBeanFactory();
     beanFactory.setAllowCircularReferences(false);
