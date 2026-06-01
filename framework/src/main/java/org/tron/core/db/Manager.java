@@ -181,6 +181,9 @@ import org.tron.protos.contract.BalanceContract;
 public class Manager {
 
   private static final boolean FAST_SYNC_STATS_MODE = true;
+  private static final long FAST_SYNC_LOG_BLOCK_INTERVAL = 1_000L;
+  private static final long FAST_SYNC_SLOW_BLOCK_MS = 3_000L;
+  private static final long FAST_SYNC_SLOW_TX_MS = 1_000L;
   private static final int SHIELDED_TRANS_IN_BLOCK_COUNTS = 1;
   private static final String SAVE_BLOCK = "Save block: {}";
   private static final int SLEEP_TIME_OUT = 50;
@@ -1374,10 +1377,12 @@ public class Manager {
                 MetricKeys.Histogram.BLOCK_PUSH_LATENCY);
         long start = System.currentTimeMillis();
         List<TransactionCapsule> txs = getVerifyTxs(block);
-        logger.info("Block num: {}, re-push-size: {}, pending-size: {}, "
-                        + "block-tx-size: {}, verify-tx-size: {}",
-                block.getNum(), rePushTransactions.size(), pendingTransactions.size(),
-                block.getTransactions().size(), txs.size());
+        if (shouldLogBlock(block.getNum())) {
+          logger.info("Block num: {}, re-push-size: {}, pending-size: {}, "
+                          + "block-tx-size: {}, verify-tx-size: {}",
+                  block.getNum(), rePushTransactions.size(), pendingTransactions.size(),
+                  block.getTransactions().size(), txs.size());
+        }
 
         if (CommonParameter.getInstance().getShutdownBlockTime() != null
                 && CommonParameter.getInstance().getShutdownBlockTime()
@@ -1457,7 +1462,7 @@ public class Manager {
               synchronized (forkLock) {
                 switchFork(newBlock);
               }
-              logger.info(SAVE_BLOCK, newBlock);
+              logSavedBlock(newBlock);
 
               logger.warn(
                   "******** After switchFork ******* push block: {}, new block: {}, "
@@ -1487,7 +1492,7 @@ public class Manager {
               blockTrigger(newBlock, oldSolidNum, newSolidNum);
             }
           }
-          logger.info(SAVE_BLOCK, newBlock);
+          logSavedBlock(newBlock);
         } finally {
           if (pendingManager != null) {
             pendingManager.close();
@@ -1509,13 +1514,25 @@ public class Manager {
         long cost = System.currentTimeMillis() - start;
         MetricsUtil.meterMark(MetricsKey.BLOCKCHAIN_BLOCK_PROCESS_TIME, cost);
 
-        logger.info("PushBlock block number: {}, cost/txs: {}/{} {}.",
-                block.getNum(), cost, block.getTransactions().size(), cost > 1000);
+        if (shouldLogBlock(block.getNum()) || cost > FAST_SYNC_SLOW_BLOCK_MS) {
+          logger.info("PushBlock block number: {}, cost/txs: {}/{} {}.",
+                  block.getNum(), cost, block.getTransactions().size(), cost > 1000);
+        }
 
         Metrics.histogramObserve(timer);
       }
     } finally {
       setBlockWaitLock(false);
+    }
+  }
+
+  private boolean shouldLogBlock(long blockNum) {
+    return !FAST_SYNC_STATS_MODE || blockNum % FAST_SYNC_LOG_BLOCK_INTERVAL == 0;
+  }
+
+  private void logSavedBlock(BlockCapsule block) {
+    if (shouldLogBlock(block.getNum())) {
+      logger.info(SAVE_BLOCK, block);
     }
   }
 
@@ -1660,8 +1677,13 @@ public class Manager {
         trace.checkIsConstant();
         trace.exec();
         trace.setResult();
-        logger.info("Retry result when push: {}, for tx id: {}, tx resultCode in receipt: {}.",
-            blockCap.hasWitnessSignature(), txId, trace.getReceipt().getResult());
+        if (FAST_SYNC_STATS_MODE) {
+          logger.debug("Retry result when push: {}, for tx id: {}, tx resultCode in receipt: {}.",
+              blockCap.hasWitnessSignature(), txId, trace.getReceipt().getResult());
+        } else {
+          logger.info("Retry result when push: {}, for tx id: {}, tx resultCode in receipt: {}.",
+              blockCap.hasWitnessSignature(), txId, trace.getReceipt().getResult());
+        }
       }
       if (!FAST_SYNC_STATS_MODE && blockCap.hasWitnessSignature()) {
         trace.check();
@@ -1708,7 +1730,8 @@ public class Manager {
       trxCap.setTrxTrace(null);
     }
     long cost = System.currentTimeMillis() - start;
-    if (cost > 100) {
+    long slowTxThreshold = FAST_SYNC_STATS_MODE ? FAST_SYNC_SLOW_TX_MS : 100L;
+    if (cost > slowTxThreshold) {
       String type = "broadcast";
       if (Objects.nonNull(blockCap)) {
         type = blockCap.hasWitnessSignature() ? "apply" : "pack";

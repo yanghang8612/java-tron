@@ -41,6 +41,7 @@ import org.tron.protos.Protocol.Inventory.InventoryType;
 @Slf4j(topic = "net")
 @Component
 public class AdvService {
+  private static final boolean FAST_SYNC_STATS_MODE = true;
   private final int MAX_INV_TO_FETCH_CACHE_SIZE = 100_000;
   private final int MAX_TRX_CACHE_SIZE = 50_000;
   private final int MAX_BLOCK_CACHE_SIZE = 10;
@@ -73,8 +74,7 @@ public class AdvService {
 
   private final String spreadName = "adv-spread";
   private final String fetchName = "adv-fetch";
-  private final ScheduledExecutorService spreadExecutor = ExecutorServiceManager
-      .newSingleThreadScheduledExecutor(spreadName);
+  private ScheduledExecutorService spreadExecutor;
 
   private final ScheduledExecutorService fetchExecutor = ExecutorServiceManager
       .newSingleThreadScheduledExecutor(fetchName);
@@ -86,13 +86,16 @@ public class AdvService {
 
   public void init() {
 
-    spreadExecutor.scheduleWithFixedDelay(() -> {
-      try {
-        consumerInvToSpread();
-      } catch (Exception exception) {
-        logger.error("Spread thread error", exception);
-      }
-    }, 100, 30, TimeUnit.MILLISECONDS);
+    if (!FAST_SYNC_STATS_MODE) {
+      spreadExecutor = ExecutorServiceManager.newSingleThreadScheduledExecutor(spreadName);
+      spreadExecutor.scheduleWithFixedDelay(() -> {
+        try {
+          consumerInvToSpread();
+        } catch (Exception exception) {
+          logger.error("Spread thread error", exception);
+        }
+      }, 100, 30, TimeUnit.MILLISECONDS);
+    }
 
     fetchExecutor.scheduleWithFixedDelay(() -> {
       try {
@@ -114,7 +117,8 @@ public class AdvService {
   }
 
   public boolean addInv(Item item) {
-    if (fastForward && item.getType().equals(InventoryType.TRX)) {
+    if (item.getType().equals(InventoryType.TRX)
+        && (FAST_SYNC_STATS_MODE || fastForward)) {
       return false;
     }
 
@@ -157,6 +161,9 @@ public class AdvService {
   }
 
   public int fastBroadcastTransaction(TransactionMessage msg) {
+    if (FAST_SYNC_STATS_MODE) {
+      return 0;
+    }
 
     List<PeerConnection> peers = tronNetDelegate.getActivePeer().stream()
             .filter(peer -> !peer.isNeedSyncFromPeer() && !peer.isNeedSyncFromUs())
@@ -191,6 +198,9 @@ public class AdvService {
   }
 
   public void broadcast(Message msg) {
+    if (FAST_SYNC_STATS_MODE) {
+      return;
+    }
     if (msg instanceof TransactionMessage) {
       return;
     }
