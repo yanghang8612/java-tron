@@ -57,6 +57,8 @@ import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
 @Slf4j(topic = "API")
 public class RpcApiServiceOnPBFT extends RpcService {
 
+  private static final boolean FAST_SYNC_STATS_MODE = true;
+
   @Autowired
   private WalletOnPBFT walletOnPBFT;
 
@@ -65,7 +67,7 @@ public class RpcApiServiceOnPBFT extends RpcService {
 
   public RpcApiServiceOnPBFT() {
     port = Args.getInstance().getRpcOnPBFTPort();
-    enable = isFullNode() && Args.getInstance().isRpcPBFTEnable();
+    enable = !FAST_SYNC_STATS_MODE && isFullNode() && Args.getInstance().isRpcPBFTEnable();
     executorName = "rpc-pbft-executor";
   }
 
