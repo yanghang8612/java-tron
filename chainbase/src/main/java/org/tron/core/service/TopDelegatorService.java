@@ -6,10 +6,13 @@ import com.google.protobuf.ByteString;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +21,7 @@ import org.tron.common.utils.StringUtil;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.DelegatedResourceAccountIndexCapsule;
 import org.tron.core.capsule.DelegatedResourceCapsule;
+import org.tron.core.db2.common.WrappedByteArray;
 import org.tron.core.store.AccountStore;
 import org.tron.core.store.DelegatedResourceAccountIndexStore;
 import org.tron.core.store.DelegatedResourceStore;
@@ -28,11 +32,14 @@ import org.tron.protos.Protocol;
 /**
  * fast-sync-stats: 移植自 track_dynamic_energy 的 staker 统计实现。
  *
- * 与参考的差异:仅以下"事实修复",其余保持完全一致:
- *  1. StakerStatStore 前缀查询带尾下划线(避免 SS_1 误匹配 SS_10/100)
+ * 性能优化(相对参考):
+ *  1. stakerCaps 不再存完整 AccountCapsule,只存 stakedForEnergy(Long),内存约 15-20× 缩减。
+ *  2. init 用 256-prefix 分区并行扫账户表(线程池 = CPU 核数),启动时间 ~N× 缩短。
+ *
+ * 其他与参考一致;前缀查询保留尾下划线(避免 SS_1 误匹配 SS_10/100)。
  *
  * 设计要点:
- *  - in-memory 维护 {stakers,stakerCaps,accountMEUs},避免每周期全表扫账户。
+ *  - in-memory 维护 {stakers, stakerStakedForEnergy, accountMEUs},避免每周期全表扫账户。
  *  - 由 AccountStore.put hook 同步增量:stake-for-energy 变化→add/remove/updateStaker;
  *    能量动作→updateMEU。
  *  - doStats 同步在 Manager 维护点(applyBlock 前)调用,getCurrentCycleNumber 返回
@@ -52,10 +59,13 @@ public class TopDelegatorService {
 
   private final DynamicPropertiesStore dynamicPropertiesStore;
 
-  private final Set<ByteString> stakers = new HashSet<>();
+  // 并发安全:init 期间多线程并行写,稳态期主线程从 AccountStore.put hook 单线程写
+  private final Set<ByteString> stakers = ConcurrentHashMap.newKeySet();
 
-  private final Map<ByteString, AccountCapsule> stakerCaps = new HashMap<>();
+  // 只存 stakedForEnergy(Long),不再存完整 AccountCapsule
+  private final Map<ByteString, Long> stakerStakedForEnergy = new ConcurrentHashMap<>();
 
+  // 仅主线程写(updateMEU 由 AccountStore.put hook 触发),每个 cycle 结束 clear
   private final Map<ByteString, Long> accountMEUs = new HashMap<>();
 
   @Autowired
@@ -69,38 +79,65 @@ public class TopDelegatorService {
     this.dynamicPropertiesStore = dynamicPropertiesStore;
   }
 
+  /**
+   * 启动时一次性扫账户表建 staker 索引。用 256 个 2-byte 前缀(0x41 0xXX)分区并行扫,
+   * 线程池大小 = CPU 核数。每个 task 用 accountStore.prefixQuery 加载自己那一份(~1/256),
+   * filter & 写入并发安全的 stakers / stakerStakedForEnergy。
+   */
   public void init(AccountStore accountStore) {
-    logger.info("TopDelegatorService init");
-
+    long startNanos = System.nanoTime();
     this.accountStore = accountStore;
     this.dynamicPropertiesStore.removeMEUs();
 
-    AtomicLong count = new AtomicLong(0);
-    accountStore.forEach(e -> {
-      if (e.getValue().getAllStakedTRXForEnergy() > 0) {
-        stakers.add(ByteString.copyFrom(e.getKey()));
-        stakerCaps.put(ByteString.copyFrom(e.getKey()), e.getValue());
+    int parallelism = Math.max(2, Runtime.getRuntime().availableProcessors());
+    logger.info("TopDelegatorService init: parallel scan starting, parallelism={}", parallelism);
 
-        if (count.incrementAndGet() % 10_000 == 0) {
-          logger.info("TopDelegatorService initializing, Staker size: {}", count.get());
-        }
+    ExecutorService pool = Executors.newFixedThreadPool(parallelism);
+    AtomicLong totalProcessed = new AtomicLong(0);
+
+    try {
+      List<CompletableFuture<?>> futures = new ArrayList<>(256);
+      for (int b = 0; b < 256; b++) {
+        final byte[] prefix = new byte[]{0x41, (byte) b};
+        futures.add(CompletableFuture.runAsync(() -> {
+          Map<WrappedByteArray, AccountCapsule> partition = accountStore.prefixQuery(prefix);
+          long localCount = 0;
+          for (Map.Entry<WrappedByteArray, AccountCapsule> e : partition.entrySet()) {
+            localCount++;
+            AccountCapsule cap = e.getValue();
+            long staked = cap.getAllStakedTRXForEnergy();
+            if (staked > 0) {
+              ByteString addr = ByteString.copyFrom(e.getKey().getBytes());
+              stakers.add(addr);
+              stakerStakedForEnergy.put(addr, staked);
+            }
+          }
+          totalProcessed.addAndGet(localCount);
+        }, pool));
       }
-    });
-    logger.info("TopDelegatorService init finish, Staker size: {}", count.get());
+      CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+    } finally {
+      pool.shutdown();
+    }
+
+    long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
+    logger.info("TopDelegatorService init done in {}ms, processed={}, stakers={}",
+        elapsedMs, totalProcessed.get(), stakers.size());
   }
 
   public void addStaker(AccountCapsule accountCap) {
     stakers.add(accountCap.getAddress());
-    stakerCaps.put(accountCap.getAddress(), accountCap);
+    stakerStakedForEnergy.put(accountCap.getAddress(), accountCap.getAllStakedTRXForEnergy());
   }
 
   public void removeStaker(AccountCapsule accountCap) {
     stakers.remove(accountCap.getAddress());
-    stakerCaps.remove(accountCap.getAddress());
+    stakerStakedForEnergy.remove(accountCap.getAddress());
   }
 
   public void updateStaker(AccountCapsule accountCapsule) {
-    stakerCaps.put(accountCapsule.getAddress(), accountCapsule);
+    stakerStakedForEnergy.put(
+        accountCapsule.getAddress(), accountCapsule.getAllStakedTRXForEnergy());
   }
 
   public long getMEU(ByteString address) {
@@ -131,62 +168,65 @@ public class TopDelegatorService {
   public void doStats() {
     logger.info("TopDelegatorService doStats, Staker size: {}", stakers.size());
 
-    List<AccountCapsule> stakerList = new ArrayList<>();
-    for (ByteString address : stakers) {
-      stakerList.add(stakerCaps.get(address));
-    }
+    // 直接从 stakedForEnergy 映射构建 (address, staked) 列表,O(|stakers|),无需读 capsule
+    List<Map.Entry<ByteString, Long>> stakerList =
+        new ArrayList<>(stakerStakedForEnergy.entrySet());
+    stakerList.sort(Map.Entry.<ByteString, Long>comparingByValue().reversed());
 
-    logger.info("TopDelegatorService finish get stakerCaps, Staker size: {}", stakerList.size());
-
-    stakerList.sort(Comparator.comparingLong(AccountCapsule::getAllStakedTRXForEnergy).reversed());
-
-    logger.info("TopDelegatorService finish sort stakerCaps");
+    logger.info("TopDelegatorService finish sort, total={}", stakerList.size());
 
     for (int i = 0; i < 1000 && i < stakerList.size(); i++) {
-      byte[] staker = stakerList.get(i).getAddress().toByteArray();
+      Map.Entry<ByteString, Long> entry = stakerList.get(i);
+      ByteString stakerAddr = entry.getKey();
+      long staked = entry.getValue();
+      byte[] staker = stakerAddr.toByteArray();
       logger.info("TopDelegatorService doStats, Staker: {}, Staked TRX for Energy: {}",
-          StringUtil.encode58Check(staker), stakerList.get(i).getAllStakedTRXForEnergy());
+          StringUtil.encode58Check(staker), staked);
       Map<ByteString, Long> delegateAmountMap = new HashMap<>();
 
-      DelegatedResourceAccountIndexCapsule v1IndexCap = delegatedResourceAccountIndexStore.getIndex(staker);
+      DelegatedResourceAccountIndexCapsule v1IndexCap =
+          delegatedResourceAccountIndexStore.getIndex(staker);
       if (v1IndexCap != null) {
         for (ByteString to : v1IndexCap.getToAccountsList()) {
           byte[] dbKey = DelegatedResourceCapsule.createDbKey(staker, to.toByteArray());
           DelegatedResourceCapsule v1DelegateCap = delegatedResourceStore.get(dbKey);
-          long delegateAmount = v1DelegateCap != null ? v1DelegateCap.getFrozenBalanceForEnergy() : 0;
+          long delegateAmount =
+              v1DelegateCap != null ? v1DelegateCap.getFrozenBalanceForEnergy() : 0;
           delegateAmountMap.put(to, delegateAmountMap.getOrDefault(to, 0L) + delegateAmount);
         }
       }
 
-      DelegatedResourceAccountIndexCapsule v2IndexCap = delegatedResourceAccountIndexStore.getV2Index(staker);
+      DelegatedResourceAccountIndexCapsule v2IndexCap =
+          delegatedResourceAccountIndexStore.getV2Index(staker);
       if (v2IndexCap != null) {
         for (ByteString to : v2IndexCap.getToAccountsList()) {
           byte[] dbKey = DelegatedResourceCapsule.createDbKeyV2(staker, to.toByteArray(), false);
           DelegatedResourceCapsule v2UnlockDelegateCap = delegatedResourceStore.get(dbKey);
           long v2UnlockDelegateAmount = v2UnlockDelegateCap != null
               ? v2UnlockDelegateCap.getFrozenBalanceForEnergy() : 0;
-          delegateAmountMap.put(to, delegateAmountMap.getOrDefault(to, 0L) + v2UnlockDelegateAmount);
+          delegateAmountMap.put(to,
+              delegateAmountMap.getOrDefault(to, 0L) + v2UnlockDelegateAmount);
 
           dbKey = DelegatedResourceCapsule.createDbKeyV2(staker, to.toByteArray(), true);
           DelegatedResourceCapsule v2LockDelegateCap = delegatedResourceStore.get(dbKey);
           long v2LockDelegateAmount = v2LockDelegateCap != null
               ? v2LockDelegateCap.getFrozenBalanceForEnergy() : 0;
-          delegateAmountMap.put(to, delegateAmountMap.getOrDefault(to, 0L) + v2LockDelegateAmount);
+          delegateAmountMap.put(to,
+              delegateAmountMap.getOrDefault(to, 0L) + v2LockDelegateAmount);
         }
       }
 
       Protocol.StakerStat.Builder stakerStatBuilder = Protocol.StakerStat.newBuilder();
-      stakerStatBuilder.setAddress(ByteString.copyFrom(staker));
-      stakerStatBuilder.setStakedTrxForEnergy(stakerList.get(i).getAllStakedTRXForEnergy());
-      stakerStatBuilder.setMeu(getMEU(ByteString.copyFrom(staker)));
-      for (Map.Entry<ByteString, Long> entry : delegateAmountMap.entrySet()) {
+      stakerStatBuilder.setAddress(stakerAddr);
+      stakerStatBuilder.setStakedTrxForEnergy(staked);
+      stakerStatBuilder.setMeu(getMEU(stakerAddr));
+      for (Map.Entry<ByteString, Long> d : delegateAmountMap.entrySet()) {
         stakerStatBuilder.addDelegateStats(
             Protocol.StakerStat.DelegateStat.newBuilder()
-                .setTo(entry.getKey())
-                .setAmount(entry.getValue())
-                .setMeu(getMEU(entry.getKey()))
-                .build()
-        );
+                .setTo(d.getKey())
+                .setAmount(d.getValue())
+                .setMeu(getMEU(d.getKey()))
+                .build());
       }
       stakerStatStore.recordStakerStat(staker, stakerStatBuilder.build().toByteArray());
     }
