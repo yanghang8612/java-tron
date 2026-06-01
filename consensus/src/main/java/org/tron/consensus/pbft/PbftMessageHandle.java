@@ -37,6 +37,8 @@ import org.tron.protos.Protocol.PBFTMessage.DataType;
 @Component
 public class PbftMessageHandle {
 
+  private static final boolean FAST_SYNC_STATS_MODE = true;
+
   public static final int TIME_OUT = 60000;
   //Pre-preparation stage voting information
   private Set<String> preVotes = Sets.newConcurrentHashSet();
@@ -66,7 +68,7 @@ public class PbftMessageHandle {
 
   private PbftMessage srPbftMessage;
 
-  private Timer timer = new Timer("pbft-timer");
+  private Timer timer = FAST_SYNC_STATS_MODE ? null : new Timer("pbft-timer");
 
   @Autowired
   private PbftMessageAction pbftMessageAction;
@@ -77,13 +79,17 @@ public class PbftMessageHandle {
 
   @PostConstruct
   public void init() {
-    start();
+    if (!FAST_SYNC_STATS_MODE) {
+      start();
+    }
   }
 
   @PreDestroy
   public void close() {
     try {
-      timer.cancel();
+      if (timer != null) {
+        timer.cancel();
+      }
       // help GC
       timer = null;
     } catch (Exception e) {
