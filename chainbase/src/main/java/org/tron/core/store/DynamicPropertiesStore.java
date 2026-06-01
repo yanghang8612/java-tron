@@ -1470,6 +1470,18 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
         new BytesCapsule(ByteArray.fromLong(blockEnergyUsage)));
   }
 
+  public void resetBlockEnergyUsage() {
+    BytesCapsule current = getUnchecked(DynamicResourceProperties.BLOCK_ENERGY_USAGE);
+    if (current == null) {
+      saveBlockEnergyUsage(0);
+      return;
+    }
+    if (ByteArray.toLong(current.getData()) == 0) {
+      return;
+    }
+    saveBlockEnergyUsage(0);
+  }
+
   public long getBlockEnergyUsage() {
     return Optional.ofNullable(getUnchecked(DynamicResourceProperties.BLOCK_ENERGY_USAGE))
         .map(BytesCapsule::getData)

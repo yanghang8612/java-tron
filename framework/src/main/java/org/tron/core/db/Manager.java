@@ -1987,7 +1987,7 @@ public class Manager {
     }
 
     //reset BlockEnergyUsage
-    chainBaseManager.getDynamicPropertiesStore().saveBlockEnergyUsage(0);
+    chainBaseManager.getDynamicPropertiesStore().resetBlockEnergyUsage();
     //parallel check sign
     if (!FAST_SYNC_STATS_MODE && !block.generatedByMyself) {
       try {
@@ -2000,8 +2000,8 @@ public class Manager {
 
     TransactionRetCapsule transactionRetCapsule =
         new TransactionRetCapsule(block);
+    boolean merkleTreeTouched = false;
     try {
-      merkleContainer.resetCurrentMerkleTree();
       if (!FAST_SYNC_STATS_MODE) {
         accountStateCallBack.preExecute(block);
       }
@@ -2025,6 +2025,10 @@ public class Manager {
         if (!FAST_SYNC_STATS_MODE) {
           accountStateCallBack.preExeTrans();
         }
+        if (!merkleTreeTouched && isShieldedTransaction(transactionCapsule.getInstance())) {
+          merkleContainer.resetCurrentMerkleTree();
+          merkleTreeTouched = true;
+        }
         TransactionInfo result = processTransaction(transactionCapsule, block);
         if (!FAST_SYNC_STATS_MODE) {
           accountStateCallBack.exeTransFinish();
@@ -2042,7 +2046,9 @@ public class Manager {
         accountStateCallBack.exceptionFinish();
       }
     }
-    merkleContainer.saveCurrentMerkleTreeAsBestMerkleTree(block.getNum());
+    if (merkleTreeTouched) {
+      merkleContainer.saveCurrentMerkleTreeAsBestMerkleTree(block.getNum());
+    }
     block.setResult(transactionRetCapsule);
     if (getDynamicPropertiesStore().getAllowAdaptiveEnergy() == 1) {
       EnergyProcessor energyProcessor = new EnergyProcessor(
