@@ -1028,7 +1028,9 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
   }
 
   public void saveBlockFilledSlotsIndex(int blockFilledSlotsIndex) {
-    logger.debug("BlockFilledSlotsIndex: {}.", blockFilledSlotsIndex);
+    if (!FAST_SYNC_STATS_MODE) {
+      logger.debug("BlockFilledSlotsIndex: {}.", blockFilledSlotsIndex);
+    }
     this.put(BLOCK_FILLED_SLOTS_INDEX,
         new BytesCapsule(ByteArray.fromInt(blockFilledSlotsIndex)));
   }
@@ -2113,9 +2115,12 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
   }
 
   public void saveBlockFilledSlots(int[] blockFilledSlots) {
-    logger.debug("BlockFilledSlots: {}.", intArrayToString(blockFilledSlots));
+    String slots = intArrayToString(blockFilledSlots);
+    if (!FAST_SYNC_STATS_MODE) {
+      logger.debug("BlockFilledSlots: {}.", slots);
+    }
     this.put(BLOCK_FILLED_SLOTS,
-        new BytesCapsule(ByteArray.fromString(intArrayToString(blockFilledSlots))));
+        new BytesCapsule(ByteArray.fromString(slots)));
   }
 
   public int[] getBlockFilledSlots() {

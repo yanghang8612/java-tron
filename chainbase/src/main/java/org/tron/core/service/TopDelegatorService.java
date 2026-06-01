@@ -297,6 +297,7 @@ public class TopDelegatorService {
     logger.info("TopDelegatorService doStats, Staker size: {}", stakerStakedForEnergy.size());
 
     List<Map.Entry<ByteString, Long>> stakerList = stakerIndexStore.getTopStakers(1000);
+    long cycleNumber = dynamicPropertiesStore.getCurrentCycleNumber();
     long totalEnergyCurrentLimit = dynamicPropertiesStore.getTotalEnergyCurrentLimit();
     long totalEnergyWeight = dynamicPropertiesStore.getTotalEnergyWeight();
 
@@ -355,7 +356,8 @@ public class TopDelegatorService {
                 .setMeu(getMEU(d.getKey(), totalEnergyCurrentLimit, totalEnergyWeight))
                 .build());
       }
-      stakerStatStore.recordStakerStat(staker, stakerStatBuilder.build().toByteArray());
+      stakerStatStore.recordStakerStat(staker, stakerStatBuilder.build().toByteArray(),
+          cycleNumber);
     }
 
     logger.info("TopDelegatorService doStats finish");
