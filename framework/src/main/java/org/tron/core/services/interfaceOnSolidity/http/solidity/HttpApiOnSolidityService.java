@@ -64,6 +64,8 @@ import org.tron.core.services.interfaceOnSolidity.http.TriggerConstantContractOn
 @Slf4j(topic = "API")
 public class HttpApiOnSolidityService extends HttpService {
 
+  private static final boolean FAST_SYNC_STATS_MODE = true;
+
   @Autowired
   private GetAccountOnSolidityServlet accountOnSolidityServlet;
 
@@ -179,7 +181,7 @@ public class HttpApiOnSolidityService extends HttpService {
 
   public HttpApiOnSolidityService() {
     port = Args.getInstance().getSolidityHttpPort();
-    enable = isFullNode() && Args.getInstance().isSolidityNodeHttpEnable();
+    enable = !FAST_SYNC_STATS_MODE && isFullNode() && Args.getInstance().isSolidityNodeHttpEnable();
     contextPath = "/";
   }
 

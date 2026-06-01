@@ -7,9 +7,11 @@ import com.google.common.cache.CacheBuilder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -54,7 +56,7 @@ public class SyncService {
   private Cache<BlockId, PeerConnection> requestBlockIds = CacheBuilder.newBuilder()
       .maximumSize(10_000)
       .expireAfterWrite(blockCacheTimeout, TimeUnit.MINUTES).initialCapacity(10_000)
-      .recordStats().build();
+      .build();
 
   private final String fetchEsName = "sync-fetch-block";
   private final String handleEsName = "sync-handle-block";
@@ -231,16 +233,18 @@ public class SyncService {
         .filter(peer -> peer.isNeedSyncFromPeer() && peer.isSyncIdle())
         .filter(peer -> peer.isFetchAble())
         .forEach(peer -> {
-          if (!send.containsKey(peer)) {
-            send.put(peer, new LinkedList<>());
-          }
+          List<BlockId> blockIds = null;
           for (BlockId blockId : peer.getSyncBlockToFetch()) {
             if (requestBlockIds.getIfPresent(blockId) == null
                 && !peer.getSyncBlockInProcess().contains(blockId)) {
               requestBlockIds.put(blockId, peer);
               peer.getSyncBlockRequested().put(blockId, System.currentTimeMillis());
-              send.get(peer).add(blockId);
-              if (send.get(peer).size() >= MAX_BLOCK_FETCH_PER_PEER) {
+              if (blockIds == null) {
+                blockIds = new LinkedList<>();
+                send.put(peer, blockIds);
+              }
+              blockIds.add(blockId);
+              if (blockIds.size() >= MAX_BLOCK_FETCH_PER_PEER) {
                 break;
               }
             }
@@ -267,6 +271,7 @@ public class SyncService {
     while (isProcessed[0]) {
 
       isProcessed[0] = false;
+      Set<BlockId> nextBlockIds = getNextBlockIdsToProcess();
 
       blockWaitToProcess.forEach((msg, peerConnection) -> {
         synchronized (tronNetDelegate.getBlockLock()) {
@@ -280,13 +285,7 @@ public class SyncService {
             peerConnection.getSyncBlockInProcess().remove(msg.getBlockId());
             return;
           }
-          final boolean[] isFound = {false};
-          tronNetDelegate.getActivePeer().stream()
-              .filter(peer -> msg.getBlockId().equals(peer.getSyncBlockToFetch().peek()))
-              .forEach(peer -> {
-                isFound[0] = true;
-              });
-          if (isFound[0]) {
+          if (nextBlockIds.contains(msg.getBlockId())) {
             blockWaitToProcess.remove(msg);
             isProcessed[0] = true;
             processSyncBlock(msg.getBlockCapsule(), peerConnection);
@@ -295,6 +294,17 @@ public class SyncService {
         }
       });
     }
+  }
+
+  private Set<BlockId> getNextBlockIdsToProcess() {
+    Set<BlockId> nextBlockIds = new HashSet<>();
+    tronNetDelegate.getActivePeer().forEach(peer -> {
+      BlockId blockId = peer.getSyncBlockToFetch().peek();
+      if (blockId != null) {
+        nextBlockIds.add(blockId);
+      }
+    });
+    return nextBlockIds;
   }
 
   private void processSyncBlock(BlockCapsule block, PeerConnection peerConnection) {

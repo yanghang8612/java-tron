@@ -67,21 +67,20 @@ public class StakerIndexStore extends TronStoreWithRevoking<BytesCapsule> {
     if (limit <= 0) {
       return new ArrayList<>();
     }
-    List<Map.Entry<byte[], BytesCapsule>> rows = new ArrayList<>();
-    prefixQuery(RANK_PREFIX).forEach((k, v) ->
-        rows.add(new AbstractMap.SimpleImmutableEntry<>(k.getBytes(), v)));
+    List<Map.Entry<byte[], byte[]>> rows = new ArrayList<>(
+        revokingDB.getNext(RANK_PREFIX, limit).entrySet());
     rows.sort((e1, e2) -> compareKeys(e1.getKey(), e2.getKey()));
 
     List<Map.Entry<ByteString, Long>> result = new ArrayList<>(Math.min(limit, rows.size()));
-    for (Map.Entry<byte[], BytesCapsule> row : rows) {
+    for (Map.Entry<byte[], byte[]> row : rows) {
       byte[] key = row.getKey();
       if (!startsWith(key, RANK_PREFIX)) {
-        continue;
+        break;
       }
       if (key.length <= RANK_ADDRESS_OFFSET) {
         continue;
       }
-      byte[] value = row.getValue() == null ? null : row.getValue().getData();
+      byte[] value = row.getValue();
       if (value == null) {
         continue;
       }

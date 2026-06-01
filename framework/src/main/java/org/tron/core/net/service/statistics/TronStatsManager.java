@@ -27,7 +27,7 @@ public class TronStatsManager {
   private volatile long UDP_TRAFFIC_OUT = 0;
 
   private static Cache<InetAddress, NodeStatistics> cache = CacheBuilder.newBuilder()
-          .maximumSize(3000).recordStats().build();
+          .maximumSize(3000).build();
 
   private final String esName = "net-traffic-collector";
 

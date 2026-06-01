@@ -225,7 +225,7 @@ public class Manager {
   @Getter
   private Cache<Sha256Hash, Boolean> transactionIdCache = CacheBuilder
       .newBuilder().maximumSize(TX_ID_CACHE_SIZE)
-      .expireAfterWrite(1, TimeUnit.HOURS).recordStats().build();
+      .expireAfterWrite(1, TimeUnit.HOURS).build();
   @Autowired
   private AccountStateCallBack accountStateCallBack;
   @Autowired

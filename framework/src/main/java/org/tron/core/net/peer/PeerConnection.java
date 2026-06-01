@@ -111,12 +111,12 @@ public class PeerConnection {
   @Setter
   @Getter
   private Cache<Item, Long> advInvReceive = CacheBuilder.newBuilder().maximumSize(invCacheSize)
-      .expireAfterWrite(1, TimeUnit.HOURS).recordStats().build();
+      .expireAfterWrite(1, TimeUnit.HOURS).build();
 
   @Setter
   @Getter
   private Cache<Item, Long> advInvSpread = CacheBuilder.newBuilder().maximumSize(invCacheSize)
-      .expireAfterWrite(1, TimeUnit.HOURS).recordStats().build();
+      .expireAfterWrite(1, TimeUnit.HOURS).build();
 
   @Setter
   @Getter
@@ -137,7 +137,7 @@ public class PeerConnection {
   private volatile long remainNum;
   @Getter
   private Cache<Sha256Hash, Long> syncBlockIdCache = CacheBuilder.newBuilder()
-      .maximumSize(2 * NetConstants.SYNC_FETCH_BATCH_NUM).recordStats().build();
+      .maximumSize(2 * NetConstants.SYNC_FETCH_BATCH_NUM).build();
   @Setter
   @Getter
   private Deque<BlockId> syncBlockToFetch = new ConcurrentLinkedDeque<>();
