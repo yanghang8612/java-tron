@@ -487,6 +487,8 @@ public class Manager {
     revokingStore.check();
     transactionCache.initCache();
     rewardViCalService.init();
+    // fast-sync-stats: 启动时一次性扫账户表,建立 staker in-memory 索引(对齐 track_dynamic_energy)
+    topDelegatorService.init(chainBaseManager.getAccountStore());
     this.setProposalController(ProposalController.createInstance(this));
     this.setMerkleContainer(
         merkleContainer.createInstance(chainBaseManager.getMerkleTreeStore(),
@@ -1945,27 +1947,11 @@ public class Manager {
         <= block.getTimeStamp();
     if (flag) {
       proposalController.processProposals();
-      // fast-sync-stats 功能2:周期末异步统计 staker,避免阻塞区块处理。
-      // cycleNum 与 peakMeu 快照必须在主线程、consensus.applyBlock 推进 cycle 之前捕获:
-      // doStats 跑在新线程,届时 cycle 已被 doMaintenance 推进为 N+1,线程内再读会落到下一周期。
-      if (topDelegatorService.tryStartStats()) {
-        try {
-          long cycleNum = chainBaseManager.getDynamicPropertiesStore().getCurrentCycleNumber();
-          Map<ByteString, Long> meuSnapshot = topDelegatorService.swapPeakMeu();
-          new Thread(() -> {
-            try {
-              topDelegatorService.doStats(cycleNum, meuSnapshot);
-            } catch (Exception e) {
-              logger.error("staker doStats failed", e);
-            }
-          }).start();
-        } catch (Throwable t) {
-          // 捕获 cycle/快照 或线程创建启动失败(如 OOM 无法创建原生线程):释放 running,
-          // 否则后续所有周期的 staker 统计都会被永久跳过。
-          topDelegatorService.abortStats();
-          logger.error("staker doStats dispatch failed", t);
-        }
-      }
+      // fast-sync-stats 功能2:周期末同步统计 staker(在 consensus.applyBlock 推进 cycle 之前调用,
+      // recordStakerStat 内部读 getCurrentCycleNumber 得 N=刚结束周期,SS_N_* 落库正确)。
+      // 同步而非线程化:依赖 AccountStore.put hook 增量维护的 in-memory stakers,doStats 是
+      // O(|stakers|) 不是全表扫,可在主线程跑;同时避免了原异步实现追块期被 CAS 跳过 cycle 的问题。
+      topDelegatorService.doStats();
     }
 
     if (!consensus.applyBlock(block)) {

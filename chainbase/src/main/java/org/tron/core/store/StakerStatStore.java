@@ -16,6 +16,9 @@ import org.tron.protos.Protocol;
 public class StakerStatStore extends TronStoreWithRevoking<BytesCapsule> {
 
   @Autowired
+  private DynamicPropertiesStore dps;
+
+  @Autowired
   private StakerStatStore(@Value("staker") String dbName) {
     super(dbName);
   }
@@ -25,8 +28,13 @@ public class StakerStatStore extends TronStoreWithRevoking<BytesCapsule> {
     return getUnchecked(key);
   }
 
-  public void recordStakerStat(byte[] staker, byte[] stats, long cycleNumber) {
-    this.put(generateKey(staker, cycleNumber), new BytesCapsule(stats));
+  /**
+   * 写入当前周期(由 dps.getCurrentCycleNumber() 读)的某 staker 统计。
+   * 调用方应在维护点 doStats 同步链路里调用——此时 currentCycle 仍是刚结束的 N,
+   * 与读侧默认 currentCycle - 1 配合,可正确取回最新已统计周期。
+   */
+  public void recordStakerStat(byte[] staker, byte[] stats) {
+    this.put(generateKey(staker, dps.getCurrentCycleNumber()), new BytesCapsule(stats));
   }
 
   public List<Protocol.StakerStat> getStakerStat(long cycleNumber) {

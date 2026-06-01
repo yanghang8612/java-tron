@@ -20,6 +20,7 @@ import static org.tron.common.math.Maths.max;
 import static org.tron.common.math.Maths.subtractExact;
 import static org.tron.core.config.Parameter.ChainConstant.BLOCK_PRODUCED_INTERVAL;
 import static org.tron.core.config.Parameter.ChainConstant.WINDOW_SIZE_MS;
+import static org.tron.core.config.Parameter.ChainConstant.PRECISION;
 import static org.tron.core.config.Parameter.ChainConstant.WINDOW_SIZE_PRECISION;
 import static org.tron.protos.contract.Common.ResourceCode;
 import static org.tron.protos.contract.Common.ResourceCode.BANDWIDTH;
@@ -34,7 +35,9 @@ import java.util.Map;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
+import org.tron.common.parameter.CommonParameter;
 import org.tron.common.utils.ByteArray;
+import org.tron.core.ChainBaseManager;
 import org.tron.core.capsule.utils.AssetUtil;
 import org.tron.core.store.AssetIssueStore;
 import org.tron.core.store.DynamicPropertiesStore;
@@ -1072,6 +1075,59 @@ public class AccountCapsule implements ProtoCapsule<Account>, Comparable<Account
 
   public AccountResource getAccountResource() {
     return this.account.getAccountResource();
+  }
+
+  // ===== fast-sync-stats: MEU 计算辅助方法,对齐 track_dynamic_energy 的算法 =====
+  // (getEnergyUsage 已在本文件 line ~1218 处定义,不重复)
+  public long getRealEnergyUsage() {
+    long now = getHeadSlot();
+    long energyUsage = getEnergyUsage();
+    long latestConsumeTime = getAccountResource().getLatestConsumeTimeForEnergy();
+    long accountWindowSize = getWindowSize(ENERGY);
+    return recover(energyUsage, latestConsumeTime, now, accountWindowSize);
+  }
+
+  public long getHeadSlot() {
+    return getSlotByTimestampMs(ChainBaseManager.getChainBaseManager()
+        .getDynamicPropertiesStore().getLatestBlockHeaderTimestamp());
+  }
+
+  public long getSlotByTimestampMs(long timestamp) {
+    return (timestamp - Long.parseLong(CommonParameter.getInstance()
+        .getGenesisBlock().getTimestamp()))
+        / BLOCK_PRODUCED_INTERVAL;
+  }
+
+  private final long precision = PRECISION;
+
+  private long recover(long lastUsage, long lastTime, long now, long personalWindowSize) {
+    return increase(lastUsage, 0, lastTime, now, personalWindowSize);
+  }
+
+  private long increase(long lastUsage, long usage, long lastTime, long now, long windowSize) {
+    long averageLastUsage = divideCeil(lastUsage * precision, windowSize);
+    long averageUsage = divideCeil(usage * precision, windowSize);
+
+    if (lastTime != now) {
+      assert now > lastTime;
+      if (lastTime + windowSize > now) {
+        long delta = now - lastTime;
+        double decay = (windowSize - delta) / (double) windowSize;
+        averageLastUsage = Math.round(averageLastUsage * decay);
+      } else {
+        averageLastUsage = 0;
+      }
+    }
+    averageLastUsage += averageUsage;
+    return getUsage(averageLastUsage, windowSize);
+  }
+
+  private long divideCeil(long numerator, long denominator) {
+    return (numerator / denominator) + ((numerator % denominator) > 0 ? 1 : 0);
+  }
+
+  private long getUsage(long usage, long windowSize) {
+    return usage * windowSize / precision;
   }
 
   public void setFrozenForEnergy(long newFrozenBalanceForEnergy, long time) {

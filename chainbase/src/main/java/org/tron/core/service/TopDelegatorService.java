@@ -1,168 +1,197 @@
 package org.tron.core.service;
 
+import static org.tron.core.config.Parameter.ChainConstant.TRX_PRECISION;
+
 import com.google.protobuf.ByteString;
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.Iterator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.PriorityQueue;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.tron.common.utils.StringUtil;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.DelegatedResourceAccountIndexCapsule;
 import org.tron.core.capsule.DelegatedResourceCapsule;
 import org.tron.core.store.AccountStore;
 import org.tron.core.store.DelegatedResourceAccountIndexStore;
 import org.tron.core.store.DelegatedResourceStore;
+import org.tron.core.store.DynamicPropertiesStore;
 import org.tron.core.store.StakerStatStore;
 import org.tron.protos.Protocol;
 
+/**
+ * fast-sync-stats: 移植自 track_dynamic_energy 的 staker 统计实现。
+ *
+ * 与参考的差异:仅以下"事实修复",其余保持完全一致:
+ *  1. StakerStatStore 前缀查询带尾下划线(避免 SS_1 误匹配 SS_10/100)
+ *
+ * 设计要点:
+ *  - in-memory 维护 {stakers,stakerCaps,accountMEUs},避免每周期全表扫账户。
+ *  - 由 AccountStore.put hook 同步增量:stake-for-energy 变化→add/remove/updateStaker;
+ *    能量动作→updateMEU。
+ *  - doStats 同步在 Manager 维护点(applyBlock 前)调用,getCurrentCycleNumber 返回
+ *    刚结束的周期 N,故 stats 落到 SS_N_*,与读侧默认 currentCycle - 1 配合正确。
+ */
 @Component
 @Slf4j(topic = "TopDelegatorService")
 public class TopDelegatorService {
 
-  private static final int TOP_K = 1000;
-
-  @Autowired
   private AccountStore accountStore;
-  @Autowired
-  private StakerStatStore stakerStatStore;
-  @Autowired
-  private DelegatedResourceStore delegatedResourceStore;
-  @Autowired
-  private DelegatedResourceAccountIndexStore delegatedResourceAccountIndexStore;
 
-  // 周期内能量利用率峰值(基点),EnergyProcessor.useEnergy 实时写入
-  private volatile ConcurrentHashMap<ByteString, Long> peakMeu = new ConcurrentHashMap<>();
+  private final StakerStatStore stakerStatStore;
 
-  // 重入防护:避免上一周期 doStats 未跑完时下一周期又启动,造成重复全量扫描与互相覆盖
-  private final AtomicBoolean running = new AtomicBoolean(false);
+  private final DelegatedResourceStore delegatedResourceStore;
 
-  /** 能量消耗点调用:复用 useEnergy 已算好的 usage 与 limit,免去重复计算 */
-  public void recordPeakMeu(byte[] address, long energyUsage, long energyLimit) {
-    if (energyLimit <= 0) {
-      return;
+  private final DelegatedResourceAccountIndexStore delegatedResourceAccountIndexStore;
+
+  private final DynamicPropertiesStore dynamicPropertiesStore;
+
+  private final Set<ByteString> stakers = new HashSet<>();
+
+  private final Map<ByteString, AccountCapsule> stakerCaps = new HashMap<>();
+
+  private final Map<ByteString, Long> accountMEUs = new HashMap<>();
+
+  @Autowired
+  public TopDelegatorService(StakerStatStore stakerStatStore,
+                             DelegatedResourceStore delegatedResourceStore,
+                             DelegatedResourceAccountIndexStore delegatedResourceAccountIndexStore,
+                             DynamicPropertiesStore dynamicPropertiesStore) {
+    this.stakerStatStore = stakerStatStore;
+    this.delegatedResourceStore = delegatedResourceStore;
+    this.delegatedResourceAccountIndexStore = delegatedResourceAccountIndexStore;
+    this.dynamicPropertiesStore = dynamicPropertiesStore;
+  }
+
+  public void init(AccountStore accountStore) {
+    logger.info("TopDelegatorService init");
+
+    this.accountStore = accountStore;
+    this.dynamicPropertiesStore.removeMEUs();
+
+    AtomicLong count = new AtomicLong(0);
+    accountStore.forEach(e -> {
+      if (e.getValue().getAllStakedTRXForEnergy() > 0) {
+        stakers.add(ByteString.copyFrom(e.getKey()));
+        stakerCaps.put(ByteString.copyFrom(e.getKey()), e.getValue());
+
+        if (count.incrementAndGet() % 10_000 == 0) {
+          logger.info("TopDelegatorService initializing, Staker size: {}", count.get());
+        }
+      }
+    });
+    logger.info("TopDelegatorService init finish, Staker size: {}", count.get());
+  }
+
+  public void addStaker(AccountCapsule accountCap) {
+    stakers.add(accountCap.getAddress());
+    stakerCaps.put(accountCap.getAddress(), accountCap);
+  }
+
+  public void removeStaker(AccountCapsule accountCap) {
+    stakers.remove(accountCap.getAddress());
+    stakerCaps.remove(accountCap.getAddress());
+  }
+
+  public void updateStaker(AccountCapsule accountCapsule) {
+    stakerCaps.put(accountCapsule.getAddress(), accountCapsule);
+  }
+
+  public long getMEU(ByteString address) {
+    if (!accountMEUs.containsKey(address)) {
+      AccountCapsule accountCap = accountStore.get(address.toByteArray());
+      return calcMaxEnergyUtilization(accountCap);
     }
-    long meu = energyUsage * 10_000 / energyLimit;
-    peakMeu.merge(ByteString.copyFrom(address), meu, Math::max);
+    return accountMEUs.get(address);
   }
 
-  /**
-   * 由 Manager 在主线程调用:抢占成功才启动本轮统计。放在主线程(而非 doStats 内)是为了:
-   * 抢占失败时不换出 peakMeu,本周期样本继续累积、不丢失。
-   */
-  public boolean tryStartStats() {
-    return running.compareAndSet(false, true);
+  public void updateMEU(AccountCapsule accountCap) {
+    long meu = calcMaxEnergyUtilization(accountCap);
+    if (meu > accountMEUs.getOrDefault(accountCap.getAddress(), 0L)) {
+      accountMEUs.put(accountCap.getAddress(), meu);
+    }
   }
 
-  /**
-   * 线程创建/启动失败(如 OOM 无法创建原生线程)时由 Manager 调用:释放 running,
-   * 否则 CAS 永不复位,后续所有周期的统计都会被永久跳过。
-   */
-  public void abortStats() {
-    running.set(false);
+  private long calcMaxEnergyUtilization(AccountCapsule accountCap) {
+    long currentUsage = accountCap.getRealEnergyUsage();
+    long availableEnergy = (long) ((double) accountCap.getAllFrozenBalanceForEnergy() / TRX_PRECISION
+        * dynamicPropertiesStore.getTotalEnergyCurrentLimit() / dynamicPropertiesStore.getTotalEnergyWeight());
+    if (availableEnergy == 0) {
+      return -1;
+    }
+    return currentUsage * 10_000 / availableEnergy;
   }
 
-  /**
-   * 由 Manager 在主线程调用换出本周期峰值快照。必须在主线程、维护触发点(交易已执行完、
-   * cycle 尚未被 applyBlock 推进)调用,确保快照恰好对应本周期。
-   */
-  public Map<ByteString, Long> swapPeakMeu() {
-    Map<ByteString, Long> snapshot = peakMeu;
-    peakMeu = new ConcurrentHashMap<>();
-    return snapshot;
-  }
+  public void doStats() {
+    logger.info("TopDelegatorService doStats, Staker size: {}", stakers.size());
 
-  private long getMeu(ByteString address, Map<ByteString, Long> snapshot) {
-    return snapshot.getOrDefault(address, 0L);
-  }
+    List<AccountCapsule> stakerList = new ArrayList<>();
+    for (ByteString address : stakers) {
+      stakerList.add(stakerCaps.get(address));
+    }
 
-  /**
-   * 维护周期末由 Manager 用独立线程调用。cycleNumber 与 snapshot 必须由主线程在 tryStartStats
-   * 之后、applyBlock 推进 cycle 之前捕获并传入——doStats 跑在新线程,届时 cycle 已是 N+1,
-   * 不能在此读 dps,否则统计会落到下一周期的 key。
-   *
-   * 一致性说明:本方法在独立线程遍历 live 的 account/delegation store,与主线程区块处理并发,
-   * 底层迭代器无全局快照语义。故落库的质押额/代理记录是"最终一致的近似值"——扫描期间(下一
-   * 周期区块处理时)被改动的账户可能反映为稍晚状态,不保证严格对应 cycleNumber。这是性能取舍:
-   * 同步全量拷贝账户会阻塞区块处理,违背本功能"不阻塞主流程"的目标;而 top-K 多为大额稳定账户,
-   * 秒级漂移可忽略。MEU 峰值与 cycleNumber 由主线程捕获,严格对应本周期,不受此近似影响。
-   */
-  public void doStats(long cycleNumber, Map<ByteString, Long> snapshot) {
-    try {
-      logger.info("doStats start, cycle {}", cycleNumber);
-      // 小顶堆,按 stakedForEnergy 升序,容量 TOP_K
-      PriorityQueue<Map.Entry<ByteString, Long>> heap =
-          new PriorityQueue<>(Comparator.comparingLong(Map.Entry::getValue));
-      long scanned = 0;
-      Iterator<Map.Entry<byte[], AccountCapsule>> it = accountStore.iterator();
-      while (it.hasNext()) {
-        Map.Entry<byte[], AccountCapsule> e = it.next();
-        long staked = e.getValue().getAllStakedTRXForEnergy();
-        if (staked <= 0) {
-          continue;
-        }
-        heap.offer(new AbstractMap.SimpleEntry<>(ByteString.copyFrom(e.getKey()), staked));
-        if (heap.size() > TOP_K) {
-          heap.poll();
-        }
-        if (++scanned % 1_000_000 == 0) {
-          logger.info("doStats scanned {}", scanned);
+    logger.info("TopDelegatorService finish get stakerCaps, Staker size: {}", stakerList.size());
+
+    stakerList.sort(Comparator.comparingLong(AccountCapsule::getAllStakedTRXForEnergy).reversed());
+
+    logger.info("TopDelegatorService finish sort stakerCaps");
+
+    for (int i = 0; i < 1000 && i < stakerList.size(); i++) {
+      byte[] staker = stakerList.get(i).getAddress().toByteArray();
+      logger.info("TopDelegatorService doStats, Staker: {}, Staked TRX for Energy: {}",
+          StringUtil.encode58Check(staker), stakerList.get(i).getAllStakedTRXForEnergy());
+      Map<ByteString, Long> delegateAmountMap = new HashMap<>();
+
+      DelegatedResourceAccountIndexCapsule v1IndexCap = delegatedResourceAccountIndexStore.getIndex(staker);
+      if (v1IndexCap != null) {
+        for (ByteString to : v1IndexCap.getToAccountsList()) {
+          byte[] dbKey = DelegatedResourceCapsule.createDbKey(staker, to.toByteArray());
+          DelegatedResourceCapsule v1DelegateCap = delegatedResourceStore.get(dbKey);
+          long delegateAmount = v1DelegateCap != null ? v1DelegateCap.getFrozenBalanceForEnergy() : 0;
+          delegateAmountMap.put(to, delegateAmountMap.getOrDefault(to, 0L) + delegateAmount);
         }
       }
 
-      List<Map.Entry<ByteString, Long>> topList = new ArrayList<>(heap);
-      topList.sort(Comparator.comparingLong((Map.Entry<ByteString, Long> x) -> x.getValue()).reversed());
+      DelegatedResourceAccountIndexCapsule v2IndexCap = delegatedResourceAccountIndexStore.getV2Index(staker);
+      if (v2IndexCap != null) {
+        for (ByteString to : v2IndexCap.getToAccountsList()) {
+          byte[] dbKey = DelegatedResourceCapsule.createDbKeyV2(staker, to.toByteArray(), false);
+          DelegatedResourceCapsule v2UnlockDelegateCap = delegatedResourceStore.get(dbKey);
+          long v2UnlockDelegateAmount = v2UnlockDelegateCap != null
+              ? v2UnlockDelegateCap.getFrozenBalanceForEnergy() : 0;
+          delegateAmountMap.put(to, delegateAmountMap.getOrDefault(to, 0L) + v2UnlockDelegateAmount);
 
-      for (Map.Entry<ByteString, Long> entry : topList) {
-        byte[] staker = entry.getKey().toByteArray();
-        Map<ByteString, Long> delegateAmountMap = new HashMap<>();
-
-        DelegatedResourceAccountIndexCapsule v1Index =
-            delegatedResourceAccountIndexStore.getIndex(staker);
-        if (v1Index != null) {
-          for (ByteString to : v1Index.getToAccountsList()) {
-            DelegatedResourceCapsule cap = delegatedResourceStore.get(
-                DelegatedResourceCapsule.createDbKey(staker, to.toByteArray()));
-            long amount = cap != null ? cap.getFrozenBalanceForEnergy() : 0;
-            delegateAmountMap.merge(to, amount, Long::sum);
-          }
+          dbKey = DelegatedResourceCapsule.createDbKeyV2(staker, to.toByteArray(), true);
+          DelegatedResourceCapsule v2LockDelegateCap = delegatedResourceStore.get(dbKey);
+          long v2LockDelegateAmount = v2LockDelegateCap != null
+              ? v2LockDelegateCap.getFrozenBalanceForEnergy() : 0;
+          delegateAmountMap.put(to, delegateAmountMap.getOrDefault(to, 0L) + v2LockDelegateAmount);
         }
-        DelegatedResourceAccountIndexCapsule v2Index =
-            delegatedResourceAccountIndexStore.getV2Index(staker);
-        if (v2Index != null) {
-          for (ByteString to : v2Index.getToAccountsList()) {
-            DelegatedResourceCapsule unlockCap = delegatedResourceStore.get(
-                DelegatedResourceCapsule.createDbKeyV2(staker, to.toByteArray(), false));
-            DelegatedResourceCapsule lockCap = delegatedResourceStore.get(
-                DelegatedResourceCapsule.createDbKeyV2(staker, to.toByteArray(), true));
-            long amount = (unlockCap != null ? unlockCap.getFrozenBalanceForEnergy() : 0)
-                + (lockCap != null ? lockCap.getFrozenBalanceForEnergy() : 0);
-            delegateAmountMap.merge(to, amount, Long::sum);
-          }
-        }
-
-        Protocol.StakerStat.Builder b = Protocol.StakerStat.newBuilder()
-            .setAddress(entry.getKey())
-            .setStakedTrxForEnergy(entry.getValue())
-            .setMeu(getMeu(entry.getKey(), snapshot));
-        for (Map.Entry<ByteString, Long> d : delegateAmountMap.entrySet()) {
-          b.addDelegateStats(Protocol.StakerStat.DelegateStat.newBuilder()
-              .setTo(d.getKey())
-              .setAmount(d.getValue())
-              .setMeu(getMeu(d.getKey(), snapshot)));
-        }
-        stakerStatStore.recordStakerStat(staker, b.build().toByteArray(), cycleNumber);
       }
-      logger.info("doStats finish, cycle {}, scanned {}, top {}", cycleNumber, scanned, topList.size());
-    } finally {
-      running.set(false);
+
+      Protocol.StakerStat.Builder stakerStatBuilder = Protocol.StakerStat.newBuilder();
+      stakerStatBuilder.setAddress(ByteString.copyFrom(staker));
+      stakerStatBuilder.setStakedTrxForEnergy(stakerList.get(i).getAllStakedTRXForEnergy());
+      stakerStatBuilder.setMeu(getMEU(ByteString.copyFrom(staker)));
+      for (Map.Entry<ByteString, Long> entry : delegateAmountMap.entrySet()) {
+        stakerStatBuilder.addDelegateStats(
+            Protocol.StakerStat.DelegateStat.newBuilder()
+                .setTo(entry.getKey())
+                .setAmount(entry.getValue())
+                .setMeu(getMEU(entry.getKey()))
+                .build()
+        );
+      }
+      stakerStatStore.recordStakerStat(staker, stakerStatBuilder.build().toByteArray());
     }
+
+    logger.info("TopDelegatorService doStats finish");
+    accountMEUs.clear();
   }
 }

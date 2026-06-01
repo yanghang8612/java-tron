@@ -154,6 +154,12 @@ public class MaintenanceManager {
       // fast-sync-stats: 记录刚结束周期的结束块号(供 /list_cycle 做 cycle->日期 映射)
       dynamicPropertiesStore.saveCycleEndBlockNumber(nextCycle - 1,
           dynamicPropertiesStore.getLatestBlockHeaderNumber() + 1);
+      // fast-sync-stats Q1: 记录刚结束周期的全网质押权重快照(供 /wallet/getstakeweight 带 cycle 查)
+      dynamicPropertiesStore.saveCycleStakeWeights(nextCycle - 1,
+          dynamicPropertiesStore.getTotalNetWeight2(),
+          dynamicPropertiesStore.getTotalEnergyWeight2(),
+          dynamicPropertiesStore.getTotalNetWeight(),
+          dynamicPropertiesStore.getTotalEnergyWeight());
       consensusDelegate.getAllWitnesses().forEach(witness -> {
         delegationStore.setBrokerage(nextCycle, witness.createDbKey(),
             delegationStore.getBrokerage(witness.createDbKey()));

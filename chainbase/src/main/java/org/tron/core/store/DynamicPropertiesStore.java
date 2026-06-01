@@ -2434,6 +2434,43 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
     this.put(("CYCLE_END_" + cycle).getBytes(), new BytesCapsule(ByteArray.fromLong(number)));
   }
 
+  // fast-sync-stats: 原样照搬 track_dynamic_energy 的 removeMEUs。
+  // 注:SS_/MEU_ 键实际在另一个 DB(StakerStatStore=staker DB),DPS 的 prefixQuery
+  // 不可达,所以这里是无害的空操作,不要"修复"它(否则会误删 staker DB 的历史)。
+  public void removeMEUs() {
+    this.prefixQuery("MEU_".getBytes()).forEach((k, v) -> this.delete(k.getBytes()));
+    this.prefixQuery("SS_".getBytes()).forEach((k, v) -> this.delete(k.getBytes()));
+  }
+
+  // fast-sync-stats: Q1 — 每周期末快照 4 个全网质押权重,供 /wallet/getstakeweight 带 cycle 查询。
+  // 一个 SW_<cycle> 键 packed 32 字节:[net2|energy2|totalNet|totalEnergy] 各 8 字节。
+  public void saveCycleStakeWeights(long cycle, long net2, long energy2,
+      long totalNet, long totalEnergy) {
+    byte[] data = new byte[32];
+    System.arraycopy(ByteArray.fromLong(net2), 0, data, 0, 8);
+    System.arraycopy(ByteArray.fromLong(energy2), 0, data, 8, 8);
+    System.arraycopy(ByteArray.fromLong(totalNet), 0, data, 16, 8);
+    System.arraycopy(ByteArray.fromLong(totalEnergy), 0, data, 24, 8);
+    this.put(("SW_" + cycle).getBytes(), new BytesCapsule(data));
+  }
+
+  /** @return [net2, energy2, totalNet, totalEnergy] 或 null(该周期未记录) */
+  public long[] getCycleStakeWeights(long cycle) {
+    byte[] data = Optional.ofNullable(getUnchecked(("SW_" + cycle).getBytes()))
+        .map(BytesCapsule::getData)
+        .filter(d -> d.length == 32)
+        .orElse(null);
+    if (data == null) {
+      return null;
+    }
+    return new long[] {
+        ByteArray.toLong(java.util.Arrays.copyOfRange(data, 0, 8)),
+        ByteArray.toLong(java.util.Arrays.copyOfRange(data, 8, 16)),
+        ByteArray.toLong(java.util.Arrays.copyOfRange(data, 16, 24)),
+        ByteArray.toLong(java.util.Arrays.copyOfRange(data, 24, 32))
+    };
+  }
+
   public void saveChangeDelegation(long number) {
     this.put(CHANGE_DELEGATION,
         new BytesCapsule(ByteArray.fromLong(number)));

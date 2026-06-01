@@ -17,10 +17,32 @@ public class StakeWeightServlet extends RateLimiterServlet {
 
   protected void doGet(HttpServletRequest request, HttpServletResponse response) {
     try {
-      long totalNet = dps.getTotalNetWeight();
-      long totalEnergy = dps.getTotalEnergyWeight();
-      long net2 = dps.getTotalNetWeight2();
-      long energy2 = dps.getTotalEnergyWeight2();
+      long net2;
+      long energy2;
+      long totalNet;
+      long totalEnergy;
+      String cycleParam = request.getParameter("cycle_number");
+      if (cycleParam == null) {
+        // 不带 cycle_number:返回 live 当前值
+        totalNet = dps.getTotalNetWeight();
+        totalEnergy = dps.getTotalEnergyWeight();
+        net2 = dps.getTotalNetWeight2();
+        energy2 = dps.getTotalEnergyWeight2();
+      } else {
+        // 带 cycle_number:读 SW_<cycle> 快照(由 MaintenanceManager 在每个周期末写入)
+        long cycle = Long.parseLong(cycleParam);
+        long[] snap = dps.getCycleStakeWeights(cycle);
+        if (snap == null) {
+          com.alibaba.fastjson.JSONObject err = new com.alibaba.fastjson.JSONObject();
+          err.put("error", "no stake weight snapshot for cycle " + cycle);
+          response.getWriter().println(err.toJSONString());
+          return;
+        }
+        net2 = snap[0];
+        energy2 = snap[1];
+        totalNet = snap[2];
+        totalEnergy = snap[3];
+      }
       com.alibaba.fastjson.JSONObject obj = new com.alibaba.fastjson.JSONObject();
       obj.put("bandwidth_stake2", net2);
       obj.put("energy_stake2", energy2);
