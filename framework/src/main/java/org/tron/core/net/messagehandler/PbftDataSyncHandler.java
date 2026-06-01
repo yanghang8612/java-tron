@@ -38,20 +38,25 @@ import org.tron.protos.Protocol.PBFTMessage.Raw;
 @Service
 public class PbftDataSyncHandler implements TronMsgHandler, Closeable {
 
+  private static final boolean FAST_SYNC_STATS_MODE = true;
+
   private static final Cache<Long, PbftCommitMessage> pbftCommitMessageCache =
       CacheBuilder.newBuilder().initialCapacity(100).maximumSize(200)
           .expireAfterWrite(10, TimeUnit.MINUTES).build();
 
   private final String esName = "valid-header-pbft-sign";
 
-  private ExecutorService executorService = ExecutorServiceManager.newFixedThreadPool(
-      esName, 19);
+  private ExecutorService executorService = FAST_SYNC_STATS_MODE ? null
+      : ExecutorServiceManager.newFixedThreadPool(esName, 19);
 
   @Autowired
   private ChainBaseManager chainBaseManager;
 
   @Override
   public void processMessage(PeerConnection peer, TronMessage msg) throws P2pException {
+    if (FAST_SYNC_STATS_MODE) {
+      return;
+    }
     PbftCommitMessage pbftCommitMessage = (PbftCommitMessage) msg;
     try {
       if (!chainBaseManager.getDynamicPropertiesStore().allowPBFT()) {
@@ -65,6 +70,9 @@ public class PbftDataSyncHandler implements TronMsgHandler, Closeable {
   }
 
   public void processPBFTCommitData(BlockCapsule block) {
+    if (FAST_SYNC_STATS_MODE) {
+      return;
+    }
     try {
       if (!chainBaseManager.getDynamicPropertiesStore().allowPBFT()) {
         return;
@@ -94,7 +102,9 @@ public class PbftDataSyncHandler implements TronMsgHandler, Closeable {
 
   @Override
   public void close() {
-    ExecutorServiceManager.shutdownAndAwaitTermination(executorService, esName);
+    if (executorService != null) {
+      ExecutorServiceManager.shutdownAndAwaitTermination(executorService, esName);
+    }
   }
 
   private void processPBFTCommitMessage(PbftCommitMessage pbftCommitMessage) {

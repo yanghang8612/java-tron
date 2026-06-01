@@ -38,6 +38,8 @@ import org.tron.protos.Protocol.ReasonCode;
 @Component
 public class SyncService {
 
+  private static final boolean FAST_SYNC_STATS_MODE = true;
+
   @Autowired
   private TronNetDelegate tronNetDelegate;
 
@@ -305,7 +307,9 @@ public class SyncService {
     try {
       tronNetDelegate.validSignature(block);
       tronNetDelegate.processBlock(block, true);
-      pbftDataSyncHandler.processPBFTCommitData(block);
+      if (!FAST_SYNC_STATS_MODE) {
+        pbftDataSyncHandler.processPBFTCommitData(block);
+      }
     } catch (P2pException p2pException) {
       logger.error("Process sync block {} failed, type: {}",
               blockId.getString(), p2pException.getType());
