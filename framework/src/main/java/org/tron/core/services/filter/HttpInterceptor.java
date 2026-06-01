@@ -1,6 +1,8 @@
 package org.tron.core.services.filter;
 
 import com.google.common.base.Strings;
+import java.io.IOException;
+import javax.servlet.ServletException;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -18,6 +20,8 @@ import org.tron.core.metrics.MetricsUtil;
 @Slf4j(topic = "httpInterceptor")
 public class HttpInterceptor implements Filter {
 
+  private static final boolean FAST_SYNC_STATS_MODE = true;
+
   private final int HTTP_SUCCESS = 200;
   private final int HTTP_BAD_REQUEST = 400;
   private final int HTTP_NOT_ACCEPTABLE = 406;
@@ -27,7 +31,12 @@ public class HttpInterceptor implements Filter {
   }
 
   @Override
-  public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) {
+  public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+      throws IOException, ServletException {
+    if (FAST_SYNC_STATS_MODE) {
+      chain.doFilter(request, response);
+      return;
+    }
     String endpoint = MetricLabels.UNDEFINED;
     try {
       if (!(request instanceof HttpServletRequest)) {
@@ -72,6 +81,4 @@ public class HttpInterceptor implements Filter {
   public void destroy() {
   }
 }
-
-
 

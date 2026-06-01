@@ -20,9 +20,14 @@ import org.tron.common.prometheus.Metrics;
 @Component
 public class PrometheusInterceptor implements ServerInterceptor {
 
+  private static final boolean FAST_SYNC_STATS_MODE = true;
+
   @Override
   public <R, S> ServerCall.Listener<R> interceptCall(
       ServerCall<R, S> call, Metadata requestMetadata, ServerCallHandler<R, S> next) {
+    if (FAST_SYNC_STATS_MODE) {
+      return next.startCall(call, requestMetadata);
+    }
     return next.startCall(new MonitoringServerCall<>(call), requestMetadata);
   }
 
