@@ -32,6 +32,8 @@ import org.tron.core.store.VotesStore;
 @Component
 public class MaintenanceManager {
 
+  private static final boolean FAST_SYNC_STATS_MODE = true;
+
   @Autowired
   private ConsensusDelegate consensusDelegate;
 
@@ -77,8 +79,10 @@ public class MaintenanceManager {
       consensusDelegate.updateNextMaintenanceTime(blockTime);
       if (blockNum != 1) {
         //pbft sr msg
-        pbftManager.srPrePrepare(blockCapsule, currentWitness,
-            consensusDelegate.getNextMaintenanceTime());
+        if (!FAST_SYNC_STATS_MODE) {
+          pbftManager.srPrePrepare(blockCapsule, currentWitness,
+              consensusDelegate.getNextMaintenanceTime());
+        }
       }
     }
     consensusDelegate.saveStateFlag(flag ? 1 : 0);
@@ -86,7 +90,9 @@ public class MaintenanceManager {
     if (blockNum == 1) {
       nextMaintenanceTime = consensusDelegate.getNextMaintenanceTime();
     }
-    pbftManager.blockPrePrepare(blockCapsule, nextMaintenanceTime);
+    if (!FAST_SYNC_STATS_MODE) {
+      pbftManager.blockPrePrepare(blockCapsule, nextMaintenanceTime);
+    }
   }
 
   private void updateWitnessValue(List<ByteString> srList) {

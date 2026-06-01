@@ -21,6 +21,8 @@ import org.tron.core.capsule.BlockCapsule;
 @Component
 public class PbftManager implements Closeable {
 
+  private static final boolean FAST_SYNC_STATS_MODE = true;
+
   @Autowired
   private PbftMessageHandle pbftMessageHandle;
 
@@ -31,15 +33,21 @@ public class PbftManager implements Closeable {
   private ChainBaseManager chainBaseManager;
 
   private final String esName = "pbft-msg-manager";
-  private ExecutorService executorService = ExecutorServiceManager.newFixedThreadPool(esName, 10);
+  private ExecutorService executorService = FAST_SYNC_STATS_MODE ? null
+      : ExecutorServiceManager.newFixedThreadPool(esName, 10);
 
   @PostConstruct
   public void init() {
     maintenanceManager.setPbftManager(this);
-    pbftMessageHandle.setMaintenanceManager(maintenanceManager);
+    if (!FAST_SYNC_STATS_MODE) {
+      pbftMessageHandle.setMaintenanceManager(maintenanceManager);
+    }
   }
 
   public void blockPrePrepare(BlockCapsule block, long epoch) {
+    if (FAST_SYNC_STATS_MODE) {
+      return;
+    }
     if (!chainBaseManager.getDynamicPropertiesStore().allowPBFT()) {
       return;
     }
@@ -55,6 +63,9 @@ public class PbftManager implements Closeable {
   }
 
   public void srPrePrepare(BlockCapsule block, List<ByteString> currentWitness, long epoch) {
+    if (FAST_SYNC_STATS_MODE) {
+      return;
+    }
     if (!chainBaseManager.getDynamicPropertiesStore().allowPBFT()) {
       return;
     }
@@ -70,10 +81,16 @@ public class PbftManager implements Closeable {
   }
 
   public void forwardMessage(PbftBaseMessage message) {
+    if (FAST_SYNC_STATS_MODE) {
+      return;
+    }
     pbftMessageHandle.forwardMessage(message);
   }
 
   public boolean doAction(PbftMessage msg) {
+    if (FAST_SYNC_STATS_MODE) {
+      return false;
+    }
     executorService.submit(() -> {
       logger.info("receive pbft msg: {}", msg);
       switch (msg.getPbftMessage().getRawData().getMsgType()) {
@@ -114,7 +131,9 @@ public class PbftManager implements Closeable {
 
   @Override
   public void close() {
-    ExecutorServiceManager.shutdownAndAwaitTermination(executorService, esName);
+    if (executorService != null) {
+      ExecutorServiceManager.shutdownAndAwaitTermination(executorService, esName);
+    }
   }
 
 }
