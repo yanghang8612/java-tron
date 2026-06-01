@@ -29,7 +29,7 @@ public class TrackerStore extends TronStoreWithRevoking<BytesCapsule> {
   }
 
   public boolean hasTotalNetWeight2() {
-    return getUnchecked(TOTAL_NET_WEIGHT2) != null;
+    return getData(TOTAL_NET_WEIGHT2) != null;
   }
 
   public void saveTotalNetWeight2(long totalNetWeight) {
@@ -81,8 +81,7 @@ public class TrackerStore extends TronStoreWithRevoking<BytesCapsule> {
   }
 
   public long[] getCycleStakeWeights(long cycle) {
-    byte[] data = Optional.ofNullable(getUnchecked(stakeWeightKey(cycle)))
-        .map(BytesCapsule::getData)
+    byte[] data = Optional.ofNullable(getData(stakeWeightKey(cycle)))
         .filter(d -> d.length == 32)
         .orElse(null);
     if (data == null) {
@@ -110,10 +109,14 @@ public class TrackerStore extends TronStoreWithRevoking<BytesCapsule> {
   }
 
   private long getLong(byte[] key, long defaultValue) {
-    return Optional.ofNullable(getUnchecked(key))
-        .map(BytesCapsule::getData)
+    return Optional.ofNullable(getData(key))
         .map(ByteArray::toLong)
         .orElse(defaultValue);
+  }
+
+  private byte[] getData(byte[] key) {
+    BytesCapsule capsule = getUnchecked(key);
+    return capsule == null ? null : capsule.getData();
   }
 
   private byte[] cycleEndKey(long cycle) {

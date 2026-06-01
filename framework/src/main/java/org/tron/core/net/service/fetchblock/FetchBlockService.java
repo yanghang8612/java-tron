@@ -1,5 +1,7 @@
 package org.tron.core.net.service.fetchblock;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -28,6 +30,8 @@ import org.tron.protos.Protocol.Inventory.InventoryType;
 @Component
 public class FetchBlockService {
 
+  private static final boolean FAST_SYNC_STATS_MODE = true;
+
   @Autowired
   private TronNetDelegate tronNetDelegate;
 
@@ -44,6 +48,9 @@ public class FetchBlockService {
 
   private final ScheduledExecutorService fetchBlockWorkerExecutor =
       ExecutorServiceManager.newSingleThreadScheduledExecutor(esName);
+
+  private final Cache<String, Long> fetchLatencyCache = CacheBuilder.newBuilder()
+      .maximumSize(1_000).expireAfterAccess(30, TimeUnit.MINUTES).build();
 
   public void init() {
     fetchBlockWorkerExecutor.scheduleWithFixedDelay(() -> {
@@ -86,6 +93,12 @@ public class FetchBlockService {
       return;
     }
     this.fetchBlockInfo = null;
+  }
+
+  public void recordFetchLatency(PeerConnection peerConnection, long latency) {
+    if (FAST_SYNC_STATS_MODE) {
+      fetchLatencyCache.put(peerConnection.getInetAddress().getHostAddress(), latency);
+    }
   }
 
   private void fetchBlockProcess(FetchBlockInfo fetchBlock) {
@@ -133,6 +146,11 @@ public class FetchBlockService {
   }
 
   private double getPeerTop75(PeerConnection peerConnection) {
+    if (FAST_SYNC_STATS_MODE) {
+      Long latency = fetchLatencyCache.getIfPresent(
+          peerConnection.getInetAddress().getHostAddress());
+      return latency == null ? fetchTimeOut : latency;
+    }
     return MetricsUtil.getHistogram(MetricsKey.NET_LATENCY_FETCH_BLOCK
         + peerConnection.getInetAddress()).getSnapshot().get75thPercentile();
   }
