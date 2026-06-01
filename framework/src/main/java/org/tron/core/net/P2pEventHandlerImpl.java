@@ -127,6 +127,11 @@ public class P2pEventHandlerImpl extends P2pEventHandler {
       return;
     }
 
+    if (FAST_SYNC_STATS_MODE && (MessageTypes.PBFT_MSG.asByte() == data[0]
+        || MessageTypes.PBFT_COMMIT_MSG.asByte() == data[0])) {
+      return;
+    }
+
     if (MessageTypes.PBFT_MSG.asByte() == data[0]) {
       PbftMessage message = null;
       try {

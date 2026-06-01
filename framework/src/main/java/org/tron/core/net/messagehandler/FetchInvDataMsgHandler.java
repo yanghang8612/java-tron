@@ -39,8 +39,9 @@ public class FetchInvDataMsgHandler implements TronMsgHandler {
 
   private static final boolean FAST_SYNC_STATS_MODE = true;
 
-  private volatile Cache<Long, Boolean> epochCache = CacheBuilder.newBuilder().initialCapacity(100)
-      .maximumSize(1000).expireAfterWrite(1, TimeUnit.HOURS).build();
+  private volatile Cache<Long, Boolean> epochCache = FAST_SYNC_STATS_MODE ? null
+      : CacheBuilder.newBuilder().initialCapacity(100)
+          .maximumSize(1000).expireAfterWrite(1, TimeUnit.HOURS).build();
 
   private static final int MAX_SIZE = 1_000_000;
   @Autowired
@@ -103,6 +104,9 @@ public class FetchInvDataMsgHandler implements TronMsgHandler {
   }
 
   private void sendPbftCommitMessage(PeerConnection peer, BlockCapsule blockCapsule) {
+    if (FAST_SYNC_STATS_MODE) {
+      return;
+    }
     try {
       if (!tronNetDelegate.allowPBFT() || peer.isSyncFinish()) {
         return;
