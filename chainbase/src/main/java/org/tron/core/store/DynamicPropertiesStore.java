@@ -2448,6 +2448,18 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
     this.put(("SW_" + cycle).getBytes(), new BytesCapsule(data));
   }
 
+  // fast-sync-stats: 持久化"最近一次已裁剪到的块号",批量裁剪 cursor;-1 表示尚未初始化
+  public long getLastPrunedBlockNum() {
+    return Optional.ofNullable(getUnchecked("LAST_PRUNED_BLOCK_NUM".getBytes()))
+        .map(BytesCapsule::getData)
+        .map(ByteArray::toLong)
+        .orElse(-1L);
+  }
+
+  public void saveLastPrunedBlockNum(long n) {
+    this.put("LAST_PRUNED_BLOCK_NUM".getBytes(), new BytesCapsule(ByteArray.fromLong(n)));
+  }
+
   /** @return [net2, energy2, totalNet, totalEnergy] 或 null(该周期未记录) */
   public long[] getCycleStakeWeights(long cycle) {
     byte[] data = Optional.ofNullable(getUnchecked(("SW_" + cycle).getBytes()))
