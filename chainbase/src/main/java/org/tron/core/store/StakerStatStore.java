@@ -34,7 +34,11 @@ public class StakerStatStore extends TronStoreWithRevoking<BytesCapsule> {
    * 与读侧默认 currentCycle - 1 配合,可正确取回最新已统计周期。
    */
   public void recordStakerStat(byte[] staker, byte[] stats) {
-    this.put(generateKey(staker, dps.getCurrentCycleNumber()), new BytesCapsule(stats));
+    recordStakerStat(staker, stats, dps.getCurrentCycleNumber());
+  }
+
+  public void recordStakerStat(byte[] staker, byte[] stats, long cycleNumber) {
+    this.put(generateKey(staker, cycleNumber), new BytesCapsule(stats));
   }
 
   public List<Protocol.StakerStat> getStakerStat(long cycleNumber) {
@@ -56,6 +60,6 @@ public class StakerStatStore extends TronStoreWithRevoking<BytesCapsule> {
   }
 
   private byte[] generateKey(byte[] address, long cycleNumber) {
-    return String.format("SS_%d_%s", cycleNumber, ByteArray.toHexString(address)).getBytes();
+    return ("SS_" + cycleNumber + "_" + ByteArray.toHexString(address)).getBytes();
   }
 }
