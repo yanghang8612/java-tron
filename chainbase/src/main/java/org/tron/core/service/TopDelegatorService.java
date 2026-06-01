@@ -6,14 +6,11 @@ import com.google.protobuf.ByteString;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -21,7 +18,6 @@ import org.tron.common.utils.StringUtil;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.DelegatedResourceAccountIndexCapsule;
 import org.tron.core.capsule.DelegatedResourceCapsule;
-import org.tron.core.db2.common.WrappedByteArray;
 import org.tron.core.store.AccountStore;
 import org.tron.core.store.DelegatedResourceAccountIndexStore;
 import org.tron.core.store.DelegatedResourceStore;
@@ -34,7 +30,8 @@ import org.tron.protos.Protocol;
  *
  * 性能优化(相对参考):
  *  1. stakerCaps 不再存完整 AccountCapsule,只存 stakedForEnergy(Long),内存约 15-20× 缩减。
- *  2. init 用 256-prefix 分区并行扫账户表(线程池 = CPU 核数),启动时间 ~N× 缩短。
+ *  2. init 单线程流式遍历,内存恒定(主网量级安全);后续如需提速可做底层 LevelDB
+ *     DBIterator 多线程 seek 分段。
  *
  * 其他与参考一致;前缀查询保留尾下划线(避免 SS_1 误匹配 SS_10/100)。
  *
@@ -59,7 +56,7 @@ public class TopDelegatorService {
 
   private final DynamicPropertiesStore dynamicPropertiesStore;
 
-  // 并发安全:init 期间多线程并行写,稳态期主线程从 AccountStore.put hook 单线程写
+  // 主线程单线程写(init 一次性扫 + 稳态期 AccountStore.put hook),ConcurrentHashMap 为防御性选择
   private final Set<ByteString> stakers = ConcurrentHashMap.newKeySet();
 
   // 只存 stakedForEnergy(Long),不再存完整 AccountCapsule
@@ -80,49 +77,40 @@ public class TopDelegatorService {
   }
 
   /**
-   * 启动时一次性扫账户表建 staker 索引。用 256 个 2-byte 前缀(0x41 0xXX)分区并行扫,
-   * 线程池大小 = CPU 核数。每个 task 用 accountStore.prefixQuery 加载自己那一份(~1/256),
-   * filter & 写入并发安全的 stakers / stakerStakedForEnergy。
+   * 启动时一次性扫账户表建 staker 索引。单线程流式遍历,内存恒定(只持有当前一个 capsule),
+   * 在主网量级(2-3 亿账户)下安全。
+   *
+   * 历史:曾尝试 256-prefix 分区并行(每 partition prefixQuery 全量 materialize 进 Map),
+   * 在主网量级下 16 个 partition 同时 in-flight 峰值 ~12-16GB,易触发 OOM,故回退此版。
+   * 如需提速,正确做法是底层 LevelDB DBIterator 多线程 seek 分段、流式不 materialize——后续再做。
    */
   public void init(AccountStore accountStore) {
     long startNanos = System.nanoTime();
     this.accountStore = accountStore;
     this.dynamicPropertiesStore.removeMEUs();
 
-    int parallelism = Math.max(2, Runtime.getRuntime().availableProcessors());
-    logger.info("TopDelegatorService init: parallel scan starting, parallelism={}", parallelism);
+    logger.info("TopDelegatorService init: streaming scan starting (single-threaded, memory-safe)");
 
-    ExecutorService pool = Executors.newFixedThreadPool(parallelism);
-    AtomicLong totalProcessed = new AtomicLong(0);
-
-    try {
-      List<CompletableFuture<?>> futures = new ArrayList<>(256);
-      for (int b = 0; b < 256; b++) {
-        final byte[] prefix = new byte[]{0x41, (byte) b};
-        futures.add(CompletableFuture.runAsync(() -> {
-          Map<WrappedByteArray, AccountCapsule> partition = accountStore.prefixQuery(prefix);
-          long localCount = 0;
-          for (Map.Entry<WrappedByteArray, AccountCapsule> e : partition.entrySet()) {
-            localCount++;
-            AccountCapsule cap = e.getValue();
-            long staked = cap.getAllStakedTRXForEnergy();
-            if (staked > 0) {
-              ByteString addr = ByteString.copyFrom(e.getKey().getBytes());
-              stakers.add(addr);
-              stakerStakedForEnergy.put(addr, staked);
-            }
-          }
-          totalProcessed.addAndGet(localCount);
-        }, pool));
+    long total = 0;
+    Iterator<Map.Entry<byte[], AccountCapsule>> it = accountStore.iterator();
+    while (it.hasNext()) {
+      Map.Entry<byte[], AccountCapsule> e = it.next();
+      total++;
+      long staked = e.getValue().getAllStakedTRXForEnergy();
+      if (staked > 0) {
+        ByteString addr = ByteString.copyFrom(e.getKey());
+        stakers.add(addr);
+        stakerStakedForEnergy.put(addr, staked);
       }
-      CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-    } finally {
-      pool.shutdown();
+      if (total % 1_000_000 == 0) {
+        logger.info("TopDelegatorService init progress: {}M accounts processed, stakers so far: {}",
+            total / 1_000_000, stakers.size());
+      }
     }
 
     long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
     logger.info("TopDelegatorService init done in {}ms, processed={}, stakers={}",
-        elapsedMs, totalProcessed.get(), stakers.size());
+        elapsedMs, total, stakers.size());
   }
 
   public void addStaker(AccountCapsule accountCap) {
