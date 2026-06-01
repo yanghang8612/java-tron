@@ -37,6 +37,8 @@ import org.tron.protos.Protocol.Transaction;
 @Component
 public class FetchInvDataMsgHandler implements TronMsgHandler {
 
+  private static final boolean FAST_SYNC_STATS_MODE = true;
+
   private volatile Cache<Long, Boolean> epochCache = CacheBuilder.newBuilder().initialCapacity(100)
           .maximumSize(1000).expireAfterWrite(1, TimeUnit.HOURS).build();
 
@@ -54,12 +56,15 @@ public class FetchInvDataMsgHandler implements TronMsgHandler {
   public void processMessage(PeerConnection peer, TronMessage msg) throws P2pException {
 
     FetchInvDataMessage fetchInvDataMsg = (FetchInvDataMessage) msg;
+    InventoryType type = fetchInvDataMsg.getInventoryType();
+    if (FAST_SYNC_STATS_MODE && type == InventoryType.TRX) {
+      return;
+    }
 
     boolean isAdv = isAdvInv(peer, fetchInvDataMsg);
 
     check(peer, fetchInvDataMsg, isAdv);
 
-    InventoryType type = fetchInvDataMsg.getInventoryType();
     List<Transaction> transactions = Lists.newArrayList();
 
     int size = 0;
