@@ -59,6 +59,8 @@ import org.tron.core.services.interfaceOnPBFT.http.TriggerConstantContractOnPBFT
 @Slf4j(topic = "API")
 public class HttpApiOnPBFTService extends HttpService {
 
+  private static final boolean FAST_SYNC_STATS_MODE = true;
+
   @Autowired
   private GetAccountOnPBFTServlet accountOnPBFTServlet;
 
@@ -171,7 +173,7 @@ public class HttpApiOnPBFTService extends HttpService {
 
   public HttpApiOnPBFTService() {
     port = Args.getInstance().getPBFTHttpPort();
-    enable = isFullNode() && Args.getInstance().isPBFTHttpEnable();
+    enable = !FAST_SYNC_STATS_MODE && isFullNode() && Args.getInstance().isPBFTHttpEnable();
     contextPath = "/walletpbft";
   }
 
