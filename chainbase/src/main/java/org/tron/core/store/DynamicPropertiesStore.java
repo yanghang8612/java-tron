@@ -27,6 +27,8 @@ import org.tron.core.exception.ItemNotFoundException;
 @Component
 public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> {
 
+  private static final boolean FAST_SYNC_STATS_MODE = true;
+
   private static final byte[] LATEST_BLOCK_HEADER_TIMESTAMP = "latest_block_header_timestamp"
       .getBytes();
   private static final byte[] LATEST_BLOCK_HEADER_NUMBER = "latest_block_header_number".getBytes();
@@ -2236,7 +2238,9 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
    * save timestamp of creating global latest block.
    */
   public void saveLatestBlockHeaderTimestamp(long t) {
-    logger.info("Update latest block header timestamp = {}.", t);
+    if (!FAST_SYNC_STATS_MODE) {
+      logger.info("Update latest block header timestamp = {}.", t);
+    }
     this.put(LATEST_BLOCK_HEADER_TIMESTAMP, new BytesCapsule(ByteArray.fromLong(t)));
   }
 
@@ -2244,7 +2248,9 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
    * save number of global latest block.
    */
   public void saveLatestBlockHeaderNumber(long n) {
-    logger.info("Update latest block header number = {}.", n);
+    if (!FAST_SYNC_STATS_MODE) {
+      logger.info("Update latest block header number = {}.", n);
+    }
     this.put(LATEST_BLOCK_HEADER_NUMBER, new BytesCapsule(ByteArray.fromLong(n)));
   }
 
@@ -2252,12 +2258,21 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
    * save id of global latest block.
    */
   public void saveLatestBlockHeaderHash(ByteString h) {
-    logger.info("Update latest block header id = {}.", ByteArray.toHexString(h.toByteArray()));
+    if (!FAST_SYNC_STATS_MODE) {
+      logger.info("Update latest block header id = {}.", ByteArray.toHexString(h.toByteArray()));
+    }
     this.put(LATEST_BLOCK_HEADER_HASH, new BytesCapsule(h.toByteArray()));
   }
 
   public void saveStateFlag(int n) {
-    logger.info("Update state flag = {}.", n);
+    if (FAST_SYNC_STATS_MODE) {
+      BytesCapsule current = getUnchecked(STATE_FLAG);
+      if (current != null && ByteArray.toInt(current.getData()) == n) {
+        return;
+      }
+    } else {
+      logger.info("Update state flag = {}.", n);
+    }
     this.put(STATE_FLAG, new BytesCapsule(ByteArray.fromInt(n)));
   }
 
