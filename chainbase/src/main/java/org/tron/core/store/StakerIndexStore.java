@@ -39,8 +39,8 @@ public class StakerIndexStore extends TronStoreWithRevoking<BytesCapsule> {
   }
 
   public boolean isReady() {
-    BytesCapsule capsule = getUnchecked(READY_KEY);
-    return capsule != null && capsule.getData().length > 0 && capsule.getData()[0] == 1;
+    byte[] data = getData(READY_KEY);
+    return data != null && data.length > 0 && data[0] == 1;
   }
 
   public void markReady() {
@@ -93,8 +93,7 @@ public class StakerIndexStore extends TronStoreWithRevoking<BytesCapsule> {
   }
 
   public long getStake(byte[] address) {
-    BytesCapsule capsule = getUnchecked(stakerKey(address));
-    return capsule == null ? 0L : ByteArray.toLong(capsule.getData());
+    return ByteArray.toLong(getData(stakerKey(address)));
   }
 
   public void updateStaker(ByteString address, long oldStake, long newStake) {
@@ -123,6 +122,11 @@ public class StakerIndexStore extends TronStoreWithRevoking<BytesCapsule> {
 
   private byte[] rankKey(long stake, byte[] address) {
     return Bytes.concat(RANK_PREFIX, ByteArray.fromLong(Long.MAX_VALUE - stake), address);
+  }
+
+  private byte[] getData(byte[] key) {
+    BytesCapsule capsule = getUnchecked(key);
+    return capsule == null ? null : capsule.getData();
   }
 
   private boolean startsWith(byte[] key, byte[] prefix) {

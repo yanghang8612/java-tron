@@ -21,6 +21,7 @@ import org.tron.p2p.discover.Node;
 @Slf4j(topic = "net")
 @Component
 public class NodePersistService {
+  private static final boolean FAST_SYNC_STATS_MODE = true;
   private static final byte[] DB_KEY_PEERS = "peers".getBytes();
   private static final long DB_COMMIT_RATE = 60 * 1000L;
   private static final int MAX_NODES_WRITE_TO_DB = 30;
@@ -33,6 +34,9 @@ public class NodePersistService {
   private final String name = "NodePersistTask";
 
   public void init() {
+    if (FAST_SYNC_STATS_MODE) {
+      return;
+    }
     if (isNodePersist) {
       nodePersistExecutor = ExecutorServiceManager.newSingleThreadScheduledExecutor(name);
       nodePersistExecutor.scheduleAtFixedRate(this::dbWrite, DB_COMMIT_RATE, DB_COMMIT_RATE,
@@ -41,7 +45,7 @@ public class NodePersistService {
   }
 
   public void close() {
-    if (isNodePersist) {
+    if (!FAST_SYNC_STATS_MODE && isNodePersist) {
       ExecutorServiceManager.shutdownAndAwaitTermination(nodePersistExecutor, name);
     }
   }
