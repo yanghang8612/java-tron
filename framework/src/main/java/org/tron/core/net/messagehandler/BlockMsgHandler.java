@@ -33,6 +33,8 @@ import org.tron.protos.Protocol.Inventory.InventoryType;
 @Component
 public class BlockMsgHandler implements TronMsgHandler {
 
+  private static final boolean FAST_SYNC_STATS_MODE = true;
+
   @Autowired
   private RelayService relayService;
 
@@ -146,11 +148,15 @@ public class BlockMsgHandler implements TronMsgHandler {
       return;
     }
 
-    broadcast(new BlockMessage(block));
+    if (!FAST_SYNC_STATS_MODE) {
+      broadcast(new BlockMessage(block));
+    }
 
     try {
       tronNetDelegate.processBlock(block, false);
-      witnessProductBlockService.validWitnessProductTwoBlock(block);
+      if (!FAST_SYNC_STATS_MODE) {
+        witnessProductBlockService.validWitnessProductTwoBlock(block);
+      }
 
       Item item = new Item(blockId, InventoryType.BLOCK);
       tronNetDelegate.getActivePeer().forEach(p -> {

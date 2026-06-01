@@ -41,6 +41,7 @@ import org.tron.protos.Protocol.ReasonCode;
 @Component
 public class RelayService {
 
+  private static final boolean FAST_SYNC_STATS_MODE = true;
   private static final int MAX_PEER_COUNT_PER_ADDRESS = 5;
 
   @Autowired
@@ -59,8 +60,7 @@ public class RelayService {
   private BackupManager backupManager;
   private final String esName = "relay-service";
 
-  private ScheduledExecutorService executorService = ExecutorServiceManager
-      .newSingleThreadScheduledExecutor(esName);
+  private ScheduledExecutorService executorService;
 
   private CommonParameter parameter = Args.getInstance();
 
@@ -75,6 +75,9 @@ public class RelayService {
   private int maxFastForwardNum = Args.getInstance().getMaxFastForwardNum();
 
   public void init() {
+    if (FAST_SYNC_STATS_MODE) {
+      return;
+    }
     manager = ctx.getBean(Manager.class);
     witnessScheduleStore = ctx.getBean(WitnessScheduleStore.class);
     backupManager = ctx.getBean(BackupManager.class);
@@ -86,6 +89,7 @@ public class RelayService {
       return;
     }
 
+    executorService = ExecutorServiceManager.newSingleThreadScheduledExecutor(esName);
     executorService.scheduleWithFixedDelay(() -> {
       try {
         if (witnessScheduleStore.getActiveWitnesses().contains(witnessAddress)
@@ -105,6 +109,9 @@ public class RelayService {
   }
 
   public void fillHelloMessage(HelloMessage message, Channel channel) {
+    if (FAST_SYNC_STATS_MODE) {
+      return;
+    }
     if (isActiveWitness()) {
       fastForwardNodes.forEach(address -> {
         if (address.getAddress().equals(channel.getInetAddress())) {
@@ -124,6 +131,9 @@ public class RelayService {
   }
 
   public boolean checkHelloMessage(HelloMessage message, Channel channel) {
+    if (FAST_SYNC_STATS_MODE) {
+      return true;
+    }
     if (!parameter.isFastForward()) {
       return true;
     }
@@ -225,6 +235,9 @@ public class RelayService {
   }
 
   public void broadcast(BlockMessage msg) {
+    if (FAST_SYNC_STATS_MODE) {
+      return;
+    }
     Set<ByteString> witnesses = getNextWitnesses(
             msg.getBlockCapsule().getWitnessAddress(), maxFastForwardNum);
     Item item = new Item(msg.getBlockId(), Protocol.Inventory.InventoryType.BLOCK);

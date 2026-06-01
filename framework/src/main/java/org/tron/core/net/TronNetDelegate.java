@@ -280,7 +280,8 @@ public class TronNetDelegate {
           if (shouldLogBlock(blockId.getNum())) {
             logger.info("Success process block {}", blockId.getString());
           }
-          if (!backupServerStartFlag
+          if (!FAST_SYNC_STATS_MODE
+              && !backupServerStartFlag
               && System.currentTimeMillis() - block.getTimeStamp() < BLOCK_PRODUCED_INTERVAL) {
             backupServerStartFlag = true;
             backupServer.initServer();
