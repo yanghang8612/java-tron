@@ -62,15 +62,15 @@ public class AdvService {
   private Cache<Item, Long> invToFetchCache = CacheBuilder.newBuilder()
       .maximumSize(MAX_INV_TO_FETCH_CACHE_SIZE)
       .expireAfterWrite(blockCacheTimeout, TimeUnit.MINUTES)
-      .recordStats().build();
+      .build();
 
   private Cache<Item, Message> trxCache = CacheBuilder.newBuilder()
       .maximumSize(MAX_TRX_CACHE_SIZE).expireAfterWrite(1, TimeUnit.HOURS)
-      .recordStats().build();
+      .build();
 
   private Cache<Item, Message> blockCache = CacheBuilder.newBuilder()
       .maximumSize(MAX_BLOCK_CACHE_SIZE).expireAfterWrite(1, TimeUnit.MINUTES)
-      .recordStats().build();
+      .build();
 
   private final String spreadName = "adv-spread";
   private final String fetchName = "adv-fetch";

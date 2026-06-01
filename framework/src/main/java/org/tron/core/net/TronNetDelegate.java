@@ -109,7 +109,7 @@ public class TronNetDelegate {
 
   private Cache<BlockId, Long> freshBlockId = CacheBuilder.newBuilder()
           .maximumSize(blockIdCacheSize).expireAfterWrite(1, TimeUnit.HOURS)
-          .recordStats().build();
+          .build();
 
   @PostConstruct
   public void init() {

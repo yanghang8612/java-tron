@@ -161,6 +161,7 @@ import org.tron.protos.contract.WitnessContract.WitnessUpdateContract;
 @Slf4j(topic = "API")
 public class RpcApiService extends RpcService {
 
+  private static final boolean FAST_SYNC_STATS_MODE = true;
   public static final String CONTRACT_VALIDATE_EXCEPTION = "ContractValidateException: {}";
   private static final String EXCEPTION_CAUGHT = "exception caught";
   private static final String UNKNOWN_EXCEPTION_CAUGHT = "unknown exception caught: ";
@@ -188,7 +189,7 @@ public class RpcApiService extends RpcService {
 
   public RpcApiService() {
     port = Args.getInstance().getRpcPort();
-    enable = Args.getInstance().isRpcEnable();
+    enable = !FAST_SYNC_STATS_MODE && Args.getInstance().isRpcEnable();
     executorName = "rpc-full-executor";
   }
 
