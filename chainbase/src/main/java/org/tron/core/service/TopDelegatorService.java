@@ -300,7 +300,7 @@ public class TopDelegatorService {
       ByteString stakerAddr = entry.getKey();
       long staked = entry.getValue();
       byte[] staker = stakerAddr.toByteArray();
-      logger.info("TopDelegatorService doStats, Staker: {}, Staked TRX for Energy: {}",
+      logger.debug("TopDelegatorService doStats, Staker: {}, Staked TRX for Energy: {}",
           StringUtil.encode58Check(staker), staked);
       Map<ByteString, Long> delegateAmountMap = new HashMap<>();
 
