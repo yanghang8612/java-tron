@@ -648,6 +648,11 @@ message InternalTransaction {
   bytes note = 5;
   bool rejected = 6;
   string extra = 7;
+  uint32 deep = 8;
+  uint32 energy_left = 9;
+  bytes data = 10;
+  uint32 energy_used = 11;
+  uint32 energy_penalty = 12;
 }
 
 message DelegatedResourceAccountIndex {

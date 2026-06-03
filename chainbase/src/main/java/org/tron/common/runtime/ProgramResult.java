@@ -27,6 +27,12 @@ public class ProgramResult {
   @Getter
   private long energyPenaltyTotal = 0;
 
+  @Getter
+  private long contextEnergyUsage = 0;
+
+  @Getter
+  private long contextEnergyPenalty = 0;
+
   private byte[] hReturn = EMPTY_BYTE_ARRAY;
   private byte[] contractAddress = EMPTY_BYTE_ARRAY;
   private RuntimeException exception;
@@ -85,6 +91,11 @@ public class ProgramResult {
 
   public void addTotalPenalty(long penalty) {
     energyPenaltyTotal += penalty;
+  }
+
+  public void addContextEnergy(long usage, long penalty) {
+    contextEnergyUsage += usage;
+    contextEnergyPenalty += penalty;
   }
 
   public byte[] getContractAddress() {
@@ -194,10 +205,10 @@ public class ProgramResult {
     return internalTransactions;
   }
 
-  public InternalTransaction addInternalTransaction(byte[] parentHash, int deep,
+  public InternalTransaction addInternalTransaction(byte[] parentHash, int deep, int energyLeft,
       byte[] senderAddress, byte[] transferAddress, long value, byte[] data, String note,
       long nonce, Map<String, Long> token) {
-    InternalTransaction transaction = new InternalTransaction(parentHash, deep,
+    InternalTransaction transaction = new InternalTransaction(parentHash, deep, energyLeft,
         size(internalTransactions), senderAddress, transferAddress, value, data, note, nonce,
         token);
     getInternalTransactions().add(transaction);
