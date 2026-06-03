@@ -249,6 +249,8 @@ public class HttpSelfFormatFieldName {
     NameFieldNameMap.put("protocol.Transaction.Contract.ContractName", 1);
     //TransactionInfo
     NameFieldNameMap.put("protocol.TransactionInfo.resMessage", 1);
+    //InternalTransaction
+    NameFieldNameMap.put("protocol.InternalTransaction.note", 1);
 
     //***** market.proto *****
     // MarketSellAssetContract

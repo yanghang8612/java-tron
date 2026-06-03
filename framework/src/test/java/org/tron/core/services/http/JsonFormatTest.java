@@ -74,6 +74,23 @@ public class JsonFormatTest {
   }
 
   @Test
+  public void testInternalTransactionNoteVisibleFormat() throws JsonFormat.ParseException {
+    Protocol.InternalTransaction internalTransaction = Protocol.InternalTransaction.newBuilder()
+        .setNote(ByteString.copyFromUtf8("staticcall"))
+        .build();
+
+    String visibleOutput = JsonFormat.printToString(internalTransaction, true);
+    assertEquals("{\"note\": \"staticcall\"}", visibleOutput);
+
+    String hexOutput = JsonFormat.printToString(internalTransaction, false);
+    assertEquals("{\"note\": \"73746174696363616c6c\"}", hexOutput);
+
+    Protocol.InternalTransaction.Builder builder = Protocol.InternalTransaction.newBuilder();
+    JsonFormat.merge("{\"note\":\"delegatecall\"}", builder, true);
+    assertEquals("delegatecall", builder.getNote().toStringUtf8());
+  }
+
+  @Test
   public void testUnsignedToString() throws Exception {
     Method privateMethod = JsonFormat.class.getDeclaredMethod("unsignedToString", int.class);
     privateMethod.setAccessible(true);
