@@ -27,12 +27,6 @@ public class ProgramResult {
   @Getter
   private long energyPenaltyTotal = 0;
 
-  @Getter
-  private long contextEnergyUsage = 0;
-
-  @Getter
-  private long contextEnergyPenalty = 0;
-
   private byte[] hReturn = EMPTY_BYTE_ARRAY;
   private byte[] contractAddress = EMPTY_BYTE_ARRAY;
   private RuntimeException exception;
@@ -91,11 +85,6 @@ public class ProgramResult {
 
   public void addTotalPenalty(long penalty) {
     energyPenaltyTotal += penalty;
-  }
-
-  public void addContextEnergy(long usage, long penalty) {
-    contextEnergyUsage += usage;
-    contextEnergyPenalty += penalty;
   }
 
   public byte[] getContractAddress() {

@@ -23,7 +23,6 @@ public class VM {
     try {
       long factor = DYNAMIC_ENERGY_FACTOR_DECIMAL;
       long energyUsage = 0L;
-      long energyPenalty = 0L;
 
       if (VMConfig.allowDynamicEnergy()) {
         factor = program.updateContextContractFactor();
@@ -60,26 +59,17 @@ public class VM {
 
             if (factor > DYNAMIC_ENERGY_FACTOR_DECIMAL) {
               long penalty;
-              long actualPenalty;
 
               // CALL Ops have special calculation on energy.
               if (CALL_OPS.contains(op.getOpcode())) {
                 penalty = program.getCallPenaltyEnergy();
-                actualPenalty =
-                    actualEnergy * factor / DYNAMIC_ENERGY_FACTOR_DECIMAL - actualEnergy;
-                if (actualPenalty < 0) {
-                  actualPenalty = 0;
-                }
               } else {
                 penalty = energy * factor / DYNAMIC_ENERGY_FACTOR_DECIMAL - energy;
                 if (penalty < 0) {
                   penalty = 0;
                 }
                 energy += penalty;
-                actualPenalty = penalty;
               }
-
-              energyPenalty += actualPenalty;
 
               program.spendEnergyWithPenalty(energy, penalty, opName);
             } else {
@@ -112,7 +102,6 @@ public class VM {
       }
 
       if (VMConfig.allowDynamicEnergy()) {
-        program.getResult().addContextEnergy(energyUsage, energyPenalty);
         program.addContextContractUsage(energyUsage);
       }
 

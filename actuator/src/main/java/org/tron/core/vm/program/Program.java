@@ -909,7 +909,7 @@ public class Program {
 
     increaseNonce();
     // [5] COOK THE INVOKE AND EXECUTE
-    InternalTransaction internalTx = addInternalTx(getEnergyLimitLeft(), senderAddress, newAddress,
+    InternalTransaction internalTx = addInternalTx(energyLimit, senderAddress, newAddress,
         endowment, programCode, isCreate2 ? "create2" : "create", nonce, null);
     long vmStartInUs = System.nanoTime() / 1000;
     ProgramInvoke programInvoke = ProgramInvokeFactory.createProgramInvoke(
@@ -934,7 +934,6 @@ public class Program {
       }
       VM.play(program, OperationRegistry.getTable());
       createResult = program.getResult();
-      fillInternalTxEnergy(internalTx, createResult);
       getTrace().merge(program.getTrace());
       // always commit nonce
       this.nonce = program.nonce;
@@ -963,6 +962,7 @@ public class Program {
       }
     }
 
+    fillInternalTxEnergy(internalTx, createResult);
     getResult().merge(createResult);
 
     if (createResult.getException() != null || createResult.isRevert()) {
@@ -1012,8 +1012,8 @@ public class Program {
     if (internalTx == null || result == null) {
       return;
     }
-    internalTx.setEnergyUsed(toUint32(result.getContextEnergyUsage()));
-    internalTx.setEnergyPenalty(toUint32(result.getContextEnergyPenalty()));
+    internalTx.setEnergyUsed(toUint32(result.getEnergyUsed()));
+    internalTx.setEnergyPenalty(toUint32(result.getEnergyPenaltyTotal()));
   }
 
   /**

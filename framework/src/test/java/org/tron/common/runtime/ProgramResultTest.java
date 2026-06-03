@@ -279,6 +279,9 @@ public class ProgramResultTest extends BaseTest {
     byte[] bContract = runtime.getResult().getHReturn();
     List<InternalTransaction> internalTransactionsList = runtime.getResult()
         .getInternalTransactions();
+    Assert.assertTrue(internalTransactionsList.get(0).getEnergyLeft() > 0);
+    Assert.assertTrue(internalTransactionsList.get(0).getEnergyUsed() > 0);
+    Assert.assertTrue(internalTransactionsList.get(1).getEnergyUsed() > 0);
     Assert.assertEquals(internalTransactionsList.get(0).getValue(), 10);
     Assert.assertArrayEquals(internalTransactionsList.get(0).getSender(), aContract);
     Assert.assertArrayEquals(
@@ -559,6 +562,16 @@ public class ProgramResultTest extends BaseTest {
       Assert.assertArrayEquals(
           internalTransactionListFromProtocol.get(i).getTransferToAddress().toByteArray(),
           internalTransactionsList.get(i).getTransferToAddress());
+      Assert.assertEquals(internalTransactionListFromProtocol.get(i).getDeep(),
+          internalTransactionsList.get(i).getDeep());
+      Assert.assertEquals(internalTransactionListFromProtocol.get(i).getEnergyLeft(),
+          internalTransactionsList.get(i).getEnergyLeft());
+      Assert.assertEquals(internalTransactionListFromProtocol.get(i).getEnergyUsed(),
+          internalTransactionsList.get(i).getEnergyUsed());
+      Assert.assertEquals(internalTransactionListFromProtocol.get(i).getEnergyPenalty(),
+          internalTransactionsList.get(i).getEnergyPenalty());
+      Assert.assertArrayEquals(internalTransactionListFromProtocol.get(i).getData().toByteArray(),
+          internalTransactionsList.get(i).getData());
       List<Protocol.InternalTransaction.CallValueInfo> callValueInfoListFromProtocol =
           internalTransactionListFromProtocol
               .get(i).getCallValueInfoList();
