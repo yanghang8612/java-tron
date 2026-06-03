@@ -1012,8 +1012,16 @@ public class Program {
     if (internalTx == null || result == null) {
       return;
     }
-    internalTx.setEnergyUsed(toUint32(result.getEnergyUsed()));
-    internalTx.setEnergyPenalty(toUint32(result.getEnergyPenaltyTotal()));
+    fillInternalTxEnergy(internalTx, result.getEnergyUsed(), result.getEnergyPenaltyTotal());
+  }
+
+  private void fillInternalTxEnergy(InternalTransaction internalTx, long energyUsed,
+      long energyPenalty) {
+    if (internalTx == null) {
+      return;
+    }
+    internalTx.setEnergyUsed(toUint32(energyUsed));
+    internalTx.setEnergyPenalty(toUint32(energyPenalty));
   }
 
   /**
@@ -1689,11 +1697,12 @@ public class Program {
     Repository deposit = getContractState().newRepositoryChild();
 
     byte[] senderAddress = getContextAddress();
+    byte[] codeAddress = msg.getCodeAddress().toTronAddress();
     byte[] contextAddress;
     if (msg.getOpCode() == Op.CALLCODE || msg.getOpCode() == Op.DELEGATECALL) {
       contextAddress = senderAddress;
     } else {
-      contextAddress = msg.getCodeAddress().toTronAddress();
+      contextAddress = codeAddress;
     }
 
     long endowment = msg.getEndowment().value().longValueExact();
@@ -1740,10 +1749,23 @@ public class Program {
       }
     }
 
+    increaseNonce();
+    HashMap<String, Long> tokenInfo = new HashMap<>();
+    if (isTokenTransfer) {
+      tokenInfo.put(new String(stripLeadingZeroes(tokenId)), endowment);
+    }
+    InternalTransaction internalTx = addInternalTx(msg.getEnergy(), senderAddress, codeAddress,
+        !isTokenTransfer ? endowment : 0, data, Op.getNameOf(msg.getOpCode()).toLowerCase(), nonce,
+        !isTokenTransfer ? null : tokenInfo);
+
     long requiredEnergy = contract.getEnergyForData(data);
     if (requiredEnergy > msg.getEnergy().longValue()) {
       // Not need to throw an exception, method caller needn't know that
       // regard as consumed the energy
+      fillInternalTxEnergy(internalTx, msg.getEnergy().longValue(), 0);
+      if (internalTx != null) {
+        internalTx.reject();
+      }
       this.refundEnergy(0, CALL_PRE_COMPILED); //matches cpp logic
       this.stackPushZero();
     } else {
@@ -1758,15 +1780,29 @@ public class Program {
       contract.setResult(this.result);
       contract.setConstantCall(isConstantCall());
       contract.setVmShouldEndInUs(getVmShouldEndInUs());
-      Pair<Boolean, byte[]> out = contract.execute(data);
+      Pair<Boolean, byte[]> out;
+      try {
+        out = contract.execute(data);
+      } catch (RuntimeException e) {
+        fillInternalTxEnergy(internalTx, msg.getEnergy().longValue(), 0);
+        if (internalTx != null) {
+          internalTx.reject();
+        }
+        throw e;
+      }
 
       if (out.getLeft()) { // success
+        fillInternalTxEnergy(internalTx, requiredEnergy, 0);
         this.refundEnergy(msg.getEnergy().longValue() - requiredEnergy, CALL_PRE_COMPILED);
         this.stackPushOne();
         returnDataBuffer = out.getRight();
         deposit.commit();
       } else {
         // spend all energy on failure, push zero and revert state changes
+        fillInternalTxEnergy(internalTx, msg.getEnergy().longValue(), 0);
+        if (internalTx != null) {
+          internalTx.reject();
+        }
         this.refundEnergy(0, CALL_PRE_COMPILED);
         this.stackPushZero();
         if (Objects.nonNull(this.result.getException())) {

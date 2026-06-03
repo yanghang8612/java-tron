@@ -772,17 +772,33 @@ public class OperationsTest extends BaseTest {
     DecodeUtil.addressPreFixByte = Constant.ADD_PRE_FIX_BYTE_MAINNET;
     VMConfig.initAllowTvmSelfdestructRestriction(1);
 
-    program = new Program(new byte[0], new byte[0], invoke, interTrx);
-    MessageCall messageCall = new MessageCall(
-        Op.CALL, new DataWord(10000),
-        DataWord.ZERO(), DataWord.ZERO(),
-        DataWord.ZERO(), DataWord.ZERO(),
-        DataWord.ZERO(), DataWord.ZERO(),
-        DataWord.ZERO(), false);
-    program.callToPrecompiledAddress(messageCall, new PrecompiledContracts.ECRecover());
+    try {
+      program = new Program(new byte[0], new byte[0], invoke, interTrx);
+      DataWord precompileAddress = DataWord.ONE();
+      MessageCall messageCall = new MessageCall(
+          Op.CALL, new DataWord(10000),
+          precompileAddress, DataWord.ZERO(),
+          DataWord.ZERO(), DataWord.ZERO(),
+          DataWord.ZERO(), DataWord.ZERO(),
+          DataWord.ZERO(), false);
+      program.callToPrecompiledAddress(messageCall, new PrecompiledContracts.ECRecover());
 
-    DecodeUtil.addressPreFixByte = prePrefixByte;
-    VMConfig.initAllowTvmSelfdestructRestriction(0);
+      List<InternalTransaction> internalTransactions = program.getResult()
+          .getInternalTransactions();
+      Assert.assertEquals(1, internalTransactions.size());
+      InternalTransaction internalTransaction = internalTransactions.get(0);
+      Assert.assertEquals("call", internalTransaction.getNote());
+      Assert.assertEquals(10000, internalTransaction.getEnergyLeft());
+      Assert.assertEquals(3000, internalTransaction.getEnergyUsed());
+      Assert.assertEquals(0, internalTransaction.getEnergyPenalty());
+      Assert.assertFalse(internalTransaction.isRejected());
+      Assert.assertArrayEquals(precompileAddress.toTronAddress(),
+          internalTransaction.getTransferToAddress());
+      Assert.assertArrayEquals(new byte[0], internalTransaction.getData());
+    } finally {
+      DecodeUtil.addressPreFixByte = prePrefixByte;
+      VMConfig.initAllowTvmSelfdestructRestriction(0);
+    }
   }
 
   @Test
