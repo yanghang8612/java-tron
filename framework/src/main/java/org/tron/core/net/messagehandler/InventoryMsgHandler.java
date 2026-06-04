@@ -17,6 +17,8 @@ import org.tron.protos.Protocol.Inventory.InventoryType;
 @Component
 public class InventoryMsgHandler implements TronMsgHandler {
 
+  private static final boolean FAST_SYNC_MODE = true;
+
   @Autowired
   private TronNetDelegate tronNetDelegate;
 
@@ -30,6 +32,9 @@ public class InventoryMsgHandler implements TronMsgHandler {
   public void processMessage(PeerConnection peer, TronMessage msg) {
     InventoryMessage inventoryMessage = (InventoryMessage) msg;
     InventoryType type = inventoryMessage.getInventoryType();
+    if (FAST_SYNC_MODE && type.equals(InventoryType.TRX)) {
+      return;
+    }
 
     if (!check(peer, inventoryMessage)) {
       return;

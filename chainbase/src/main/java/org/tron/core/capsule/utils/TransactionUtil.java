@@ -132,7 +132,11 @@ public class TransactionUtil {
         programResult.getInternalTransactions().stream()
             .filter(it ->
                 "call".equals(it.getNote())
+                    || "callcode".equals(it.getNote())
+                    || "delegatecall".equals(it.getNote())
+                    || "staticcall".equals(it.getNote())
                     || "create".equals(it.getNote())
+                    || "create2".equals(it.getNote())
                     || "suicide".equals(it.getNote()))
             .forEach(it ->
                 builder.addInternalTransactions(buildInternalTransaction(it)));
@@ -169,6 +173,11 @@ public class TransactionUtil {
     itBuilder.setNote(ByteString.copyFrom(it.getNote().getBytes()));
     itBuilder.setRejected(it.isRejected());
     itBuilder.setExtra(it.getExtra());
+    itBuilder.setDeep(it.getDeep());
+    itBuilder.setEnergyLeft(it.getEnergyLeft());
+    itBuilder.setData(ByteString.copyFrom(it.getData()));
+    itBuilder.setEnergyUsed(it.getEnergyUsed());
+    itBuilder.setEnergyPenalty(it.getEnergyPenalty());
     return itBuilder.build();
   }
 

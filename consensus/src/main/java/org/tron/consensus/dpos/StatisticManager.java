@@ -15,6 +15,8 @@ import org.tron.core.capsule.WitnessCapsule;
 @Component
 public class StatisticManager {
 
+  private static final boolean FAST_SYNC_MODE = true;
+
   @Autowired
   private ConsensusDelegate consensusDelegate;
 
@@ -28,8 +30,10 @@ public class StatisticManager {
     byte[] blockWitness = blockCapsule.getWitnessAddress().toByteArray();
     wc = consensusDelegate.getWitness(blockWitness);
     wc.setTotalProduced(wc.getTotalProduced() + 1);
-    Metrics.counterInc(MetricKeys.Counter.MINER, 1, StringUtil.encode58Check(blockWitness),
-        MetricLabels.Counter.MINE_SUCCESS);
+    if (!FAST_SYNC_MODE) {
+      Metrics.counterInc(MetricKeys.Counter.MINER, 1, StringUtil.encode58Check(blockWitness),
+          MetricLabels.Counter.MINE_SUCCESS);
+    }
     wc.setLatestBlockNum(blockNum);
     wc.setLatestSlotNum(dposSlot.getAbSlot(blockTime));
     consensusDelegate.saveWitness(wc);
@@ -42,13 +46,17 @@ public class StatisticManager {
       byte[] witness = dposSlot.getScheduledWitness(i).toByteArray();
       wc = consensusDelegate.getWitness(witness);
       wc.setTotalMissed(wc.getTotalMissed() + 1);
-      Metrics.counterInc(MetricKeys.Counter.MINER, 1, StringUtil.encode58Check(wc.getAddress()
-              .toByteArray()),
-          MetricLabels.Counter.MINE_MISS);
+      if (!FAST_SYNC_MODE) {
+        Metrics.counterInc(MetricKeys.Counter.MINER, 1, StringUtil.encode58Check(wc.getAddress()
+                .toByteArray()),
+            MetricLabels.Counter.MINE_MISS);
+      }
       consensusDelegate.saveWitness(wc);
-      logger.info("Current block: {}, witness: {}, totalMissed: {}", blockNum,
-          StringUtil.encode58Check(wc.getAddress()
-              .toByteArray()), wc.getTotalMissed());
+      if (!FAST_SYNC_MODE) {
+        logger.info("Current block: {}, witness: {}, totalMissed: {}", blockNum,
+            StringUtil.encode58Check(wc.getAddress()
+                .toByteArray()), wc.getTotalMissed());
+      }
       consensusDelegate.applyBlock(false);
     }
     consensusDelegate.applyBlock(true);

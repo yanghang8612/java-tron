@@ -32,6 +32,9 @@ import org.tron.core.capsule.WitnessCapsule;
 @Component
 public class DposService implements ConsensusInterface {
 
+  private static final boolean FAST_SYNC_MODE = true;
+  private static final long FAST_SYNC_LOG_BLOCK_INTERVAL = 1_000L;
+
   @Autowired
   private ConsensusDelegate consensusDelegate;
 
@@ -157,11 +160,12 @@ public class DposService implements ConsensusInterface {
   }
 
   private void updateSolidBlock() {
-    List<Long> numbers = consensusDelegate.getActiveWitnesses().stream()
+    List<ByteString> activeWitnesses = consensusDelegate.getActiveWitnesses();
+    List<Long> numbers = activeWitnesses.stream()
         .map(address -> consensusDelegate.getWitness(address.toByteArray()).getLatestBlockNum())
         .sorted()
         .collect(Collectors.toList());
-    long size = consensusDelegate.getActiveWitnesses().size();
+    long size = activeWitnesses.size();
     int position = (int) (size * (1 - SOLIDIFIED_THRESHOLD * 1.0 / 100));
     long newSolidNum = numbers.get(position);
     long oldSolidNum = consensusDelegate.getLatestSolidifiedBlockNum();
@@ -169,10 +173,15 @@ public class DposService implements ConsensusInterface {
       logger.warn("Update solid block number failed, new: {} < old: {}", newSolidNum, oldSolidNum);
       return;
     }
+    if (newSolidNum == oldSolidNum) {
+      return;
+    }
     CommonParameter.getInstance()
-        .setOldSolidityBlockNum(consensusDelegate.getLatestSolidifiedBlockNum());
+        .setOldSolidityBlockNum(oldSolidNum);
     consensusDelegate.saveLatestSolidifiedBlockNum(newSolidNum);
-    logger.info("Update solid block number to {}", newSolidNum);
+    if (!FAST_SYNC_MODE || newSolidNum % FAST_SYNC_LOG_BLOCK_INTERVAL == 0) {
+      logger.info("Update solid block number to {}", newSolidNum);
+    }
   }
 
   public void updateWitness(List<ByteString> list) {

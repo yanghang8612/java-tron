@@ -27,6 +27,8 @@ import org.tron.core.net.service.sync.SyncService;
 @Component
 public class ChainInventoryMsgHandler implements TronMsgHandler {
 
+  private static final boolean FAST_SYNC_MODE = true;
+
   @Autowired
   private TronNetDelegate tronNetDelegate;
 
@@ -130,7 +132,7 @@ public class ChainInventoryMsgHandler implements TronMsgHandler {
           + ", peer: " + blockIds.get(0).getString());
     }
 
-    if (tronNetDelegate.getHeadBlockId().getNum() > 0) {
+    if (!FAST_SYNC_MODE && tronNetDelegate.getHeadBlockId().getNum() > 0) {
       long maxRemainTime =
           ChainConstant.CLOCK_MAX_DELAY + System.currentTimeMillis() - tronNetDelegate
               .getBlockTime(tronNetDelegate.getSolidBlockId());

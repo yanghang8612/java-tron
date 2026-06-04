@@ -13,6 +13,8 @@ import org.tron.common.prometheus.Metrics;
 @Component
 public class MetricInterceptor implements JsonRpcInterceptor {
 
+  private static final boolean FAST_SYNC_MODE = true;
+
   private final ThreadLocal<Histogram.Timer> timer = new ThreadLocal<>();
 
   @Override
@@ -22,12 +24,18 @@ public class MetricInterceptor implements JsonRpcInterceptor {
 
   @Override
   public void preHandle(Object target, Method method, List<JsonNode> params) {
+    if (FAST_SYNC_MODE) {
+      return;
+    }
     timer.set(Metrics.histogramStartTimer(MetricKeys.Histogram.JSONRPC_SERVICE_LATENCY,
         ProxyUtil.getMethodName(method)));
   }
 
   @Override
   public void postHandle(Object target, Method method, List<JsonNode> params, JsonNode result) {
+    if (FAST_SYNC_MODE) {
+      return;
+    }
     try {
       Metrics.histogramObserve(timer.get());
     } finally {

@@ -67,6 +67,9 @@ import org.tron.protos.Protocol.Inventory.InventoryType;
 @Component
 public class TronNetDelegate {
 
+  private static final boolean FAST_SYNC_MODE = true;
+  private static final long FAST_SYNC_LOG_BLOCK_INTERVAL = 1_000L;
+
   @Autowired
   private Manager dbManager;
 
@@ -106,7 +109,7 @@ public class TronNetDelegate {
 
   private Cache<BlockId, Long> freshBlockId = CacheBuilder.newBuilder()
           .maximumSize(blockIdCacheSize).expireAfterWrite(1, TimeUnit.HOURS)
-          .recordStats().build();
+          .build();
 
   @PostConstruct
   public void init() {
@@ -259,19 +262,26 @@ public class TronNetDelegate {
                 Hex.toHexString(block.getWitnessAddress().toByteArray()),
                 getHeadBlockId().getString());
           }
-          if (!isSync) {
+          if (!FAST_SYNC_MODE && !isSync) {
             //record metrics
             metricsService.applyBlock(block);
           }
-          dbManager.getBlockedTimer().set(Metrics.histogramStartTimer(
-              MetricKeys.Histogram.LOCK_ACQUIRE_LATENCY, MetricLabels.BLOCK));
-          Histogram.Timer timer = Metrics.histogramStartTimer(
+          if (!FAST_SYNC_MODE) {
+            dbManager.getBlockedTimer().set(Metrics.histogramStartTimer(
+                MetricKeys.Histogram.LOCK_ACQUIRE_LATENCY, MetricLabels.BLOCK));
+          }
+          Histogram.Timer timer = FAST_SYNC_MODE ? null : Metrics.histogramStartTimer(
               MetricKeys.Histogram.BLOCK_PROCESS_LATENCY, String.valueOf(isSync));
           dbManager.pushBlock(block);
-          Metrics.histogramObserve(timer);
+          if (!FAST_SYNC_MODE) {
+            Metrics.histogramObserve(timer);
+          }
           freshBlockId.put(blockId, System.currentTimeMillis());
-          logger.info("Success process block {}", blockId.getString());
-          if (!backupServerStartFlag
+          if (shouldLogBlock(blockId.getNum())) {
+            logger.info("Success process block {}", blockId.getString());
+          }
+          if (!FAST_SYNC_MODE
+              && !backupServerStartFlag
               && System.currentTimeMillis() - block.getTimeStamp() < BLOCK_PRODUCED_INTERVAL) {
             backupServerStartFlag = true;
             backupServer.initServer();
@@ -305,6 +315,10 @@ public class TronNetDelegate {
         }
       }
     }
+  }
+
+  private boolean shouldLogBlock(long blockNum) {
+    return !FAST_SYNC_MODE || blockNum % FAST_SYNC_LOG_BLOCK_INTERVAL == 0;
   }
 
   public void pushTransaction(TransactionCapsule trx) throws P2pException {

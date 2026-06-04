@@ -31,6 +31,7 @@ import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 @Component
 public class TransactionsMsgHandler implements TronMsgHandler {
 
+  private static final boolean FAST_SYNC_MODE = true;
   private static int MAX_TRX_SIZE = 50_000;
   private static int MAX_SMART_CONTRACT_SUBMIT_SIZE = 100;
   @Autowired
@@ -46,14 +47,17 @@ public class TransactionsMsgHandler implements TronMsgHandler {
 
   private int threadNum = Args.getInstance().getValidateSignThreadNum();
   private final String trxEsName = "trx-msg-handler";
-  private ExecutorService trxHandlePool = ExecutorServiceManager.newThreadPoolExecutor(
-      threadNum, threadNum, 0L,
-      TimeUnit.MILLISECONDS, queue, trxEsName);
+  private ExecutorService trxHandlePool;
   private final String smartEsName = "contract-msg-handler";
-  private final ScheduledExecutorService smartContractExecutor = ExecutorServiceManager
-      .newSingleThreadScheduledExecutor(smartEsName);
+  private ScheduledExecutorService smartContractExecutor;
 
   public void init() {
+    if (FAST_SYNC_MODE) {
+      return;
+    }
+    trxHandlePool = ExecutorServiceManager.newThreadPoolExecutor(
+        threadNum, threadNum, 0L, TimeUnit.MILLISECONDS, queue, trxEsName);
+    smartContractExecutor = ExecutorServiceManager.newSingleThreadScheduledExecutor(smartEsName);
     handleSmartContract();
   }
 
@@ -63,11 +67,17 @@ public class TransactionsMsgHandler implements TronMsgHandler {
   }
 
   public boolean isBusy() {
+    if (FAST_SYNC_MODE) {
+      return false;
+    }
     return queue.size() + smartContractQueue.size() > MAX_TRX_SIZE;
   }
 
   @Override
   public void processMessage(PeerConnection peer, TronMessage msg) throws P2pException {
+    if (FAST_SYNC_MODE) {
+      return;
+    }
     TransactionsMessage transactionsMessage = (TransactionsMessage) msg;
     check(peer, transactionsMessage);
     for (Transaction trx : transactionsMessage.getTransactions().getTransactionsList()) {

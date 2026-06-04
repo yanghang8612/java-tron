@@ -59,6 +59,7 @@ import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
 @Slf4j(topic = "API")
 public class RpcApiServiceOnSolidity extends RpcService {
 
+  private static final boolean FAST_SYNC_MODE = true;
 
   @Autowired
   private WalletOnSolidity walletOnSolidity;
@@ -68,7 +69,7 @@ public class RpcApiServiceOnSolidity extends RpcService {
 
   public RpcApiServiceOnSolidity() {
     port = Args.getInstance().getRpcOnSolidityPort();
-    enable = isFullNode() && Args.getInstance().isRpcSolidityEnable();
+    enable = !FAST_SYNC_MODE && isFullNode() && Args.getInstance().isRpcSolidityEnable();
     executorName = "rpc-solidity-executor";
   }
 

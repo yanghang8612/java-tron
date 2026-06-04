@@ -269,17 +269,17 @@ public class ProposalUtil {
         }
         break;
       }
-//      case ALLOW_SHIELDED_TRANSACTION: {
-//        if (!forkController.pass(ForkBlockVersionEnum.VERSION_4_0)) {
-//          throw new ContractValidateException(
-//              "Bad chain parameter id [ALLOW_SHIELDED_TRANSACTION]");
-//        }
-//        if (value != 1) {
-//          throw new ContractValidateException(
-//                  PRE_VALUE_NOT_ONE_ERROR + "ALLOW_SHIELDED_TRANSACTION" + VALUE_NOT_ONE_ERROR);
-//        }
-//        break;
-//      }
+      case ALLOW_SHIELDED_TRANSACTION: {
+        if (!forkController.pass(ForkBlockVersionEnum.VERSION_4_0)) {
+          throw new ContractValidateException(
+              "Bad chain parameter id [ALLOW_SHIELDED_TRANSACTION]");
+        }
+        if (value != 1) {
+          throw new ContractValidateException(
+              PRE_VALUE_NOT_ONE_ERROR + "ALLOW_SHIELDED_TRANSACTION" + VALUE_NOT_ONE_ERROR);
+        }
+        break;
+      }
 //      case SHIELDED_TRANSACTION_FEE: {
 //        if (!forkController.pass(ForkBlockVersionEnum.VERSION_4_0)) {
 //          throw new ContractValidateException("Bad chain parameter id [SHIELD_TRANSACTION_FEE]");
@@ -906,7 +906,7 @@ public class ProposalUtil {
     ALLOW_PROTO_FILTER_NUM(24), // 0, {0, 1}
     ALLOW_ACCOUNT_STATE_ROOT(25), // 1, {0, 1}
     ALLOW_TVM_CONSTANTINOPLE(26), // 1, {0, 1}
-    // ALLOW_SHIELDED_TRANSACTION(27), // 0, {0, 1}
+    ALLOW_SHIELDED_TRANSACTION(27), // 0, {0, 1}
     // SHIELDED_TRANSACTION_FEE(28), // 10 TRX, [0, 10000] TRX
     ADAPTIVE_RESOURCE_LIMIT_MULTIPLIER(29), // 1000, [1, 10000]
     ALLOW_CHANGE_DELEGATION(30), // 1, {0, 1}

@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.tron.common.utils.ByteUtil;
+import org.tron.common.utils.FastByteComparisons;
 import org.tron.common.utils.Pair;
 import org.tron.core.capsule.utils.MarketUtils;
 import org.tron.core.db2.common.IRevokingDB;
@@ -196,8 +196,9 @@ public class Chainbase implements IRevokingDB {
     levelDBMap.putAll(collection);
 
     return levelDBMap.entrySet().stream()
-        .sorted((e1, e2) -> ByteUtil.compare(e1.getKey().getBytes(), e2.getKey().getBytes()))
-        .filter(e -> ByteUtil.greaterOrEquals(e.getKey().getBytes(), key))
+        .filter(e -> e.getValue() != null && e.getValue().getBytes() != null)
+        .sorted((e1, e2) -> compareKeys(e1.getKey().getBytes(), e2.getKey().getBytes()))
+        .filter(e -> isGreaterOrEquals(e.getKey().getBytes(), key))
         .limit(limit)
         .map(Map.Entry::getValue)
         .map(WrappedByteArray::getBytes)
@@ -342,11 +343,20 @@ public class Chainbase implements IRevokingDB {
     levelDBMap.putAll(collection);
 
     return levelDBMap.entrySet().stream()
+        .filter(e -> e.getValue() != null && e.getValue().getBytes() != null)
         .map(e -> Maps.immutableEntry(e.getKey().getBytes(), e.getValue().getBytes()))
-        .sorted((e1, e2) -> ByteUtil.compare(e1.getKey(), e2.getKey()))
-        .filter(e -> ByteUtil.greaterOrEquals(e.getKey(), key))
+        .sorted((e1, e2) -> compareKeys(e1.getKey(), e2.getKey()))
+        .filter(e -> isGreaterOrEquals(e.getKey(), key))
         .limit(limit)
         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+  }
+
+  private int compareKeys(byte[] left, byte[] right) {
+    return FastByteComparisons.compareTo(left, 0, left.length, right, 0, right.length);
+  }
+
+  private boolean isGreaterOrEquals(byte[] left, byte[] right) {
+    return compareKeys(left, right) >= 0;
   }
 
   public Map<WrappedByteArray, byte[]> prefixQuery(byte[] key) {

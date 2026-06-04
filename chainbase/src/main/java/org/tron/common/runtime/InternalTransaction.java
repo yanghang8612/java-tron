@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.Getter;
+import lombok.Setter;
 import org.apache.commons.lang3.ArrayUtils;
 import org.tron.common.crypto.Hash;
 import org.tron.common.utils.WalletUtil;
@@ -60,6 +61,14 @@ public class InternalTransaction {
   private byte[] sendAddress;
   @Getter
   private int deep;
+  @Getter
+  private int energyLeft;
+  @Getter
+  @Setter
+  private int energyUsed;
+  @Getter
+  @Setter
+  private int energyPenalty;
   @Getter
   private int index;
   private boolean rejected;
@@ -121,8 +130,16 @@ public class InternalTransaction {
   public InternalTransaction(byte[] parentHash, int deep, int index,
       byte[] sendAddress, byte[] transferToAddress, long value, byte[] data, String note,
       long nonce, Map<String, Long> tokenInfo) {
+    this(parentHash, deep, 0, index, sendAddress, transferToAddress, value, data, note, nonce,
+        tokenInfo);
+  }
+
+  public InternalTransaction(byte[] parentHash, int deep, int energyLeft, int index,
+      byte[] sendAddress, byte[] transferToAddress, long value, byte[] data, String note,
+      long nonce, Map<String, Long> tokenInfo) {
     this.parentHash = parentHash.clone();
     this.deep = deep;
+    this.energyLeft = energyLeft;
     this.index = index;
     this.note = note;
     this.sendAddress = ArrayUtils.nullToEmpty(sendAddress);

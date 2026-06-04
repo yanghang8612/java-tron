@@ -47,6 +47,8 @@ public class P2pEventHandlerImpl extends P2pEventHandler {
 
   private static final String TAG = "~";
   private static final int DURATION_STEP = 50;
+  private static final boolean FAST_SYNC_MODE = true;
+  private static final long FAST_SYNC_SLOW_MESSAGE_MS = 3_000L;
   @Getter
   private static AtomicInteger passivePeersCount = new AtomicInteger(0);
   @Getter
@@ -125,6 +127,11 @@ public class P2pEventHandlerImpl extends P2pEventHandler {
       return;
     }
 
+    if (FAST_SYNC_MODE && (MessageTypes.PBFT_MSG.asByte() == data[0]
+        || MessageTypes.PBFT_COMMIT_MSG.asByte() == data[0])) {
+      return;
+    }
+
     if (MessageTypes.PBFT_MSG.asByte() == data[0]) {
       PbftMessage message = null;
       try {
@@ -148,6 +155,10 @@ public class P2pEventHandlerImpl extends P2pEventHandler {
     try {
       msg = TronMessageFactory.create(data);
       type = msg.getType();
+
+      if (FAST_SYNC_MODE && isFastIgnoredMessage(msg, type)) {
+        return;
+      }
 
       if (INVENTORY.equals(type)) {
         InventoryMessage message = (InventoryMessage) msg;
@@ -213,15 +224,29 @@ public class P2pEventHandlerImpl extends P2pEventHandler {
       processException(peer, msg, e);
     } finally {
       long costs = System.currentTimeMillis() - startTime;
-      if (costs > 50) {
+      long slowMessageThreshold = FAST_SYNC_MODE ? FAST_SYNC_SLOW_MESSAGE_MS : 50L;
+      if (costs > slowMessageThreshold) {
         logger.info("Message processing costs {} ms, peer: {}, type: {}, time tag: {}",
                 costs, peer.getInetSocketAddress(), type, getTimeTag(costs));
-        if (type != null) {
+        if (!FAST_SYNC_MODE && type != null) {
           Metrics.histogramObserve(MetricKeys.Histogram.MESSAGE_PROCESS_LATENCY,
                   costs / Metrics.MILLISECONDS_PER_SECOND, type.name());
         }
       }
     }
+  }
+
+  private boolean isFastIgnoredMessage(TronMessage msg, MessageTypes type) {
+    if (type == MessageTypes.TRXS) {
+      return true;
+    }
+    if (INVENTORY.equals(type)) {
+      return ((InventoryMessage) msg).getInventoryType() == InventoryType.TRX;
+    }
+    if (type == MessageTypes.FETCH_INV_DATA) {
+      return ((FetchInvDataMessage) msg).getInventoryType() == InventoryType.TRX;
+    }
+    return false;
   }
 
   private void updateLastInteractiveTime(PeerConnection peer, TronMessage msg) {

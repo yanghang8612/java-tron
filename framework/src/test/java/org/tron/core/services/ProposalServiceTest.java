@@ -1,6 +1,7 @@
 package org.tron.core.services;
 
 import static org.tron.core.Constant.MAX_PROPOSAL_EXPIRE_TIME;
+import static org.tron.core.utils.ProposalUtil.ProposalType.ALLOW_SHIELDED_TRANSACTION;
 import static org.tron.core.utils.ProposalUtil.ProposalType.CONSENSUS_LOGIC_OPTIMIZATION;
 import static org.tron.core.utils.ProposalUtil.ProposalType.ENERGY_FEE;
 import static org.tron.core.utils.ProposalUtil.ProposalType.PROPOSAL_EXPIRE_TIME;
@@ -132,6 +133,19 @@ public class ProposalServiceTest extends BaseTest {
     Assert.assertTrue(dbManager.getDynamicPropertiesStore().allowConsensusLogicOptimization());
     Assert.assertTrue(dbManager.getDynamicPropertiesStore().allowWitnessSortOptimization());
     Assert.assertTrue(dbManager.getDynamicPropertiesStore().disableJavaLangMath());
+  }
+
+  @Test
+  public void testAllowShieldedTransactionProposal() {
+    dbManager.getDynamicPropertiesStore().saveAllowShieldedTransaction(0);
+    Proposal proposal =
+        Proposal.newBuilder().putParameters(ALLOW_SHIELDED_TRANSACTION.getCode(), 1).build();
+    ProposalCapsule proposalCapsule = new ProposalCapsule(proposal);
+
+    boolean result = ProposalService.process(dbManager, proposalCapsule);
+
+    Assert.assertTrue(result);
+    Assert.assertEquals(1, dbManager.getDynamicPropertiesStore().getAllowShieldedTransaction());
   }
 
   @Test

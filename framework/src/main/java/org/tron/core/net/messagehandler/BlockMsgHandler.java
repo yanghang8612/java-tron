@@ -33,6 +33,10 @@ import org.tron.protos.Protocol.Inventory.InventoryType;
 @Component
 public class BlockMsgHandler implements TronMsgHandler {
 
+  private static final boolean FAST_SYNC_MODE = true;
+  private static final long FAST_SYNC_LOG_BLOCK_INTERVAL = 1_000L;
+  private static final long FAST_SYNC_SLOW_BLOCK_MS = 3_000L;
+
   @Autowired
   private RelayService relayService;
 
@@ -89,28 +93,40 @@ public class BlockMsgHandler implements TronMsgHandler {
       }
       Long time = peer.getAdvInvRequest().remove(item);
       if (null != time) {
-        MetricsUtil.histogramUpdateUnCheck(MetricsKey.NET_LATENCY_FETCH_BLOCK
-                + peer.getInetAddress(), now - time);
-        Metrics.histogramObserve(MetricKeys.Histogram.BLOCK_FETCH_LATENCY,
-            (now - time) / Metrics.MILLISECONDS_PER_SECOND);
+        fetchBlockService.recordFetchLatency(peer, now - time);
+        if (!FAST_SYNC_MODE) {
+          MetricsUtil.histogramUpdateUnCheck(MetricsKey.NET_LATENCY_FETCH_BLOCK
+                  + peer.getInetAddress(), now - time);
+          Metrics.histogramObserve(MetricKeys.Histogram.BLOCK_FETCH_LATENCY,
+              (now - time) / Metrics.MILLISECONDS_PER_SECOND);
+        }
       }
-      Metrics.histogramObserve(MetricKeys.Histogram.BLOCK_RECEIVE_DELAY,
-          (now - blockMessage.getBlockCapsule().getTimeStamp()) / Metrics.MILLISECONDS_PER_SECOND);
+      if (!FAST_SYNC_MODE) {
+        Metrics.histogramObserve(MetricKeys.Histogram.BLOCK_RECEIVE_DELAY,
+            (now - blockMessage.getBlockCapsule().getTimeStamp()) / Metrics.MILLISECONDS_PER_SECOND);
+      }
       fetchBlockService.blockFetchSuccess(blockId);
       long interval = blockId.getNum() - tronNetDelegate.getHeadBlockId().getNum();
       processBlock(peer, blockMessage.getBlockCapsule());
-      logger.info(
-              "Receive block/interval {}/{} from {} fetch/delay {}/{}ms, "
-                      + "txs/process {}/{}ms, witness: {}",
-              blockId.getNum(),
-              interval,
-              peer.getInetSocketAddress(),
-              time == null ? 0 : now - time,
-              now - blockMessage.getBlockCapsule().getTimeStamp(),
-              ((BlockMessage) msg).getBlockCapsule().getTransactions().size(),
-              System.currentTimeMillis() - now,
-              Hex.toHexString(blockMessage.getBlockCapsule().getWitnessAddress().toByteArray()));
+      long cost = System.currentTimeMillis() - now;
+      if (shouldLogBlock(blockId.getNum()) || cost > FAST_SYNC_SLOW_BLOCK_MS) {
+        logger.info(
+                "Receive block/interval {}/{} from {} fetch/delay {}/{}ms, "
+                        + "txs/process {}/{}ms, witness: {}",
+                blockId.getNum(),
+                interval,
+                peer.getInetSocketAddress(),
+                time == null ? 0 : now - time,
+                now - blockMessage.getBlockCapsule().getTimeStamp(),
+                ((BlockMessage) msg).getBlockCapsule().getTransactions().size(),
+                cost,
+                Hex.toHexString(blockMessage.getBlockCapsule().getWitnessAddress().toByteArray()));
+      }
     }
+  }
+
+  private boolean shouldLogBlock(long blockNum) {
+    return !FAST_SYNC_MODE || blockNum % FAST_SYNC_LOG_BLOCK_INTERVAL == 0;
   }
 
   private void check(PeerConnection peer, BlockMessage msg) throws P2pException {
@@ -146,11 +162,15 @@ public class BlockMsgHandler implements TronMsgHandler {
       return;
     }
 
-    broadcast(new BlockMessage(block));
+    if (!FAST_SYNC_MODE) {
+      broadcast(new BlockMessage(block));
+    }
 
     try {
       tronNetDelegate.processBlock(block, false);
-      witnessProductBlockService.validWitnessProductTwoBlock(block);
+      if (!FAST_SYNC_MODE) {
+        witnessProductBlockService.validWitnessProductTwoBlock(block);
+      }
 
       Item item = new Item(blockId, InventoryType.BLOCK);
       tronNetDelegate.getActivePeer().forEach(p -> {

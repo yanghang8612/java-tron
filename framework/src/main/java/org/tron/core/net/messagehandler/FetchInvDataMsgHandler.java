@@ -37,7 +37,10 @@ import org.tron.protos.Protocol.Transaction;
 @Component
 public class FetchInvDataMsgHandler implements TronMsgHandler {
 
-  private volatile Cache<Long, Boolean> epochCache = CacheBuilder.newBuilder().initialCapacity(100)
+  private static final boolean FAST_SYNC_MODE = true;
+
+  private volatile Cache<Long, Boolean> epochCache = FAST_SYNC_MODE ? null
+      : CacheBuilder.newBuilder().initialCapacity(100)
           .maximumSize(1000).expireAfterWrite(1, TimeUnit.HOURS).build();
 
   private static final int MAX_SIZE = 1_000_000;
@@ -54,12 +57,15 @@ public class FetchInvDataMsgHandler implements TronMsgHandler {
   public void processMessage(PeerConnection peer, TronMessage msg) throws P2pException {
 
     FetchInvDataMessage fetchInvDataMsg = (FetchInvDataMessage) msg;
+    InventoryType type = fetchInvDataMsg.getInventoryType();
+    if (FAST_SYNC_MODE && type == InventoryType.TRX) {
+      return;
+    }
 
     boolean isAdv = isAdvInv(peer, fetchInvDataMsg);
 
     check(peer, fetchInvDataMsg, isAdv);
 
-    InventoryType type = fetchInvDataMsg.getInventoryType();
     List<Transaction> transactions = Lists.newArrayList();
 
     int size = 0;
@@ -109,6 +115,9 @@ public class FetchInvDataMsgHandler implements TronMsgHandler {
   }
 
   private void sendPbftCommitMessage(PeerConnection peer, BlockCapsule blockCapsule) {
+    if (FAST_SYNC_MODE) {
+      return;
+    }
     try {
       if (!tronNetDelegate.allowPBFT() || peer.isSyncFinish()) {
         return;

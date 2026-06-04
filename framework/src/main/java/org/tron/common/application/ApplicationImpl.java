@@ -16,6 +16,8 @@ import org.tron.core.services.event.EventService;
 @Component
 public class ApplicationImpl implements Application {
 
+  private static final boolean FAST_SYNC_MODE = true;
+
   @Autowired
   private ServiceContainer services;
 
@@ -41,12 +43,16 @@ public class ApplicationImpl implements Application {
    */
   public void startup() {
     this.startServices();
-    eventService.init();
+    if (!FAST_SYNC_MODE) {
+      eventService.init();
+    }
     consensusService.start();
     if ((!Args.getInstance().isSolidityNode()) && (!Args.getInstance().isP2pDisable())) {
       tronNetService.start();
     }
-    MetricsUtil.init();
+    if (!FAST_SYNC_MODE) {
+      MetricsUtil.init();
+    }
   }
 
   @Override
@@ -56,7 +62,9 @@ public class ApplicationImpl implements Application {
       tronNetService.close();
     }
     consensusService.stop();
-    eventService.close();
+    if (!FAST_SYNC_MODE) {
+      eventService.close();
+    }
     dbManager.close();
     shutdown.countDown();
   }

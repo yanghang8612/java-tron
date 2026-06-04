@@ -16,6 +16,7 @@ import static org.tron.core.utils.TransactionUtil.validTokenAbbrName;
 import com.google.protobuf.ByteString;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Assert;
@@ -23,6 +24,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.tron.common.BaseTest;
+import org.tron.common.runtime.InternalTransaction;
 import org.tron.common.utils.ByteArray;
 import org.tron.core.ChainBaseManager;
 import org.tron.core.Constant;
@@ -226,6 +228,29 @@ public class TransactionUtilTest extends BaseTest {
     assertFalse(isNumber(number.getBytes(StandardCharsets.UTF_8)));
     number = "24";
     assertTrue(isNumber(number.getBytes(StandardCharsets.UTF_8)));
+  }
+
+  @Test
+  public void buildInternalTransactionIncludesExtendedFields() {
+    InternalTransaction internalTransaction = new InternalTransaction(
+        "parentHash".getBytes(), 2, 1234, 0,
+        "sender".getBytes(), "target".getBytes(), 7L,
+        "payload".getBytes(), "delegatecall", 1L, new HashMap<>());
+    internalTransaction.setEnergyUsed(321);
+    internalTransaction.setEnergyPenalty(45);
+
+    Protocol.InternalTransaction protocolInternalTransaction =
+        org.tron.core.capsule.utils.TransactionUtil
+            .buildInternalTransaction(internalTransaction);
+
+    assertEquals(2, protocolInternalTransaction.getDeep());
+    assertEquals(1234, protocolInternalTransaction.getEnergyLeft());
+    assertEquals(321, protocolInternalTransaction.getEnergyUsed());
+    assertEquals(45, protocolInternalTransaction.getEnergyPenalty());
+    Assert.assertArrayEquals("payload".getBytes(),
+        protocolInternalTransaction.getData().toByteArray());
+    assertEquals("delegatecall",
+        new String(protocolInternalTransaction.getNote().toByteArray(), StandardCharsets.UTF_8));
   }
 
   @Test

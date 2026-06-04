@@ -19,18 +19,19 @@ import org.tron.p2p.stats.P2pStats;
 @Slf4j(topic = "net")
 @Component
 public class TronStatsManager {
+  private static final boolean FAST_SYNC_MODE = true;
+
   private volatile long TCP_TRAFFIC_IN = 0;
   private volatile long TCP_TRAFFIC_OUT = 0;
   private volatile long UDP_TRAFFIC_IN = 0;
   private volatile long UDP_TRAFFIC_OUT = 0;
 
   private static Cache<InetAddress, NodeStatistics> cache = CacheBuilder.newBuilder()
-          .maximumSize(3000).recordStats().build();
+          .maximumSize(3000).build();
 
   private final String esName = "net-traffic-collector";
 
-  private ScheduledExecutorService executor =
-      ExecutorServiceManager.newSingleThreadScheduledExecutor(esName);
+  private ScheduledExecutorService executor;
 
   public static NodeStatistics getNodeStatistics(InetAddress inetAddress) {
     NodeStatistics nodeStatistics = cache.getIfPresent(inetAddress);
@@ -42,6 +43,10 @@ public class TronStatsManager {
   }
 
   public void init() {
+    if (FAST_SYNC_MODE) {
+      return;
+    }
+    executor = ExecutorServiceManager.newSingleThreadScheduledExecutor(esName);
     executor.scheduleWithFixedDelay(() -> {
       try {
         work();

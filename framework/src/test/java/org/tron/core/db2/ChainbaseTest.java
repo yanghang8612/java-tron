@@ -95,6 +95,28 @@ public class ChainbaseTest {
     chainbase.close();
   }
 
+  @Test
+  public void testGetNextWithMixedLengthSnapshotKeysForLeveldb() {
+    String dbName = "testGetNextWithMixedLengthSnapshotKeysForLeveldb";
+    LevelDbDataSourceImpl dataSource = new LevelDbDataSourceImpl(
+        Args.getInstance().getOutputDirectory(), dbName);
+    this.chainbase = new Chainbase(new SnapshotRoot(new LevelDB(dataSource)));
+    testGetNextWithMixedLengthSnapshotKeys(chainbase);
+    chainbase.reset();
+    chainbase.close();
+  }
+
+  @Test
+  public void testGetNextWithMixedLengthSnapshotKeysForRocksdb() {
+    String dbName = "testGetNextWithMixedLengthSnapshotKeysForRocksdb";
+    RocksDbDataSourceImpl dataSource = new RocksDbDataSourceImpl(
+        Args.getInstance().getOutputDirectory(), dbName);
+    this.chainbase = new Chainbase(new SnapshotRoot(
+        new org.tron.core.db2.common.RocksDB(dataSource)));
+    testGetNextWithMixedLengthSnapshotKeys(chainbase);
+    chainbase.reset();
+    chainbase.close();
+  }
 
   private void testRoot(DbSourceInter<byte[]> dbSource) {
     Map<String,String> result = new HashMap<>();
@@ -109,6 +131,29 @@ public class ChainbaseTest {
     Assert.assertEquals(expect, result);
     Assert.assertTrue(dbSource.prefixQuery(prefix2).isEmpty());
     Assert.assertTrue(dbSource.prefixQuery(prefix3).isEmpty());
+  }
+
+  private void testGetNextWithMixedLengthSnapshotKeys(Chainbase chainbase) {
+    Snapshot root = chainbase.getHead().getRoot();
+    root.put("R_0001".getBytes(), value1);
+    root.put("R_0002".getBytes(), value2);
+    root.put("S_some_address".getBytes(), value3);
+
+    chainbase.setHead(chainbase.getHead().advance());
+    Snapshot head = chainbase.getHead();
+    head.put("META_READY".getBytes(), value4);
+    head.put("S_other_address".getBytes(), value5);
+    head.put("R_0000".getBytes(), value0);
+
+    Map<String, String> result = new HashMap<>();
+    chainbase.getNext("R_".getBytes(), 3).forEach((k, v) ->
+        result.put(ByteArray.toStr(k), ByteArray.toStr(v)));
+
+    Map<String, String> expect = new HashMap<>();
+    expect.put("R_0000", ByteArray.toStr(value0));
+    expect.put("R_0001", ByteArray.toStr(value1));
+    expect.put("R_0002", ByteArray.toStr(value2));
+    Assert.assertEquals(expect, result);
   }
 
   private void testDb(Chainbase chainbase) {

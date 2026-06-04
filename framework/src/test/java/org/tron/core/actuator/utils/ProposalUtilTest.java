@@ -15,6 +15,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.function.ThrowingRunnable;
+import org.mockito.Mockito;
 import org.tron.common.BaseTest;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.ForkController;
@@ -747,6 +748,28 @@ public class ProposalUtilTest extends BaseTest {
 
     thrown = assertThrows(ContractValidateException.class, off);
     assertEquals(err, thrown.getMessage());
+  }
+
+  @Test
+  public void allowShieldedTransactionProposalCheck() throws ContractValidateException {
+    ForkController forkController = Mockito.mock(ForkController.class);
+    Mockito.when(forkController.pass(ForkBlockVersionEnum.VERSION_4_0)).thenReturn(false);
+
+    ContractValidateException thrown = assertThrows(ContractValidateException.class,
+        () -> ProposalUtil.validator(dynamicPropertiesStore, forkController,
+            ProposalType.ALLOW_SHIELDED_TRANSACTION.getCode(), 1));
+    assertEquals("Bad chain parameter id [ALLOW_SHIELDED_TRANSACTION]", thrown.getMessage());
+
+    Mockito.when(forkController.pass(ForkBlockVersionEnum.VERSION_4_0)).thenReturn(true);
+    thrown = assertThrows(ContractValidateException.class,
+        () -> ProposalUtil.validator(dynamicPropertiesStore, forkController,
+            ProposalType.ALLOW_SHIELDED_TRANSACTION.getCode(), 0));
+    assertEquals("This value[ALLOW_SHIELDED_TRANSACTION] is only allowed to be 1",
+        thrown.getMessage());
+
+    ProposalUtil.validator(dynamicPropertiesStore, forkController,
+        ProposalType.ALLOW_SHIELDED_TRANSACTION.getCode(), 1);
+    Assert.assertEquals(ProposalType.ALLOW_SHIELDED_TRANSACTION, ProposalType.getEnum(27));
   }
 
   private void activateFork(ForkBlockVersionEnum forkVersion) {

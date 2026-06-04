@@ -179,6 +179,10 @@ import org.tron.protos.contract.BalanceContract;
 @Component
 public class Manager {
 
+  private static final boolean FAST_SYNC_MODE = true;
+  private static final long FAST_SYNC_LOG_BLOCK_INTERVAL = 1_000L;
+  private static final long FAST_SYNC_SLOW_BLOCK_MS = 3_000L;
+  private static final long FAST_SYNC_SLOW_TX_MS = 1_000L;
   private static final int SHIELDED_TRANS_IN_BLOCK_COUNTS = 1;
   private static final String SAVE_BLOCK = "Save block: {}";
   private static final int SLEEP_TIME_OUT = 50;
@@ -224,7 +228,7 @@ public class Manager {
   @Getter
   private Cache<Sha256Hash, Boolean> transactionIdCache = CacheBuilder
       .newBuilder().maximumSize(TX_ID_CACHE_SIZE)
-      .expireAfterWrite(1, TimeUnit.HOURS).recordStats().build();
+      .expireAfterWrite(1, TimeUnit.HOURS).build();
   @Autowired
   private AccountStateCallBack accountStateCallBack;
   @Autowired
@@ -1066,12 +1070,15 @@ public class Manager {
       ValidateScheduleException, ReceiptCheckErrException, VMIllegalException,
       TooBigTransactionResultException, ZksnarkException, BadBlockException, EventBloomException {
     processBlock(block, txs);
+    // fast-sync: 保留完整区块体(近窗口可查交易体);窗口外旧块由 pruneOldTransactions 清理
     chainBaseManager.getBlockStore().put(block.getBlockId().getBytes(), block);
     chainBaseManager.getBlockIndexStore().put(block.getBlockId());
     if (block.getTransactions().size() != 0) {
       chainBaseManager.getTransactionRetStore()
           .put(ByteArray.fromLong(block.getNum()), block.getResult());
     }
+    // fast-sync: 交易体与收据滚动保留最近约1个月,裁剪窗口外的旧块
+    pruneOldTransactions(block.getNum());
 
     updateFork(block);
     if (System.currentTimeMillis() - block.getTimeStamp() >= 60_000) {
@@ -1089,6 +1096,51 @@ public class Manager {
     } else {
       revokingStore.setMaxFlushCount(SnapshotManager.DEFAULT_MIN_FLUSH_COUNT);
     }
+  }
+
+  // ===== fast-sync: 交易体与收据滚动保留(约30天,3s/块)=====
+  private static final long TX_RETENTION_BLOCKS = 864_000L;
+  // 仅首次真正裁剪时打一条 info 日志,便于运维区分"裁剪进行中"与"卡住"
+  private volatile boolean txPruneStarted = false;
+
+  /**
+   * 滚动保留最近 TX_RETENTION_BLOCKS 个区块的交易体与收据:处理到区块 H 时,对区块
+   * H-WINDOW 清空交易体(保留区块头并重存以回收磁盘),并删除其交易索引(transactionStore)
+   * 与收据(transactionRetStore)。窗口预热期(H<=WINDOW)不做任何事。旧块远在分叉/回滚深度
+   * 之外,删除/重存对 revoking 层安全;delete 经 flush 落到底层 LevelDB 真实删除,确实回收磁盘。
+   */
+  private void pruneOldTransactions(long currentBlockNum) {
+    long oldNum = currentBlockNum - TX_RETENTION_BLOCKS;
+    if (oldNum <= 0) {
+      return;
+    }
+    try {
+      BlockCapsule oldBlock = chainBaseManager.getBlockByNum(oldNum);
+      if (oldBlock.getTransactions().isEmpty()) {
+        return; // 已裁剪过或本就是空块
+      }
+      if (!txPruneStarted) {
+        txPruneStarted = true;
+        logger.info("fast-sync: start pruning tx & receipts, window={} blocks, first block={}",
+            TX_RETENTION_BLOCKS, oldNum);
+      }
+      for (TransactionCapsule tx : oldBlock.getTransactions()) {
+        chainBaseManager.getTransactionStore().delete(tx.getTransactionId().getBytes());
+      }
+      chainBaseManager.getTransactionRetStore().delete(ByteArray.fromLong(oldNum));
+      // 清空块体交易、保留区块头,重存以回收磁盘
+      BlockCapsule cleared = new BlockCapsule(
+          oldBlock.getInstance().toBuilder().clearTransactions().build());
+      chainBaseManager.getBlockStore().put(cleared.getBlockId().getBytes(), cleared);
+    } catch (ItemNotFoundException e) {
+      // 旧块索引缺失(从快照/lite 启动、窗口预热期):预期情形,发生在任何 mutation 之前,debug 跳过避免刷屏
+      logger.debug("fast-sync: prune skip, block {} index not found", oldNum);
+    } catch (BadItemException e) {
+      // 旧块体损坏/读取失败:同样发生在 getBlockByNum 阶段(mutation 之前),跳过但 warn 提示潜在 DB 不一致
+      logger.warn("fast-sync: prune skip, block {} bad item: {}", oldNum, e.getMessage());
+    }
+    // 不再兜底 catch 其它异常:getBlockByNum 之后的 delete/put 若抛错,此时已发生部分 mutation,
+    // 任其上抛使本区块 session 回滚,避免提交"半裁剪"的中间状态(tx index/receipt/block 不一致)。
   }
 
   private void switchFork(BlockCapsule newHead)
@@ -1268,21 +1320,25 @@ public class Manager {
     setBlockWaitLock(true);
     try {
       synchronized (this) {
-        Metrics.histogramObserve(blockedTimer.get());
+        if (!FAST_SYNC_MODE) {
+          Metrics.histogramObserve(blockedTimer.get());
+        }
         blockedTimer.remove();
         long headerNumber = getDynamicPropertiesStore().getLatestBlockHeaderNumber();
         if (block.getNum() <= headerNumber && khaosDb.containBlockInMiniStore(block.getBlockId())) {
           logger.info("Block {} is already exist.", block.getBlockId().getString());
           return;
         }
-        final Histogram.Timer timer = Metrics.histogramStartTimer(
-                MetricKeys.Histogram.BLOCK_PUSH_LATENCY);
+        final Histogram.Timer timer = FAST_SYNC_MODE ? null : Metrics.histogramStartTimer(
+            MetricKeys.Histogram.BLOCK_PUSH_LATENCY);
         long start = System.currentTimeMillis();
         List<TransactionCapsule> txs = getVerifyTxs(block);
-        logger.info("Block num: {}, re-push-size: {}, pending-size: {}, "
-                        + "block-tx-size: {}, verify-tx-size: {}",
-                block.getNum(), rePushTransactions.size(), pendingTransactions.size(),
-                block.getTransactions().size(), txs.size());
+        if (shouldLogBlock(block.getNum())) {
+          logger.info("Block num: {}, re-push-size: {}, pending-size: {}, "
+                          + "block-tx-size: {}, verify-tx-size: {}",
+                  block.getNum(), rePushTransactions.size(), pendingTransactions.size(),
+                  block.getTransactions().size(), txs.size());
+        }
 
         if (CommonParameter.getInstance().getShutdownBlockTime() != null
                 && CommonParameter.getInstance().getShutdownBlockTime()
@@ -1290,19 +1346,27 @@ public class Manager {
           latestSolidityNumShutDown = block.getNum();
         }
 
-        try (PendingManager pm = new PendingManager(this)) {
+        PendingManager pendingManager = null;
+        if (FAST_SYNC_MODE) {
+          session.reset();
+          shieldedTransInPendingCounts.set(0);
+        } else {
+          pendingManager = new PendingManager(this);
+        }
+        try {
 
-          if (!block.generatedByMyself) {
-            if (!block.calcMerkleRoot().equals(block.getMerkleRoot())) {
-              logger.warn("Num: {}, the merkle root doesn't match, expect is {} , actual is {}.",
-                  block.getNum(), block.getMerkleRoot(), block.calcMerkleRoot());
-              throw new BadBlockException(CALC_MERKLE_ROOT_FAILED,
-                      String.format("The merkle hash is not validated for %d", block.getNum()));
-            }
+          if (!FAST_SYNC_MODE && !block.generatedByMyself) {
+            // fast-sync: skip merkle root check
+//          if (!block.calcMerkleRoot().equals(block.getMerkleRoot())) {
+//              logger.warn("Num: {}, the merkle root doesn't match, expect is {} , actual is {}.",
+//                  block.getNum(), block.getMerkleRoot(), block.calcMerkleRoot());
+//              throw new BadBlockException(CALC_MERKLE_ROOT_FAILED,
+//                      String.format("The merkle hash is not validated for %d", block.getNum()));
+//            }
             consensus.receiveBlock(block);
           }
 
-          if (block.getTransactions().stream()
+          if (!FAST_SYNC_MODE && block.getTransactions().stream()
                   .filter(tran -> isShieldedTransaction(tran.getInstance()))
                   .count() > SHIELDED_TRANS_IN_BLOCK_COUNTS) {
             throw new BadBlockException(
@@ -1354,7 +1418,7 @@ public class Manager {
               synchronized (forkLock) {
                 switchFork(newBlock);
               }
-              logger.info(SAVE_BLOCK, newBlock);
+              logSavedBlock(newBlock);
 
               logger.warn(
                   "******** After switchFork ******* push block: {}, new block: {}, "
@@ -1380,12 +1444,18 @@ public class Manager {
               throw throwable;
             }
             long newSolidNum = getDynamicPropertiesStore().getLatestSolidifiedBlockNum();
-            blockTrigger(newBlock, oldSolidNum, newSolidNum);
+            if (!FAST_SYNC_MODE) {
+              blockTrigger(newBlock, oldSolidNum, newSolidNum);
+            }
           }
-          logger.info(SAVE_BLOCK, newBlock);
+          logSavedBlock(newBlock);
+        } finally {
+          if (pendingManager != null) {
+            pendingManager.close();
+          }
         }
         //clear ownerAddressSet
-        if (CollectionUtils.isNotEmpty(ownerAddressSet)) {
+        if (!FAST_SYNC_MODE && CollectionUtils.isNotEmpty(ownerAddressSet)) {
           Set<String> result = new HashSet<>();
           for (TransactionCapsule transactionCapsule : rePushTransactions) {
             filterOwnerAddress(transactionCapsule, result);
@@ -1398,15 +1468,31 @@ public class Manager {
         }
 
         long cost = System.currentTimeMillis() - start;
-        MetricsUtil.meterMark(MetricsKey.BLOCKCHAIN_BLOCK_PROCESS_TIME, cost);
+        if (!FAST_SYNC_MODE) {
+          MetricsUtil.meterMark(MetricsKey.BLOCKCHAIN_BLOCK_PROCESS_TIME, cost);
+        }
 
-        logger.info("PushBlock block number: {}, cost/txs: {}/{} {}.",
-                block.getNum(), cost, block.getTransactions().size(), cost > 1000);
+        if (shouldLogBlock(block.getNum()) || cost > FAST_SYNC_SLOW_BLOCK_MS) {
+          logger.info("PushBlock block number: {}, cost/txs: {}/{} {}.",
+                  block.getNum(), cost, block.getTransactions().size(), cost > 1000);
+        }
 
-        Metrics.histogramObserve(timer);
+        if (!FAST_SYNC_MODE) {
+          Metrics.histogramObserve(timer);
+        }
       }
     } finally {
       setBlockWaitLock(false);
+    }
+  }
+
+  private boolean shouldLogBlock(long blockNum) {
+    return !FAST_SYNC_MODE || blockNum % FAST_SYNC_LOG_BLOCK_INTERVAL == 0;
+  }
+
+  private void logSavedBlock(BlockCapsule block) {
+    if (shouldLogBlock(block.getNum())) {
+      logger.info(SAVE_BLOCK, block);
     }
   }
 
@@ -1456,8 +1542,10 @@ public class Manager {
             - chainBaseManager.getDynamicPropertiesStore().getLatestSolidifiedBlockNum()
             + 1));
     chainBaseManager.setLatestSaveBlockTime(System.currentTimeMillis());
-    Metrics.gaugeSet(MetricKeys.Gauge.HEADER_HEIGHT, block.getNum());
-    Metrics.gaugeSet(MetricKeys.Gauge.HEADER_TIME, block.getTimeStamp());
+    if (!FAST_SYNC_MODE) {
+      Metrics.gaugeSet(MetricKeys.Gauge.HEADER_HEIGHT, block.getNum());
+      Metrics.gaugeSet(MetricKeys.Gauge.HEADER_TIME, block.getTimeStamp());
+    }
   }
 
   /**
@@ -1505,7 +1593,7 @@ public class Manager {
               txId, trxCap.getInstance().getRawData().getContractList().size()));
     }
     Contract contract = trxCap.getInstance().getRawData().getContract(0);
-    final Histogram.Timer requestTimer = Metrics.histogramStartTimer(
+    final Histogram.Timer requestTimer = FAST_SYNC_MODE ? null : Metrics.histogramStartTimer(
         MetricKeys.Histogram.PROCESS_TRANSACTION_LATENCY,
         Objects.nonNull(blockCap) ? MetricLabels.BLOCK : MetricLabels.TRX,
         contract.getType().name());
@@ -1517,10 +1605,10 @@ public class Manager {
       trxCap.setInBlock(true);
     }
 
-    validateTapos(trxCap);
-    validateCommon(trxCap);
+//    validateTapos(trxCap);
+//    validateCommon(trxCap);
 
-    validateDup(trxCap);
+//    validateDup(trxCap);
 
     if (!trxCap.validateSignature(chainBaseManager.getAccountStore(),
         chainBaseManager.getDynamicPropertiesStore())) {
@@ -1547,10 +1635,15 @@ public class Manager {
         trace.checkIsConstant();
         trace.exec();
         trace.setResult();
-        logger.info("Retry result when push: {}, for tx id: {}, tx resultCode in receipt: {}.",
-            blockCap.hasWitnessSignature(), txId, trace.getReceipt().getResult());
+        if (FAST_SYNC_MODE) {
+          logger.debug("Retry result when push: {}, for tx id: {}, tx resultCode in receipt: {}.",
+              blockCap.hasWitnessSignature(), txId, trace.getReceipt().getResult());
+        } else {
+          logger.info("Retry result when push: {}, for tx id: {}, tx resultCode in receipt: {}.",
+              blockCap.hasWitnessSignature(), txId, trace.getReceipt().getResult());
+        }
       }
-      if (blockCap.hasWitnessSignature()) {
+      if (!FAST_SYNC_MODE && blockCap.hasWitnessSignature()) {
         trace.check();
       }
     }
@@ -1593,7 +1686,8 @@ public class Manager {
       trxCap.setTrxTrace(null);
     }
     long cost = System.currentTimeMillis() - start;
-    if (cost > 100) {
+    long slowTxThreshold = FAST_SYNC_MODE ? FAST_SYNC_SLOW_TX_MS : 100L;
+    if (cost > slowTxThreshold) {
       String type = "broadcast";
       if (Objects.nonNull(blockCap)) {
         type = blockCap.hasWitnessSignature() ? "apply" : "pack";
@@ -1601,7 +1695,9 @@ public class Manager {
       logger.info("Process transaction {} cost {} ms during {}, {}",
              Hex.toHexString(transactionInfo.getId()), cost, type, contract.getType().name());
     }
-    Metrics.histogramObserve(requestTimer);
+    if (!FAST_SYNC_MODE) {
+      Metrics.histogramObserve(requestTimer);
+    }
     return transactionInfo.getInstance();
   }
 
@@ -1830,16 +1926,18 @@ public class Manager {
     // todo set revoking db max size.
 
     // checkWitness
-    if (!consensus.validBlock(block)) {
+    if (!FAST_SYNC_MODE && !consensus.validBlock(block)) {
       throw new ValidateScheduleException("validateWitnessSchedule error");
     }
 
-    chainBaseManager.getBalanceTraceStore().initCurrentBlockBalanceTrace(block);
+    if (!FAST_SYNC_MODE) {
+      chainBaseManager.getBalanceTraceStore().initCurrentBlockBalanceTrace(block);
+    }
 
     //reset BlockEnergyUsage
-    chainBaseManager.getDynamicPropertiesStore().saveBlockEnergyUsage(0);
+    chainBaseManager.getDynamicPropertiesStore().resetBlockEnergyUsage();
     //parallel check sign
-    if (!block.generatedByMyself) {
+    if (!FAST_SYNC_MODE && !block.generatedByMyself) {
       try {
         preValidateTransactionSign(txs);
       } catch (InterruptedException e) {
@@ -1850,14 +1948,19 @@ public class Manager {
 
     TransactionRetCapsule transactionRetCapsule =
         new TransactionRetCapsule(block);
+    boolean merkleTreeTouched = false;
     try {
-      merkleContainer.resetCurrentMerkleTree();
-      accountStateCallBack.preExecute(block);
+      if (!FAST_SYNC_MODE) {
+        accountStateCallBack.preExecute(block);
+      }
       List<TransactionInfo> results = new ArrayList<>();
       long num = block.getNum();
       for (TransactionCapsule transactionCapsule : block.getTransactions()) {
-        rejectExchangeTransaction(transactionCapsule.getInstance());
-        if (chainBaseManager.getDynamicPropertiesStore().allowConsensusLogicOptimization()
+        if (!FAST_SYNC_MODE) {
+          rejectExchangeTransaction(transactionCapsule.getInstance());
+        }
+        if (!FAST_SYNC_MODE
+            && chainBaseManager.getDynamicPropertiesStore().allowConsensusLogicOptimization()
             && transactionCapsule.retCountIsGreatThanContractCount()) {
           throw new BadBlockException(String.format("The result count %d of this transaction %s is "
                   + "greater than its contract count %d", transactionCapsule.getRetCount(),
@@ -1867,19 +1970,33 @@ public class Manager {
         if (block.generatedByMyself) {
           transactionCapsule.setVerified(true);
         }
-        accountStateCallBack.preExeTrans();
+        if (!FAST_SYNC_MODE) {
+          accountStateCallBack.preExeTrans();
+        }
+        if (!merkleTreeTouched && isShieldedTransaction(transactionCapsule.getInstance())) {
+          merkleContainer.resetCurrentMerkleTree();
+          merkleTreeTouched = true;
+        }
         TransactionInfo result = processTransaction(transactionCapsule, block);
-        accountStateCallBack.exeTransFinish();
+        if (!FAST_SYNC_MODE) {
+          accountStateCallBack.exeTransFinish();
+        }
         if (Objects.nonNull(result)) {
           results.add(result);
         }
       }
       transactionRetCapsule.addAllTransactionInfos(results);
-      accountStateCallBack.executePushFinish();
+      if (!FAST_SYNC_MODE) {
+        accountStateCallBack.executePushFinish();
+      }
     } finally {
-      accountStateCallBack.exceptionFinish();
+      if (!FAST_SYNC_MODE) {
+        accountStateCallBack.exceptionFinish();
+      }
     }
-    merkleContainer.saveCurrentMerkleTreeAsBestMerkleTree(block.getNum());
+    if (merkleTreeTouched) {
+      merkleContainer.saveCurrentMerkleTreeAsBestMerkleTree(block.getNum());
+    }
     block.setResult(transactionRetCapsule);
     if (getDynamicPropertiesStore().getAllowAdaptiveEnergy() == 1) {
       EnergyProcessor energyProcessor = new EnergyProcessor(

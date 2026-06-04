@@ -228,11 +228,18 @@ public class Program {
     return invoke.getCallDeep();
   }
 
-  /**
-   * @param transferAddress the address send TRX to.
-   * @param value the TRX value transferred in the internal transaction
-   */
-  private InternalTransaction addInternalTx(DataWord energyLimit, byte[] senderAddress,
+  private InternalTransaction addPureTransferInternalTx(String note, byte[] transferAddress,
+      long value) {
+    return addSimplifyInternalTx(note, transferAddress, null, value, null);
+  }
+
+  private InternalTransaction addSimplifyInternalTx(String note, byte[] transferAddress,
+      byte[] data, long value, Map<String, Long> tokenInfo) {
+    return addInternalTx(getEnergyLimitLeft(), getContextAddress(), transferAddress, value, data,
+        note, nonce, tokenInfo);
+  }
+
+  private InternalTransaction addInternalTx(DataWord energyLeft, byte[] senderAddress,
       byte[] transferAddress,
       long value, byte[] data, String note, long nonce, Map<String, Long> tokenInfo) {
 
@@ -240,10 +247,21 @@ public class Program {
     if (internalTransaction != null) {
       addedInternalTx = getResult()
           .addInternalTransaction(internalTransaction.getHash(), getCallDeep(),
+              toUint32(energyLeft == null ? 0 : energyLeft.longValueSafe()),
               senderAddress, transferAddress, value, data, note, nonce, tokenInfo);
     }
 
     return addedInternalTx;
+  }
+
+  private int toUint32(long value) {
+    if (value <= 0) {
+      return 0;
+    }
+    if (value >= 0xFFFF_FFFFL) {
+      return -1;
+    }
+    return (int) value;
   }
 
   private <T extends ProgramListenerAware> T setupProgramListener(T programListenerAware) {
@@ -467,8 +485,8 @@ public class Program {
 
     increaseNonce();
 
-    InternalTransaction internalTx = addInternalTx(null, owner, obtainer, balance, null,
-        "suicide", nonce, getContractState().getAccount(owner).getAssetMapV2());
+    InternalTransaction internalTx = addSimplifyInternalTx("suicide", obtainer, null, balance,
+        getContractState().getAccount(owner).getAssetMapV2());
 
     int ADDRESS_SIZE = VMUtils.getAddressSize();
     if (FastByteComparisons.compareTo(owner, 0, ADDRESS_SIZE, obtainer, 0, ADDRESS_SIZE) == 0) {
@@ -536,8 +554,8 @@ public class Program {
 
     increaseNonce();
 
-    InternalTransaction internalTx = addInternalTx(null, owner, obtainer, balance, null,
-        "suicide", nonce, getContractState().getAccount(owner).getAssetMapV2());
+    InternalTransaction internalTx = addInternalTx(getEnergyLimitLeft(), owner, obtainer, balance,
+        null, "suicide", nonce, getContractState().getAccount(owner).getAssetMapV2());
 
     if (FastByteComparisons.isEqual(owner, obtainer)) {
       return;
@@ -671,8 +689,8 @@ public class Program {
     if (expireUnfrozenBalance > 0) {
       inheritorCapsule.setBalance(inheritorCapsule.getBalance() + expireUnfrozenBalance);
       increaseNonce();
-      addInternalTx(null, ownerAddr, inheritorAddr, expireUnfrozenBalance, null,
-          "withdrawExpireUnfreezeWhileSuiciding", nonce, null);
+      addPureTransferInternalTx(
+          "withdrawExpireUnfreezeWhileSuiciding", inheritorAddr, expireUnfrozenBalance);
     }
     clearOwnerFreezeV2(ownerCapsule);
     repo.updateAccount(ownerCapsule.createDbKey(), ownerCapsule);
@@ -891,8 +909,8 @@ public class Program {
 
     increaseNonce();
     // [5] COOK THE INVOKE AND EXECUTE
-    InternalTransaction internalTx = addInternalTx(null, senderAddress, newAddress, endowment,
-        programCode, "create", nonce, null);
+    InternalTransaction internalTx = addInternalTx(energyLimit, senderAddress, newAddress,
+        endowment, programCode, isCreate2 ? "create2" : "create", nonce, null);
     long vmStartInUs = System.nanoTime() / 1000;
     ProgramInvoke programInvoke = ProgramInvokeFactory.createProgramInvoke(
         this, new DataWord(newAddress), getContractAddress(), value, DataWord.ZERO(),
@@ -944,6 +962,7 @@ public class Program {
       }
     }
 
+    fillInternalTxEnergy(internalTx, createResult);
     getResult().merge(createResult);
 
     if (createResult.getException() != null || createResult.isRevert()) {
@@ -987,6 +1006,22 @@ public class Program {
             Hex.toHexString(getContextAddress()), refundEnergy);
       }
     }
+  }
+
+  private void fillInternalTxEnergy(InternalTransaction internalTx, ProgramResult result) {
+    if (internalTx == null || result == null) {
+      return;
+    }
+    fillInternalTxEnergy(internalTx, result.getEnergyUsed(), result.getEnergyPenaltyTotal());
+  }
+
+  private void fillInternalTxEnergy(InternalTransaction internalTx, long energyUsed,
+      long energyPenalty) {
+    if (internalTx == null) {
+      return;
+    }
+    internalTx.setEnergyUsed(toUint32(energyUsed));
+    internalTx.setEnergyPenalty(toUint32(energyPenalty));
   }
 
   /**
@@ -1116,8 +1151,8 @@ public class Program {
     if (isTokenTransfer) {
       tokenInfo.put(new String(stripLeadingZeroes(tokenId)), endowment);
     }
-    InternalTransaction internalTx = addInternalTx(null, senderAddress, contextAddress,
-        !isTokenTransfer ? endowment : 0, data, "call", nonce,
+    InternalTransaction internalTx = addInternalTx(msg.getEnergy(), senderAddress, codeAddress,
+        !isTokenTransfer ? endowment : 0, data, Op.getNameOf(msg.getOpCode()).toLowerCase(), nonce,
         !isTokenTransfer ? null : tokenInfo);
     ProgramResult callResult = null;
     if (isNotEmpty(programCode)) {
@@ -1148,6 +1183,7 @@ public class Program {
       }
       VM.play(program, OperationRegistry.getTable());
       callResult = program.getResult();
+      fillInternalTxEnergy(internalTx, callResult);
 
       getTrace().merge(program.getTrace());
       getResult().merge(callResult);
@@ -1661,11 +1697,12 @@ public class Program {
     Repository deposit = getContractState().newRepositoryChild();
 
     byte[] senderAddress = getContextAddress();
+    byte[] codeAddress = msg.getCodeAddress().toTronAddress();
     byte[] contextAddress;
     if (msg.getOpCode() == Op.CALLCODE || msg.getOpCode() == Op.DELEGATECALL) {
       contextAddress = senderAddress;
     } else {
-      contextAddress = msg.getCodeAddress().toTronAddress();
+      contextAddress = codeAddress;
     }
 
     long endowment = msg.getEndowment().value().longValueExact();
@@ -1712,10 +1749,23 @@ public class Program {
       }
     }
 
+    increaseNonce();
+    HashMap<String, Long> tokenInfo = new HashMap<>();
+    if (isTokenTransfer) {
+      tokenInfo.put(new String(stripLeadingZeroes(tokenId)), endowment);
+    }
+    InternalTransaction internalTx = addInternalTx(msg.getEnergy(), senderAddress, codeAddress,
+        !isTokenTransfer ? endowment : 0, data, Op.getNameOf(msg.getOpCode()).toLowerCase(), nonce,
+        !isTokenTransfer ? null : tokenInfo);
+
     long requiredEnergy = contract.getEnergyForData(data);
     if (requiredEnergy > msg.getEnergy().longValue()) {
       // Not need to throw an exception, method caller needn't know that
       // regard as consumed the energy
+      fillInternalTxEnergy(internalTx, msg.getEnergy().longValue(), 0);
+      if (internalTx != null) {
+        internalTx.reject();
+      }
       this.refundEnergy(0, CALL_PRE_COMPILED); //matches cpp logic
       this.stackPushZero();
     } else {
@@ -1730,15 +1780,29 @@ public class Program {
       contract.setResult(this.result);
       contract.setConstantCall(isConstantCall());
       contract.setVmShouldEndInUs(getVmShouldEndInUs());
-      Pair<Boolean, byte[]> out = contract.execute(data);
+      Pair<Boolean, byte[]> out;
+      try {
+        out = contract.execute(data);
+      } catch (RuntimeException e) {
+        fillInternalTxEnergy(internalTx, msg.getEnergy().longValue(), 0);
+        if (internalTx != null) {
+          internalTx.reject();
+        }
+        throw e;
+      }
 
       if (out.getLeft()) { // success
+        fillInternalTxEnergy(internalTx, requiredEnergy, 0);
         this.refundEnergy(msg.getEnergy().longValue() - requiredEnergy, CALL_PRE_COMPILED);
         this.stackPushOne();
         returnDataBuffer = out.getRight();
         deposit.commit();
       } else {
         // spend all energy on failure, push zero and revert state changes
+        fillInternalTxEnergy(internalTx, msg.getEnergy().longValue(), 0);
+        if (internalTx != null) {
+          internalTx.reject();
+        }
         this.refundEnergy(0, CALL_PRE_COMPILED);
         this.stackPushZero();
         if (Objects.nonNull(this.result.getException())) {
@@ -1911,9 +1975,8 @@ public class Program {
     byte[] receiver = receiverAddress.toTronAddress();
 
     increaseNonce();
-    InternalTransaction internalTx = addInternalTx(null, owner, receiver,
-        frozenBalance.longValue(), null,
-        "freezeFor" + convertResourceToString(resourceType), nonce, null);
+    InternalTransaction internalTx = addPureTransferInternalTx(
+        "freezeFor" + convertResourceToString(resourceType), receiver, frozenBalance.longValue());
 
     FreezeBalanceParam param = new FreezeBalanceParam();
     param.setOwnerAddress(owner);
@@ -1947,8 +2010,8 @@ public class Program {
     byte[] receiver = receiverAddress.toTronAddress();
 
     increaseNonce();
-    InternalTransaction internalTx = addInternalTx(null, owner, receiver, 0, null,
-        "unfreezeFor" + convertResourceToString(resourceType), nonce, null);
+    InternalTransaction internalTx = addPureTransferInternalTx(
+        "unfreezeFor" + convertResourceToString(resourceType), receiver, 0);
 
     UnfreezeBalanceParam param = new UnfreezeBalanceParam();
     param.setOwnerAddress(owner);
@@ -2011,9 +2074,9 @@ public class Program {
     byte[] owner = getContextAddress();
 
     increaseNonce();
-    InternalTransaction internalTx = addInternalTx(null, owner, owner,
-        frozenBalance.longValue(), null,
-        "freezeBalanceV2For" + convertResourceToString(resourceType), nonce, null);
+    InternalTransaction internalTx = addPureTransferInternalTx(
+        "freezeBalanceV2For" + convertResourceToString(resourceType), owner,
+        frozenBalance.longValue());
 
     try {
       FreezeBalanceV2Param param = new FreezeBalanceV2Param();
@@ -2042,9 +2105,9 @@ public class Program {
     byte[] owner = getContextAddress();
 
     increaseNonce();
-    InternalTransaction internalTx = addInternalTx(null, owner, owner,
-        unfreezeBalance.longValue(), null,
-        "unfreezeBalanceV2For" + convertResourceToString(resourceType), nonce, null);
+    InternalTransaction internalTx = addPureTransferInternalTx(
+        "unfreezeBalanceV2For" + convertResourceToString(resourceType), owner,
+        unfreezeBalance.longValue());
 
     try {
       UnfreezeBalanceV2Param param = new UnfreezeBalanceV2Param();
@@ -2058,8 +2121,8 @@ public class Program {
       repository.commit();
       if (unfreezeExpireBalance > 0) {
         increaseNonce();
-        addInternalTx(null, owner, owner, unfreezeExpireBalance, null,
-            "withdrawExpireUnfreezeWhileUnfreezing", nonce, null);
+        addPureTransferInternalTx(
+            "withdrawExpireUnfreezeWhileUnfreezing", owner, unfreezeExpireBalance);
       }
       return true;
     } catch (ContractValidateException e) {
@@ -2078,8 +2141,7 @@ public class Program {
     byte[] owner = getContextAddress();
 
     increaseNonce();
-    InternalTransaction internalTx = addInternalTx(null, owner, owner, 0, null,
-        "withdrawExpireUnfreeze", nonce, null);
+    InternalTransaction internalTx = addPureTransferInternalTx("withdrawExpireUnfreeze", owner, 0);
 
     try {
       WithdrawExpireUnfreezeParam param = new WithdrawExpireUnfreezeParam();
@@ -2109,8 +2171,7 @@ public class Program {
     byte[] owner = getContextAddress();
 
     increaseNonce();
-    InternalTransaction internalTx = addInternalTx(null, owner, owner, 0, null,
-        "cancelAllUnfreezeV2", nonce, null);
+    InternalTransaction internalTx = addPureTransferInternalTx("cancelAllUnfreezeV2", owner, 0);
 
     try {
       CancelAllUnfreezeV2Param param = new CancelAllUnfreezeV2Param();
@@ -2123,8 +2184,9 @@ public class Program {
 
       if (result.get(VMConstant.WITHDRAW_EXPIRE_BALANCE) > 0) {
         increaseNonce();
-        addInternalTx(null, owner, owner, result.get(VMConstant.WITHDRAW_EXPIRE_BALANCE), null,
-            "withdrawExpireUnfreezeWhileCanceling", nonce, null);
+        addPureTransferInternalTx(
+            "withdrawExpireUnfreezeWhileCanceling", owner,
+            result.get(VMConstant.WITHDRAW_EXPIRE_BALANCE));
       }
 
       if (internalTx != null && CommonParameter.getInstance().saveCancelAllUnfreezeV2Details) {
@@ -2153,9 +2215,9 @@ public class Program {
     byte[] receiver = receiverAddress.toTronAddress();
 
     increaseNonce();
-    InternalTransaction internalTx = addInternalTx(null, owner, receiver,
-        delegateBalance.longValue(), null,
-        "delegateResourceOf" + convertResourceToString(resourceType), nonce, null);
+    InternalTransaction internalTx = addPureTransferInternalTx(
+        "delegateResourceOf" + convertResourceToString(resourceType), receiver,
+        delegateBalance.longValue());
 
     try {
       DelegateResourceParam param = new DelegateResourceParam();
@@ -2187,9 +2249,9 @@ public class Program {
     byte[] receiver = receiverAddress.toTronAddress();
 
     increaseNonce();
-    InternalTransaction internalTx = addInternalTx(null, owner, receiver,
-        unDelegateBalance.longValue(), null,
-        "unDelegateResourceOf" + convertResourceToString(resourceType), nonce, null);
+    InternalTransaction internalTx = addPureTransferInternalTx(
+        "unDelegateResourceOf" + convertResourceToString(resourceType), receiver,
+        unDelegateBalance.longValue());
 
     try {
       UnDelegateResourceParam param = new UnDelegateResourceParam();
@@ -2263,8 +2325,7 @@ public class Program {
     byte[] owner = getContextAddress();
 
     increaseNonce();
-    InternalTransaction internalTx = addInternalTx(null, owner, null, 0, null,
-        "voteWitness", nonce, null);
+    InternalTransaction internalTx = addPureTransferInternalTx("voteWitness", null, 0);
 
     if (memoryLoad(witnessArrayOffset).intValueSafe() != witnessArrayLength ||
         memoryLoad(amountArrayOffset).intValueSafe() != amountArrayLength) {
@@ -2323,8 +2384,7 @@ public class Program {
     byte[] owner = getContextAddress();
 
     increaseNonce();
-    InternalTransaction internalTx = addInternalTx(null, owner, owner, 0, null,
-        "withdrawReward", nonce, null);
+    InternalTransaction internalTx = addPureTransferInternalTx("withdrawReward", owner, 0);
 
     WithdrawRewardParam param = new WithdrawRewardParam();
     param.setOwnerAddress(owner);

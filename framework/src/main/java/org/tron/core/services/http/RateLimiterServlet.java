@@ -30,6 +30,7 @@ import org.tron.core.services.ratelimiter.strategy.QpsStrategy;
 
 @Slf4j
 public abstract class RateLimiterServlet extends HttpServlet {
+  private static final boolean FAST_SYNC_MODE = true;
   private static final String KEY_PREFIX_HTTP = "http_";
   private static final String ADAPTER_PREFIX = "org.tron.core.services.ratelimiter.adapter.";
 
@@ -38,6 +39,9 @@ public abstract class RateLimiterServlet extends HttpServlet {
 
   @PostConstruct
   private void addRateContainer() {
+    if (FAST_SYNC_MODE) {
+      return;
+    }
     RateLimiterInitialization.HttpRateLimiterItem item = Args.getInstance()
         .getRateLimiterInitialization().getHttpMap().get(getClass().getSimpleName());
     boolean success = false;
@@ -88,7 +92,13 @@ public abstract class RateLimiterServlet extends HttpServlet {
   @Override
   protected void service(HttpServletRequest req, HttpServletResponse resp)
       throws ServletException, IOException {
-    
+
+    if (FAST_SYNC_MODE) {
+      resp.setContentType("application/json; charset=utf-8");
+      super.service(req, resp);
+      return;
+    }
+
     RuntimeData runtimeData = new RuntimeData(req);
     GlobalRateLimiter.acquire(runtimeData);
 
