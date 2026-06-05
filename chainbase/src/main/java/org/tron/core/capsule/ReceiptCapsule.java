@@ -163,6 +163,16 @@ public class ReceiptCapsule {
     this.receipt = this.receipt.toBuilder().setOriginEnergyUsage(energyUsage).build();
   }
 
+  // Diagnostic: persist into the receipt the contract origin/caller available
+  // energy captured at execution start (cross-impl parity, pre-Stake-2.0 incl.).
+  public void recordOriginEnergyLeft(long energyLeft) {
+    this.receipt = this.receipt.toBuilder().setOriginEnergyLeft(energyLeft).build();
+  }
+
+  public void recordCallerEnergyLeft(long energyLeft) {
+    this.receipt = this.receipt.toBuilder().setCallerEnergyLeft(energyLeft).build();
+  }
+
   public long getEnergyUsageTotal() {
     return this.receipt.getEnergyUsageTotal();
   }

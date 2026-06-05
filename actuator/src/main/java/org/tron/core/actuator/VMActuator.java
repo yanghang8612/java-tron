@@ -131,8 +131,11 @@ public class VMActuator implements Actuator2 {
           .getDynamicPropertiesStore().getEnergyFee(), VMConfig.disableJavaLangMath());
     }
     blockCap = context.getBlockCap();
-    if ((VMConfig.allowTvmFreeze() || VMConfig.allowTvmFreezeV2())
-        && context.getTrxCap().getTrxTrace() != null) {
+    // Hold the receipt whenever a trace exists (incl. pre-Stake-2.0) so the
+    // diagnostic origin/caller energy-left can be recorded. The energy-left /
+    // window / usage setters below stay gated on allowTvmFreeze(V2), so
+    // consensus billing is unchanged by this.
+    if (context.getTrxCap().getTrxTrace() != null) {
       receipt = context.getTrxCap().getTrxTrace().getReceipt();
     }
     //Route Type
@@ -564,6 +567,11 @@ public class VMActuator implements Actuator2 {
     if (VMConfig.allowTvmFreeze() || VMConfig.allowTvmFreezeV2()) {
       receipt.setCallerEnergyLeft(leftFrozenEnergy);
     }
+    // Diagnostic (cross-impl parity): record caller available energy at exec
+    // start unconditionally (incl. pre-Stake-2.0), independent of the gate above.
+    if (receipt != null) {
+      receipt.recordCallerEnergyLeft(leftFrozenEnergy);
+    }
 
     long energyFromBalance = max(account.getBalance() - callValue, 0,
         VMConfig.disableJavaLangMath()) / sunPerEnergy;
@@ -720,6 +728,11 @@ public class VMActuator implements Actuator2 {
       originEnergyLeft = rootRepository.getAccountLeftEnergyFromFreeze(creator);
       if (VMConfig.allowTvmFreeze() || VMConfig.allowTvmFreezeV2()) {
         receipt.setOriginEnergyLeft(originEnergyLeft);
+      }
+      // Diagnostic (cross-impl parity): record origin available energy at exec
+      // start unconditionally (incl. pre-Stake-2.0), independent of the gate.
+      if (receipt != null) {
+        receipt.recordOriginEnergyLeft(originEnergyLeft);
       }
     }
     if (consumeUserResourcePercent <= 0) {
