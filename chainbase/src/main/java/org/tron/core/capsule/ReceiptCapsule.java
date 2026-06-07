@@ -173,6 +173,47 @@ public class ReceiptCapsule {
     this.receipt = this.receipt.toBuilder().setCallerEnergyLeft(energyLeft).build();
   }
 
+  // Diagnostic (cross-impl parity), non-consensus — receipt fields 11-19, field
+  // numbers/names match go-tron so gettransactioninfobyid output is comparable.
+  // Owner* describe the tx fee-payer at execution start (set in
+  // BandwidthProcessor.consume); *EnergyWindow are the origin/caller energy
+  // recovery windows (set in VMActuator).
+  public void recordOwnerBalance(long balance) {
+    this.receipt = this.receipt.toBuilder().setOwnerBalance(balance).build();
+  }
+
+  public void recordOwnerFreeNetLeft(long left) {
+    this.receipt = this.receipt.toBuilder().setOwnerFreeNetLeft(left).build();
+  }
+
+  public void recordOwnerFrozenNetLeft(long left) {
+    this.receipt = this.receipt.toBuilder().setOwnerFrozenNetLeft(left).build();
+  }
+
+  public void recordOwnerNetLastConsumeTime(long time) {
+    this.receipt = this.receipt.toBuilder().setOwnerNetLastConsumeTime(time).build();
+  }
+
+  public void recordOwnerFreeNetLastConsumeTime(long time) {
+    this.receipt = this.receipt.toBuilder().setOwnerFreeNetLastConsumeTime(time).build();
+  }
+
+  public void recordOwnerFrozenForNet(long frozen) {
+    this.receipt = this.receipt.toBuilder().setOwnerFrozenForNet(frozen).build();
+  }
+
+  public void recordOwnerFrozenForEnergy(long frozen) {
+    this.receipt = this.receipt.toBuilder().setOwnerFrozenForEnergy(frozen).build();
+  }
+
+  public void recordOriginEnergyWindow(long windowSize) {
+    this.receipt = this.receipt.toBuilder().setOriginEnergyWindow(windowSize).build();
+  }
+
+  public void recordCallerEnergyWindow(long windowSize) {
+    this.receipt = this.receipt.toBuilder().setCallerEnergyWindow(windowSize).build();
+  }
+
   public long getEnergyUsageTotal() {
     return this.receipt.getEnergyUsageTotal();
   }

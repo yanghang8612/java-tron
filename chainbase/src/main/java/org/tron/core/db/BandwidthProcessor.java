@@ -18,6 +18,7 @@ import org.tron.core.ChainBaseManager;
 import org.tron.core.Constant;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.AssetIssueCapsule;
+import org.tron.core.capsule.ReceiptCapsule;
 import org.tron.core.capsule.TransactionCapsule;
 import org.tron.core.exception.AccountResourceInsufficientException;
 import org.tron.core.exception.ContractValidateException;
@@ -119,6 +120,7 @@ public class BandwidthProcessor extends ResourceProcessor {
       bytesSize = trx.getSerializedSize();
     }
 
+    boolean ownerSnapshotCaptured = false;
     for (Contract contract : contracts) {
       if (contract.getType() == ShieldedTransferContract) {
         continue;
@@ -136,6 +138,13 @@ public class BandwidthProcessor extends ResourceProcessor {
             StringUtil.encode58Check(address)));
       }
       long now = chainBaseManager.getHeadSlot();
+      // Diagnostic (cross-impl parity), non-consensus: snapshot the owner's
+      // balance + bandwidth state at execution start (first non-shielded
+      // contract owner, before any bandwidth is consumed) onto the receipt.
+      if (!ownerSnapshotCaptured) {
+        recordOwnerResourceSnapshot(accountCapsule, now, trace.getReceipt());
+        ownerSnapshotCaptured = true;
+      }
       if (contractCreateNewAccount(contract)) {
         if (optimizeTxs) {
           long maxCreateAccountTxSize = dynamicPropertiesStore.getMaxCreateAccountTxSize();
@@ -457,6 +466,42 @@ public class BandwidthProcessor extends ResourceProcessor {
       return 0;
     }
     return (long) (netWeight * ((double) totalNetLimit / totalNetWeight));
+  }
+
+  // Diagnostic (cross-impl parity), non-consensus: record the owner's balance +
+  // bandwidth state at execution start onto the receipt. Mirrors useAccountNet /
+  // useFreeNet recovery exactly so the "left" values match what the bandwidth
+  // charge will see; read-only (no disk flush). Field numbers/names match
+  // go-tron so gettransactioninfobyid output is directly comparable.
+  private void recordOwnerResourceSnapshot(AccountCapsule account, long now,
+      ReceiptCapsule receipt) {
+    if (account == null || receipt == null) {
+      return;
+    }
+    receipt.recordOwnerBalance(account.getBalance());
+    receipt.recordOwnerNetLastConsumeTime(account.getLatestConsumeTime());
+    receipt.recordOwnerFreeNetLastConsumeTime(account.getLatestConsumeFreeTime());
+    receipt.recordOwnerFrozenForNet(account.getAllFrozenBalanceForBandwidth());
+    receipt.recordOwnerFrozenForEnergy(account.getAllFrozenBalanceForEnergy());
+
+    // Staked-net remaining (mirror useAccountNet recovery).
+    long netLimit = calculateGlobalNetLimit(account);
+    long netUsage = account.getNetUsage();
+    long latestConsumeTime = account.getLatestConsumeTime();
+    long recoveredNet;
+    if (!dynamicPropertiesStore.supportUnfreezeDelay()) {
+      recoveredNet = increase(netUsage, 0, latestConsumeTime, now);
+    } else {
+      recoveredNet = recovery(account, BANDWIDTH, netUsage, latestConsumeTime, now);
+    }
+    receipt.recordOwnerFrozenNetLeft(Math.max(0, netLimit - recoveredNet));
+
+    // Free-net remaining (mirror useFreeNet recovery).
+    long freeNetLimit = dynamicPropertiesStore.getFreeNetLimit();
+    long freeNetUsage = account.getFreeNetUsage();
+    long latestConsumeFreeTime = account.getLatestConsumeFreeTime();
+    long recoveredFreeNet = increase(freeNetUsage, 0, latestConsumeFreeTime, now);
+    receipt.recordOwnerFreeNetLeft(Math.max(0, freeNetLimit - recoveredFreeNet));
   }
 
   private boolean useAccountNet(AccountCapsule accountCapsule, long bytes, long now) {

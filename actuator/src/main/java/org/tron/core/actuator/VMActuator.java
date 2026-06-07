@@ -571,6 +571,9 @@ public class VMActuator implements Actuator2 {
     // start unconditionally (incl. pre-Stake-2.0), independent of the gate above.
     if (receipt != null) {
       receipt.recordCallerEnergyLeft(leftFrozenEnergy);
+      // Diagnostic: caller energy recovery window (slots) at exec start — the
+      // per-account state that drifts in energy-window forks.
+      receipt.recordCallerEnergyWindow(account.getWindowSize(ENERGY));
     }
 
     long energyFromBalance = max(account.getBalance() - callValue, 0,
@@ -733,6 +736,8 @@ public class VMActuator implements Actuator2 {
       // start unconditionally (incl. pre-Stake-2.0), independent of the gate.
       if (receipt != null) {
         receipt.recordOriginEnergyLeft(originEnergyLeft);
+        // Diagnostic: origin energy recovery window (slots) at exec start.
+        receipt.recordOriginEnergyWindow(creator.getWindowSize(ENERGY));
       }
     }
     if (consumeUserResourcePercent <= 0) {
