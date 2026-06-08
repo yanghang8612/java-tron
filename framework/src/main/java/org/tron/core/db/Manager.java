@@ -1070,15 +1070,12 @@ public class Manager {
       ValidateScheduleException, ReceiptCheckErrException, VMIllegalException,
       TooBigTransactionResultException, ZksnarkException, BadBlockException, EventBloomException {
     processBlock(block, txs);
-    // fast-sync: 保留完整区块体(近窗口可查交易体);窗口外旧块由 pruneOldTransactions 清理
     chainBaseManager.getBlockStore().put(block.getBlockId().getBytes(), block);
     chainBaseManager.getBlockIndexStore().put(block.getBlockId());
     if (block.getTransactions().size() != 0) {
       chainBaseManager.getTransactionRetStore()
           .put(ByteArray.fromLong(block.getNum()), block.getResult());
     }
-    // fast-sync: 交易体与收据滚动保留最近约1个月,裁剪窗口外的旧块
-    pruneOldTransactions(block.getNum());
 
     updateFork(block);
     if (System.currentTimeMillis() - block.getTimeStamp() >= 60_000) {
@@ -1096,51 +1093,6 @@ public class Manager {
     } else {
       revokingStore.setMaxFlushCount(SnapshotManager.DEFAULT_MIN_FLUSH_COUNT);
     }
-  }
-
-  // ===== fast-sync: 交易体与收据滚动保留(约30天,3s/块)=====
-  private static final long TX_RETENTION_BLOCKS = 864_000L;
-  // 仅首次真正裁剪时打一条 info 日志,便于运维区分"裁剪进行中"与"卡住"
-  private volatile boolean txPruneStarted = false;
-
-  /**
-   * 滚动保留最近 TX_RETENTION_BLOCKS 个区块的交易体与收据:处理到区块 H 时,对区块
-   * H-WINDOW 清空交易体(保留区块头并重存以回收磁盘),并删除其交易索引(transactionStore)
-   * 与收据(transactionRetStore)。窗口预热期(H<=WINDOW)不做任何事。旧块远在分叉/回滚深度
-   * 之外,删除/重存对 revoking 层安全;delete 经 flush 落到底层 LevelDB 真实删除,确实回收磁盘。
-   */
-  private void pruneOldTransactions(long currentBlockNum) {
-    long oldNum = currentBlockNum - TX_RETENTION_BLOCKS;
-    if (oldNum <= 0) {
-      return;
-    }
-    try {
-      BlockCapsule oldBlock = chainBaseManager.getBlockByNum(oldNum);
-      if (oldBlock.getTransactions().isEmpty()) {
-        return; // 已裁剪过或本就是空块
-      }
-      if (!txPruneStarted) {
-        txPruneStarted = true;
-        logger.info("fast-sync: start pruning tx & receipts, window={} blocks, first block={}",
-            TX_RETENTION_BLOCKS, oldNum);
-      }
-      for (TransactionCapsule tx : oldBlock.getTransactions()) {
-        chainBaseManager.getTransactionStore().delete(tx.getTransactionId().getBytes());
-      }
-      chainBaseManager.getTransactionRetStore().delete(ByteArray.fromLong(oldNum));
-      // 清空块体交易、保留区块头,重存以回收磁盘
-      BlockCapsule cleared = new BlockCapsule(
-          oldBlock.getInstance().toBuilder().clearTransactions().build());
-      chainBaseManager.getBlockStore().put(cleared.getBlockId().getBytes(), cleared);
-    } catch (ItemNotFoundException e) {
-      // 旧块索引缺失(从快照/lite 启动、窗口预热期):预期情形,发生在任何 mutation 之前,debug 跳过避免刷屏
-      logger.debug("fast-sync: prune skip, block {} index not found", oldNum);
-    } catch (BadItemException e) {
-      // 旧块体损坏/读取失败:同样发生在 getBlockByNum 阶段(mutation 之前),跳过但 warn 提示潜在 DB 不一致
-      logger.warn("fast-sync: prune skip, block {} bad item: {}", oldNum, e.getMessage());
-    }
-    // 不再兜底 catch 其它异常:getBlockByNum 之后的 delete/put 若抛错,此时已发生部分 mutation,
-    // 任其上抛使本区块 session 回滚,避免提交"半裁剪"的中间状态(tx index/receipt/block 不一致)。
   }
 
   private void switchFork(BlockCapsule newHead)
