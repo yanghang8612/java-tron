@@ -1749,7 +1749,9 @@ public class Program {
       }
     }
 
-    increaseNonce();
+    // never increase the program nonce here: it feeds CREATE address derivation
+    // (sha3(rootTxId ++ nonce)) and consensus does not consume a nonce for
+    // precompile calls, so this internal tx only records the current value
     HashMap<String, Long> tokenInfo = new HashMap<>();
     if (isTokenTransfer) {
       tokenInfo.put(new String(stripLeadingZeroes(tokenId)), endowment);

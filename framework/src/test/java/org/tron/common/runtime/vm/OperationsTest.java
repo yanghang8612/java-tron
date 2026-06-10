@@ -795,6 +795,10 @@ public class OperationsTest extends BaseTest {
       Assert.assertArrayEquals(precompileAddress.toTronAddress(),
           internalTransaction.getTransferToAddress());
       Assert.assertArrayEquals(new byte[0], internalTransaction.getData());
+      // program nonce feeds CREATE address derivation, so recording a precompile
+      // internal tx must not consume a nonce
+      Assert.assertEquals(0, program.getNonce());
+      Assert.assertEquals(0, internalTransaction.getNonce());
     } finally {
       DecodeUtil.addressPreFixByte = prePrefixByte;
       VMConfig.initAllowTvmSelfdestructRestriction(0);
