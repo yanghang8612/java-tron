@@ -2,6 +2,7 @@ package org.tron.core.db;
 
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -41,8 +42,10 @@ import org.tron.common.TestConstants;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.logsfilter.EventPluginLoader;
 import org.tron.common.logsfilter.capsule.BlockFilterCapsule;
+import org.tron.common.logsfilter.capsule.BlockLogTriggerCapsule;
 import org.tron.common.logsfilter.capsule.FilterTriggerCapsule;
 import org.tron.common.logsfilter.capsule.LogsFilterCapsule;
+import org.tron.common.logsfilter.capsule.TriggerCapsule;
 import org.tron.common.logsfilter.trigger.ContractLogTrigger;
 import org.tron.common.parameter.CommonParameter;
 import org.tron.common.runtime.RuntimeImpl;
@@ -1381,7 +1384,8 @@ public class ManagerTest extends BaseMethodTest {
   @Test
   public void blockTrigger() {
     Manager manager = spy(new Manager());
-    doThrow(new RuntimeException("postBlockTrigger mock")).when(manager).postBlockTrigger(any());
+    doThrow(new RuntimeException("postBlockTrigger mock")).when(manager)
+        .postBlockTrigger(any(), anyBoolean());
     TronError thrown = Assert.assertThrows(TronError.class, () ->
         manager.blockTrigger(new BlockCapsule(Block.newBuilder().build()), 1, 1));
     Assert.assertEquals(TronError.ErrCode.EVENT_SUBSCRIBE_ERROR, thrown.getErrCode());
@@ -1422,6 +1426,46 @@ public class ManagerTest extends BaseMethodTest {
       ReflectUtils.setFieldValue(dbManager, "eventPluginLoaded", false);
       Args.getSolidityContractLogTriggerMap().clear();
       Args.getSolidityContractEventTriggerMap().clear();
+    }
+  }
+
+  @Test
+  public void testReOrgBlockTriggerRemoved() throws Exception {
+    // version-0 reorg emit path: on fork switch, the erased block is re-emitted via
+    // reOrgBlockTrigger -> postBlockTrigger(block, true) (rollback, removed=true), and the
+    // re-applied fork blocks via reApplyBlockEvents -> postBlockTrigger(block, false) (forward).
+    // Both delegate to postBlockTrigger, which threads the removed flag onto the trigger.
+    ReflectUtils.setFieldValue(dbManager, "eventPluginLoaded", true);
+    EventPluginLoader mockLoader = mock(EventPluginLoader.class);
+    when(mockLoader.isBlockLogTriggerEnable()).thenReturn(true);
+    when(mockLoader.isBlockLogTriggerSolidified()).thenReturn(false);
+    when(mockLoader.isTransactionLogTriggerEnable()).thenReturn(false);
+    Field instanceField = EventPluginLoader.class.getDeclaredField("instance");
+    instanceField.setAccessible(true);
+    EventPluginLoader originalLoader = (EventPluginLoader) instanceField.get(null);
+    instanceField.set(null, mockLoader);
+
+    BlockingQueue<TriggerCapsule> queue = dbManager.getTriggerCapsuleQueue();
+    queue.clear();
+    BlockCapsule block = new BlockCapsule(1, chainManager.getGenesisBlockId(),
+        System.currentTimeMillis(), ByteString.EMPTY);
+    try {
+      // rollback emit (as reOrgBlockTrigger does)
+      dbManager.postBlockTrigger(block, true);
+      Assert.assertEquals(1, queue.size());
+      TriggerCapsule removedCap = queue.poll();
+      Assert.assertTrue(removedCap instanceof BlockLogTriggerCapsule);
+      Assert.assertTrue(((BlockLogTriggerCapsule) removedCap).getBlockLogTrigger().isRemoved());
+
+      // forward emit (as reApplyBlockEvents does)
+      dbManager.postBlockTrigger(block, false);
+      Assert.assertEquals(1, queue.size());
+      Assert.assertFalse(((BlockLogTriggerCapsule) queue.poll())
+          .getBlockLogTrigger().isRemoved());
+    } finally {
+      instanceField.set(null, originalLoader);
+      ReflectUtils.setFieldValue(dbManager, "eventPluginLoaded", false);
+      queue.clear();
     }
   }
 
