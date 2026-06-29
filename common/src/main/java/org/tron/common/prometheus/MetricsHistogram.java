@@ -53,6 +53,7 @@ public class MetricsHistogram {
         "Distribution of transaction counts per block.",
         new double[]{0, 20, 50, 80, 100, 120, 140, 160, 180, 200, 230, 260, 300, 500, 2000, 5000, 10000},
         MetricLabels.Histogram.MINER);
+    init(MetricKeys.Histogram.VM_OPCODE_LATENCY, "vm opcode latency .", "op");
   }
 
   private MetricsHistogram() {

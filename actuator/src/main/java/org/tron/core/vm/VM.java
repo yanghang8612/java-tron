@@ -3,10 +3,14 @@ package org.tron.core.vm;
 import static org.tron.core.Constant.DYNAMIC_ENERGY_FACTOR_DECIMAL;
 
 import com.google.common.collect.ImmutableSet;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.util.encoders.Hex;
 import org.springframework.util.StringUtils;
+import org.tron.common.prometheus.MetricKeys;
+import org.tron.common.prometheus.Metrics;
 import org.tron.core.vm.config.VMConfig;
 import org.tron.core.vm.program.Program;
 import org.tron.core.vm.program.Program.JVMStackOverFlowException;
@@ -18,6 +22,15 @@ public class VM {
 
   private static final Set<Integer> CALL_OPS = ImmutableSet.of(Op.CALL, Op.STATICCALL,
       Op.DELEGATECALL, Op.CALLCODE, Op.CALLTOKEN);
+
+  // op_measure benchmark instrumentation (issue #6292): per-opcode latency aggregation
+  // for the live block-replay path, read via GetOpTimeServlet (/wallet/getoptime).
+  public static Map<String, Map<String, Long>> opTimeRecords = new HashMap<>();
+
+  static {
+    // seed "blockNumber" so GetOpTimeServlet can stamp the end block without an NPE.
+    opTimeRecords.put("blockNumber", new HashMap<>());
+  }
 
   public static void play(Program program, JumpTable jumpTable) {
     try {
@@ -86,8 +99,26 @@ public class VM {
           /* check if cpu time out */
           program.checkCPUTimeLimit(opName);
 
+          long start = System.nanoTime();
           /* exec op action */
           op.execute(program);
+          long end = System.nanoTime();
+          long cost = end - start;
+          Metrics.histogramObserve(MetricKeys.Histogram.VM_OPCODE_LATENCY, cost / 1E6, opName);
+          if (!opTimeRecords.containsKey(opName)) {
+            Map<String, Long> metrics = new HashMap<>();
+            metrics.put("time", cost);
+            metrics.put("count", 1L);
+            metrics.put("maxTime", cost);
+            metrics.put("minTime", cost);
+            opTimeRecords.put(opName, metrics);
+          } else {
+            Map<String, Long> metrics = opTimeRecords.get(opName);
+            metrics.put("time", metrics.get("time") + cost);
+            metrics.put("count", metrics.get("count") + 1);
+            metrics.put("maxTime", metrics.get("maxTime") > cost ? metrics.get("maxTime") : cost);
+            metrics.put("minTime", metrics.get("minTime") < cost ? metrics.get("minTime") : cost);
+          }
 
           program.setPreviouslyExecutedOp((byte) op.getOpcode());
         } catch (RuntimeException e) {
