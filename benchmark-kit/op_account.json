@@ -1,0 +1,12 @@
+{
+  "round": 100000,
+  "fileName": "account_ops",
+  "ops": [
+    { "opName": "BALANCE",      "bytecodes": "31", "codeAddress": "randomContract", "stacks": ["randomAccount"] },
+    { "opName": "CALL",         "bytecodes": "f1", "codeAddress": "randomContract", "stacks": ["00", "00", "00", "00", "00", "randomAccount", "01"] },
+    { "opName": "CALLCODE",     "bytecodes": "f2", "codeAddress": "randomContract", "stacks": ["00", "00", "00", "00", "00", "randomAccount", "01"] },
+    { "opName": "DELEGATECALL", "bytecodes": "f4", "codeAddress": "randomContract", "stacks": ["00", "00", "00", "00", "randomAccount", "01"] },
+    { "opName": "STATICCALL",   "bytecodes": "fa", "codeAddress": "randomContract", "stacks": ["00", "00", "00", "00", "randomAccount", "01"] },
+    { "opName": "CALLTOKEN",    "bytecodes": "d0", "codeAddress": "randomContract", "stacks": ["00", "00", "00", "00", "01", "00", "randomAccount", "01"] }
+  ]
+}

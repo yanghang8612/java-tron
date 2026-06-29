@@ -1,0 +1,8 @@
+{
+  "round": 100000,
+  "fileName": "storage_ops",
+  "ops": [
+    { "opName": "SLOAD_miss",  "bytecodes": "54", "codeAddress": "randomContract", "stacks": ["randomKey"] },
+    { "opName": "SSTORE_gate", "bytecodes": "55", "codeAddress": "randomContract", "stacks": ["0000000000000000000000000000000000000000000000000000000000000001", "randomKey"] }
+  ]
+}

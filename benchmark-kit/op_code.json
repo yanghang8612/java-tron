@@ -1,0 +1,9 @@
+{
+  "round": 100000,
+  "fileName": "code_ops",
+  "ops": [
+    { "opName": "EXTCODESIZE", "bytecodes": "3b", "codeAddress": "randomContract", "stacks": ["randomContract"] },
+    { "opName": "EXTCODEHASH", "bytecodes": "3f", "codeAddress": "randomContract", "stacks": ["randomContract"] },
+    { "opName": "EXTCODECOPY", "bytecodes": "3c", "codeAddress": "randomContract", "stacks": ["0000000000000000000000000000000000000000000000000000000000000800", "0000000000000000000000000000000000000000000000000000000000000000", "0000000000000000000000000000000000000000000000000000000000000000", "randomContract"] }
+  ]
+}
