@@ -1101,11 +1101,6 @@ public class Manager {
       Metrics.gaugeInc(MetricKeys.Gauge.MANAGER_QUEUE, oldHeadBlock.getTransactions().size(),
           MetricLabels.Gauge.QUEUE_POPPED);
 
-      // Clear solidity event cache for the erased block to prevent stale fork events
-      long erasedBlockNum = oldHeadBlock.getNum();
-      Args.getSolidityContractLogTriggerMap().remove(erasedBlockNum);
-      Args.getSolidityContractEventTriggerMap().remove(erasedBlockNum);
-
     } catch (ItemNotFoundException | BadItemException e) {
       logger.warn(e.getMessage(), e);
     }
@@ -1242,9 +1237,6 @@ public class Manager {
             | BadBlockException e) {
           logger.warn(e.getMessage(), e);
           exception = e;
-          // Clear solidity event cache for the failed block
-          Args.getSolidityContractLogTriggerMap().remove(item.getBlk().getNum());
-          Args.getSolidityContractEventTriggerMap().remove(item.getBlk().getNum());
           throw e;
         } finally {
           if (exception != null) {
