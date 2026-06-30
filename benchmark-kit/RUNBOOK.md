@@ -89,33 +89,41 @@ Run scales **in increasing order**. Helper script: `run_scale.sh` (edit the path
 top). Manual steps per scale `R` ∈ {1, 2, 3, 5, 10}:
 
 ```bash
-BASE=/data/lite-base/database          # pristine mainnet-lite database dir (LevelDB)
-WORK=/data/bench                        # scratch (needs base + one expanded copy of free disk)
+# Path layout (verified). A mainnet-lite snapshot extracts to  output-directory/database/
+# whose subdirs ARE the column families:  account/ storage-row/ block/ trans/ code/ contract/ ...
+# DbExpand --database must be that 'database' dir; --target-db <cf> then reads <database>/<cf>.
+# The node's -d is the OUTPUT-DIRECTORY (parent of database); it opens <outdir>/database.
+BASE=/data/lite-base/output-directory/database   # the 'database' dir (holds the CF subdirs)
+WORK=/data/bench                                  # scratch (needs base + one expanded copy of free disk)
 PORT=8190
+S="$WORK/scale-$R"
 
-# ---- 3.1 expand the account CF to rate R (R=1 means: skip expand, use base as-is) ----
+# ---- 3.1 expand the account CF to rate R   (R=1 -> SKIP 3.1 and the rm/cp in 3.2; use base as-is)
 #   target-type 1 = originals + real-valued synthetic cold accounts (every key resolves
 #   to a real account). --expend-rate is the integer multiplier (note: "expend", misspelled).
 java -jar Toolkit.jar db expand \
-  --database        "$BASE/.." \
-  --target-database "$WORK/scale-$R/expanded" \
+  --database        "$BASE" \
+  --target-database "$S/expanded" \
   --target-db       account \
   --target-type     1 \
   --expend-rate     "$R"
 #   (DbExpand prints "DB size: <M> M" and "Expand DB size: <M> M" — record both.)
 
-# ---- 3.2 assemble a full DB dir: all base CFs, with account replaced by the expanded one
-cp -r "$BASE" "$WORK/scale-$R/database"
-rm -rf "$WORK/scale-$R/database/account"
-cp -r "$WORK/scale-$R/expanded/account" "$WORK/scale-$R/database/account"
-du -sh "$WORK/scale-$R/database/account"          # X-axis: on-disk account size
+# ---- 3.2 assemble a full output-directory: all base CFs, account replaced by the expanded one
+mkdir -p "$S/output-directory"
+cp -r "$BASE" "$S/output-directory/database"
+rm -rf "$S/output-directory/database/account"
+cp -r "$S/expanded/account" "$S/output-directory/database/account"
+du -sh "$S/output-directory/database/account"     # X-axis: on-disk account size
 
 # ---- 3.3 start the ISOLATED bench node on the assembled DB ----
-( cd "$WORK/scale-$R" && cp /path/to/op_account.json op.json \
-   && nohup java -jar FullNode.jar -c bench-node.conf -d "$WORK/scale-$R/outdir" \
+#   CWD = $S                 -> op.json / accountAddress.txt / benchmark/ land here
+#   -d  = $S/output-directory -> node opens $S/output-directory/database
+#         (keep storage.db.directory at its default "database" in bench-node.conf)
+cp /path/to/op_account.json "$S/op.json"
+( cd "$S" && nohup java -jar FullNode.jar -c bench-node.conf -d "$S/output-directory" \
         >/dev/null 2>&1 & )
-# NOTE: point storage.db.directory (in bench-node.conf) at "$WORK/scale-$R/database",
-#       or arrange -d so the node opens the assembled DB. Wait until the HTTP port answers.
+# wait until the HTTP port answers, then:
 
 # ---- 3.4 dump operand corpora AGAINST the inflated store ----
 curl -s "http://127.0.0.1:$PORT/wallet/generateAddress"     # -> accountAddress.txt

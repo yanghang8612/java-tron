@@ -7,7 +7,7 @@
 set -euo pipefail
 
 # ---- EDIT THESE ----
-BASE_DB=/data/lite-base/database          # pristine mainnet-lite LevelDB database dir
+BASE_DB=/data/lite-base/output-directory/database   # the 'database' dir (holds account/ storage-row/ block/ ... CF subdirs)
 WORK=/data/bench                          # scratch (needs free disk >= base + one expanded copy)
 RESULTS=/data/bench/results
 FULLNODE_JAR=/data/bench/FullNode.jar
@@ -20,14 +20,15 @@ KIT=$(cd "$(dirname "$0")" && pwd)        # this kit dir (holds op_*.json)
 CF=$1; RATE=$2; OPCFG=$3
 S="$WORK/scale-${CF}-${RATE}"
 echo "[*] scale: cf=$CF rate=$RATE cfg=$OPCFG -> $S"
-rm -rf "$S"; mkdir -p "$S/outdir" "$RESULTS"
+rm -rf "$S"; mkdir -p "$S" "$RESULTS"
 
 # 1. assemble DB = copy of base, with $CF replaced by an expanded copy (rate 1 = base as-is)
+#    DbExpand reads <--database>/<--target-db>, so --database is the 'database' dir itself.
 cp -r "$BASE_DB" "$S/database"
 if [ "$RATE" -gt 1 ]; then
   echo "[*] DbExpand $CF x$RATE ..."
   java -jar "$TOOLKIT_JAR" db expand \
-    --database "$(dirname "$BASE_DB")" \
+    --database "$BASE_DB" \
     --target-database "$S/expanded" \
     --target-db "$CF" --target-type 1 --expend-rate "$RATE" | tee "$RESULTS/expand_${CF}_${RATE}.log"
   rm -rf "$S/database/$CF"
@@ -39,7 +40,7 @@ echo "[*] $CF on-disk size: $SIZE"
 
 # 2. start the ISOLATED bench node on the assembled DB
 cp "$KIT/${OPCFG}.json" "$S/op.json"
-( cd "$S" && nohup java -jar "$FULLNODE_JAR" -c "$NODE_CONF" -d "$S/database/.." >"$S/node.log" 2>&1 & echo $! > "$S/node.pid" )
+( cd "$S" && nohup java -jar "$FULLNODE_JAR" -c "$NODE_CONF" -d "$S" >"$S/node.log" 2>&1 & echo $! > "$S/node.pid" )
 echo "[*] waiting for HTTP :$PORT ..."
 for i in $(seq 1 180); do
   code=$(curl -s -m 2 -o /dev/null -w "%{http_code}" "http://127.0.0.1:$PORT/wallet/getnowblock" 2>/dev/null || true)
