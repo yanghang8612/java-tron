@@ -16,6 +16,7 @@ import org.joda.time.DateTime;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.tron.common.crypto.pqc.PQSchemeRegistry;
 import org.tron.common.parameter.CommonParameter;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Sha256Hash;
@@ -24,6 +25,7 @@ import org.tron.core.config.Parameter.ChainConstant;
 import org.tron.core.db.TronStoreWithRevoking;
 import org.tron.core.exception.BadItemException;
 import org.tron.core.exception.ItemNotFoundException;
+import org.tron.protos.Protocol.PQScheme;
 
 @Slf4j(topic = "DB")
 @Component
@@ -237,6 +239,30 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
 
   private static final byte[] ALLOW_TVM_SELFDESTRUCT_RESTRICTION =
       "ALLOW_TVM_SELFDESTRUCT_RESTRICTION".getBytes();
+
+  private static final byte[] ALLOW_TVM_OSAKA = "ALLOW_TVM_OSAKA".getBytes();
+
+  private static final byte[] ALLOW_TVM_PRAGUE = "ALLOW_TVM_PRAGUE".getBytes();
+
+  // TIP-2935 install marker — flipped to 1 inside HistoryBlockHashUtil.deploy()
+  // only after the three store writes succeed. Stays 0 when deploy() skips on
+  // foreign-state collision; HistoryBlockHashUtil.write() reads this to decide
+  // whether StorageRowStore at the canonical address is ours to mutate.
+  private static final byte[] BLOCK_HASH_HISTORY_INSTALLED =
+      "BLOCK_HASH_HISTORY_INSTALLED".getBytes();
+
+  private static final byte[] ALLOW_HARDEN_RESOURCE_CALCULATION =
+      "ALLOW_HARDEN_RESOURCE_CALCULATION".getBytes();
+
+  private static final byte[] ALLOW_HARDEN_EXCHANGE_CALCULATION =
+      "ALLOW_HARDEN_EXCHANGE_CALCULATION".getBytes();
+
+  private static final byte[] TURKISH_KEY_MIGRATION_DONE =
+      "TURKISH_KEY_MIGRATION_DONE".getBytes();
+
+  private static final byte[] ALLOW_FN_DSA_512 = "ALLOW_FN_DSA_512".getBytes();
+
+  private static final byte[] ALLOW_ML_DSA_44 = "ALLOW_ML_DSA_44".getBytes();
 
   @Autowired
   private DynamicPropertiesStore(@Value("properties") String dbName) {
@@ -2978,6 +3004,147 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
         .map(ByteArray::toLong)
         .filter(time -> time > MIN_PROPOSAL_EXPIRE_TIME && time < MAX_PROPOSAL_EXPIRE_TIME)
         .orElse(CommonParameter.getInstance().getProposalExpireTime());
+  }
+
+  public long getAllowTvmOsaka() {
+    return Optional.ofNullable(getUnchecked(ALLOW_TVM_OSAKA))
+        .map(BytesCapsule::getData)
+        .map(ByteArray::toLong)
+        .orElse(0L);
+  }
+
+  public void saveAllowTvmOsaka(long value) {
+    this.put(ALLOW_TVM_OSAKA, new BytesCapsule(ByteArray.fromLong(value)));
+  }
+
+  public long getAllowTvmPrague() {
+    return Optional.ofNullable(getUnchecked(ALLOW_TVM_PRAGUE))
+        .map(BytesCapsule::getData)
+        .map(ByteArray::toLong)
+        .orElse(0L);
+  }
+
+  public void saveAllowTvmPrague(long value) {
+    this.put(ALLOW_TVM_PRAGUE, new BytesCapsule(ByteArray.fromLong(value)));
+  }
+
+  public boolean allowTvmPrague() {
+    return getAllowTvmPrague() == 1L;
+  }
+
+  public long getBlockHashHistoryInstalled() {
+    return Optional.ofNullable(getUnchecked(BLOCK_HASH_HISTORY_INSTALLED))
+        .map(BytesCapsule::getData)
+        .map(ByteArray::toLong)
+        .orElse(0L);
+  }
+
+  public void saveBlockHashHistoryInstalled(long value) {
+    this.put(BLOCK_HASH_HISTORY_INSTALLED, new BytesCapsule(ByteArray.fromLong(value)));
+  }
+
+  public boolean isBlockHashHistoryInstalled() {
+    return getBlockHashHistoryInstalled() == 1L;
+  }
+
+  public long getAllowHardenResourceCalculation() {
+    return Optional.ofNullable(getUnchecked(ALLOW_HARDEN_RESOURCE_CALCULATION))
+        .map(BytesCapsule::getData)
+        .map(ByteArray::toLong)
+        .orElse(0L);
+  }
+
+  public void saveAllowHardenResourceCalculation(long value) {
+    this.put(ALLOW_HARDEN_RESOURCE_CALCULATION, new BytesCapsule(ByteArray.fromLong(value)));
+  }
+
+  public boolean allowHardenResourceCalculation() {
+    return getAllowHardenResourceCalculation() == 1L;
+  }
+
+  public long getAllowHardenExchangeCalculation() {
+    return Optional.ofNullable(getUnchecked(ALLOW_HARDEN_EXCHANGE_CALCULATION))
+        .map(BytesCapsule::getData)
+        .map(ByteArray::toLong)
+        .orElse(0L);
+  }
+
+  public void saveAllowHardenExchangeCalculation(long value) {
+    this.put(ALLOW_HARDEN_EXCHANGE_CALCULATION, new BytesCapsule(ByteArray.fromLong(value)));
+  }
+
+  public boolean allowHardenExchangeCalculation() {
+    return getAllowHardenExchangeCalculation() == 1L;
+  }
+
+  public void saveTurkishKeyMigrationDone(long num) {
+    this.put(TURKISH_KEY_MIGRATION_DONE,
+        new BytesCapsule(ByteArray.fromLong(num)));
+  }
+
+  public long getTurkishKeyMigrationDone() {
+    return Optional.ofNullable(getUnchecked(TURKISH_KEY_MIGRATION_DONE))
+        .map(BytesCapsule::getData)
+        .map(ByteArray::toLong)
+        .orElse(0L);
+  }
+
+  public long getAllowFnDsa512() {
+    return Optional.ofNullable(getUnchecked(ALLOW_FN_DSA_512))
+        .map(BytesCapsule::getData)
+        .map(ByteArray::toLong)
+        .orElse(CommonParameter.getInstance().getAllowFnDsa512());
+  }
+
+  public void saveAllowFnDsa512(long value) {
+    this.put(ALLOW_FN_DSA_512, new BytesCapsule(ByteArray.fromLong(value)));
+  }
+
+  public boolean allowFnDsa512() {
+    return getAllowFnDsa512() == 1L;
+  }
+
+  public long getAllowMlDsa44() {
+    return Optional.ofNullable(getUnchecked(ALLOW_ML_DSA_44))
+        .map(BytesCapsule::getData)
+        .map(ByteArray::toLong)
+        .orElse(CommonParameter.getInstance().getAllowMlDsa44());
+  }
+
+  public void saveAllowMlDsa44(long value) {
+    this.put(ALLOW_ML_DSA_44, new BytesCapsule(ByteArray.fromLong(value)));
+  }
+
+  public boolean allowMlDsa44() {
+    return getAllowMlDsa44() == 1L;
+  }
+
+  /**
+   * Returns true iff at least one post-quantum signature scheme is currently
+   * activated. Driven by {@link PQSchemeRegistry#registeredSchemes()} so that
+   * adding a new scheme to the registry (and its corresponding case in
+   * {@link #isPqSchemeAllowed}) automatically propagates here — no manual edit
+   * needed.
+   */
+  public boolean isAnyPqSchemeAllowed() {
+    return PQSchemeRegistry.registeredSchemes().stream()
+        .anyMatch(this::isPqSchemeAllowed);
+  }
+
+  /**
+   * Per-scheme governance check. Each registered scheme has its own flag so
+   * activation is independent.
+   */
+  public boolean isPqSchemeAllowed(PQScheme scheme) {
+    if (scheme == null) {
+      return false;
+    }
+    switch (scheme) {
+      case FN_DSA_512: return allowFnDsa512();
+      case ML_DSA_44: return allowMlDsa44();
+      default:
+        return false;
+    }
   }
 
   private static class DynamicResourceProperties {

@@ -5,6 +5,8 @@ import static org.tron.common.crypto.ckzg4844.CKZG4844JNI.BLS_MODULUS;
 import static org.tron.common.crypto.ckzg4844.CKZG4844JNI.FIELD_ELEMENTS_PER_BLOB;
 import static org.tron.common.math.Maths.max;
 import static org.tron.common.math.Maths.min;
+import static org.tron.common.math.StrictMathWrapper.multiplyExact;
+import static org.tron.common.math.StrictMathWrapper.subtractExact;
 import static org.tron.common.runtime.vm.DataWord.WORD_SIZE;
 import static org.tron.common.utils.BIUtil.addSafely;
 import static org.tron.common.utils.BIUtil.isLessThan;
@@ -43,6 +45,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
+import org.bouncycastle.asn1.sec.SECNamedCurves;
+import org.bouncycastle.asn1.x9.X9ECParameters;
+import org.bouncycastle.crypto.params.ECDomainParameters;
+import org.bouncycastle.crypto.params.ECPublicKeyParameters;
+import org.bouncycastle.crypto.signers.ECDSASigner;
+import org.bouncycastle.math.ec.ECPoint;
 import org.tron.common.crypto.Blake2bfMessageDigest;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.Rsv;
@@ -55,6 +63,7 @@ import org.tron.common.crypto.zksnark.BN128G2;
 import org.tron.common.crypto.zksnark.Fp;
 import org.tron.common.crypto.zksnark.PairingCheck;
 import org.tron.common.es.ExecutorServiceManager;
+import org.tron.common.math.StrictMathWrapper;
 import org.tron.common.parameter.CommonParameter;
 import org.tron.common.runtime.ProgramResult;
 import org.tron.common.runtime.vm.DataWord;
@@ -110,15 +119,31 @@ public class PrecompiledContracts {
   private static final EthRipemd160 ethRipemd160 = new EthRipemd160();
   private static final Blake2F blake2F = new Blake2F();
   private static final KZGPointEvaluation kzgPointEvaluation = new KZGPointEvaluation();
+  private static final P256Verify p256Verify = new P256Verify();
+
+  private static final PQPrecompiledContracts.VerifyFnDsa512 verifyFnDsa512 =
+      new PQPrecompiledContracts.VerifyFnDsa512();
+  private static final PQPrecompiledContracts.BatchValidateFnDsa512 batchValidateFnDsa512 =
+      new PQPrecompiledContracts.BatchValidateFnDsa512();
+
+  private static final PQPrecompiledContracts.VerifyMlDsa44 verifyMlDsa44 =
+      new PQPrecompiledContracts.VerifyMlDsa44();
+  private static final PQPrecompiledContracts.BatchValidateMlDsa44 batchValidateMlDsa44 =
+      new PQPrecompiledContracts.BatchValidateMlDsa44();
+  private static final PQPrecompiledContracts.ValidateMultiPQSig validateMultiPqSig =
+      new PQPrecompiledContracts.ValidateMultiPQSig();
 
   // FreezeV2 PrecompileContracts
   private static final GetChainParameter getChainParameter = new GetChainParameter();
-  private static final AvailableUnfreezeV2Size availableUnfreezeV2Size = new AvailableUnfreezeV2Size();
+  private static final AvailableUnfreezeV2Size availableUnfreezeV2Size =
+      new AvailableUnfreezeV2Size();
   private static final UnfreezableBalanceV2 unfreezableBalanceV2 = new UnfreezableBalanceV2();
-  private static final ExpireUnfreezeBalanceV2 expireUnfreezeBalanceV2 = new ExpireUnfreezeBalanceV2();
+  private static final ExpireUnfreezeBalanceV2 expireUnfreezeBalanceV2 =
+      new ExpireUnfreezeBalanceV2();
   private static final DelegatableResource delegatableResource = new DelegatableResource();
   private static final ResourceV2 resourceV2 = new ResourceV2();
-  private static final CheckUnDelegateResource checkUnDelegateResource = new CheckUnDelegateResource();
+  private static final CheckUnDelegateResource checkUnDelegateResource =
+      new CheckUnDelegateResource();
   private static final ResourceUsage resourceUsage = new ResourceUsage();
   private static final TotalResource totalResource = new TotalResource();
   private static final TotalDelegatedResource totalDelegatedResource = new TotalDelegatedResource();
@@ -203,9 +228,38 @@ public class PrecompiledContracts {
       "0000000000000000000000000000000000000000000000000000000000020003");
   private static final DataWord blake2FAddr = new DataWord(
       "0000000000000000000000000000000000000000000000000000000000020009");
+  private static final DataWord p256VerifyAddr = new DataWord(
+      "0000000000000000000000000000000000000000000000000000000000000100");
 
   private static final DataWord kzgPointEvaluationAddr = new DataWord(
       "000000000000000000000000000000000000000000000000000000000002000a");
+
+  // EIP-8052 0x02000016: FN-DSA / Falcon-512 verify (FIPS-206 draft). Input layout:
+  // [msg 32B | sig 666B (headerless salt‖s2 slot, zero-padded; body ends at last
+  // non-zero byte) | pk 896B]. Total 1594 B. The slot holds the EIP-8052 headerless
+  // signature (no 0x39 byte); the precompile re-inserts the header before verifying.
+  private static final DataWord verifyFnDsa512Addr = new DataWord(
+      "0000000000000000000000000000000000000000000000000000000002000016");
+
+  // 0x02000017: batch independent Falcon-512 verify — bitmap of (sig, pk, addr) matches.
+  private static final DataWord batchValidateFnDsa512Addr = new DataWord(
+      "0000000000000000000000000000000000000000000000000000000002000017");
+
+  // 0x02000018: ML-DSA-44 single verify (FIPS 204 / Dilithium-2).
+  private static final DataWord verifyMlDsa44Addr = new DataWord(
+      "0000000000000000000000000000000000000000000000000000000002000018");
+
+  // 0x02000019: batch independent ML-DSA-44 verify — bitmap output, same shape as 0x02000017.
+  private static final DataWord batchValidateMlDsa44Addr = new DataWord(
+      "0000000000000000000000000000000000000000000000000000000002000019");
+
+  // 0x0200001a: algorithm-agnostic Permission multi-sign — accepts ECDSA and any
+  // registered PQ scheme (Falcon-512, ML-DSA-44, ...) against the same
+  // Permission.keys[] in one call, dispatched by an explicit per-entry scheme
+  // tag. Replaces the earlier Falcon-only 0x02000017 and Dilithium-only draft, which
+  // were never activated.
+  private static final DataWord validateMultiPqSigAddr = new DataWord(
+      "000000000000000000000000000000000000000000000000000000000200001a");
 
   public static PrecompiledContract getOptimizedContractForConstant(PrecompiledContract contract) {
     try {
@@ -291,6 +345,41 @@ public class PrecompiledContracts {
     if (VMConfig.allowTvmBlob() && address.equals(kzgPointEvaluationAddr)) {
       return kzgPointEvaluation;
     }
+    if (VMConfig.allowTvmOsaka() && address.equals(p256VerifyAddr)) {
+      return p256Verify;
+    }
+
+    // 0x0200001a ValidateMultiPQSig is algorithm-agnostic and dispatches per entry,
+    // so it is available whenever ANY registered PQ scheme is active. Per-entry
+    // runtime checks inside the precompile still reject scheme tags whose
+    // proposal hasn't passed.
+    if (VMConfig.allowFnDsa512() || VMConfig.allowMlDsa44()) {
+      if (address.equals(validateMultiPqSigAddr)) {
+        return validateMultiPqSig;
+      }
+    }
+
+    // FN-DSA-512 (Falcon): single verify and batch verify are gated by their
+    // own proposal flag.
+    if (VMConfig.allowFnDsa512()) {
+      if (address.equals(verifyFnDsa512Addr)) {
+        return verifyFnDsa512;
+      }
+      if (address.equals(batchValidateFnDsa512Addr)) {
+        return batchValidateFnDsa512;
+      }
+    }
+
+    // ML-DSA-44 (FIPS 204 / Dilithium-2): single verify and batch verify are
+    // gated by their own proposal flag.
+    if (VMConfig.allowMlDsa44()) {
+      if (address.equals(verifyMlDsa44Addr)) {
+        return verifyMlDsa44;
+      }
+      if (address.equals(batchValidateMlDsa44Addr)) {
+        return batchValidateMlDsa44;
+      }
+    }
 
     if (VMConfig.allowTvmFreezeV2()) {
       if (address.equals(getChainParameterAddr)) {
@@ -363,7 +452,7 @@ public class PrecompiledContracts {
     return res;
   }
 
-  private static byte[] recoverAddrBySign(byte[] sign, byte[] hash) {
+  static byte[] recoverAddrBySign(byte[] sign, byte[] hash) {
     byte[] out = null;
     if (ArrayUtils.isEmpty(sign) || sign.length < 65) {
       return new byte[0];
@@ -382,7 +471,7 @@ public class PrecompiledContracts {
     return out;
   }
 
-  private static byte[][] extractBytes32Array(DataWord[] words, int offset) {
+  static byte[][] extractBytes32Array(DataWord[] words, int offset) {
     int len = words[offset].intValueSafe();
     byte[][] bytes32Array = new byte[len][];
     for (int i = 0; i < len; i++) {
@@ -406,7 +495,7 @@ public class PrecompiledContracts {
     return bytesArray;
   }
 
-  private static byte[][] extractSigArray(DataWord[] words, int offset, byte[] data) {
+  static byte[][] extractSigArray(DataWord[] words, int offset, byte[] data) {
     if (offset > words.length - 1) {
       return new byte[0][];
     }
@@ -420,8 +509,16 @@ public class PrecompiledContracts {
     return bytesArray;
   }
 
-  private static byte[] extractBytes(byte[] data, int offset, int len) {
+  static byte[] extractBytes(byte[] data, int offset, int len) {
     return Arrays.copyOfRange(data, offset, offset + len);
+  }
+
+  private static boolean isValidAbiEncoding(byte[] data, int headerWords, int itemWords) {
+    if (data == null || data.length % WORD_SIZE != 0) {
+      return false;
+    }
+    long tail = subtractExact(data.length, multiplyExact(headerWords, WORD_SIZE));
+    return tail > 0 && tail % multiplyExact(itemWords, WORD_SIZE) == 0;
   }
 
   public abstract static class PrecompiledContract {
@@ -632,6 +729,13 @@ public class PrecompiledContracts {
 
     private static final int ARGS_OFFSET = 32 * 3; // addresses length part
 
+    private static final int UPPER_BOUND = 1024;
+
+    private static final long MIN_ENERGY_TIP7883 = 500L;
+
+    private static final BigInteger MIN_ENERGY_TIP7883_BI =
+        BigInteger.valueOf(MIN_ENERGY_TIP7883);
+
     @Override
     public long getEnergyForData(byte[] data) {
 
@@ -643,9 +747,12 @@ public class PrecompiledContracts {
       int expLen = parseLen(data, 1);
       int modLen = parseLen(data, 2);
 
-
       byte[] expHighBytes = parseBytes(data, addSafely(ARGS_OFFSET, baseLen), min(expLen, 32,
           VMConfig.disableJavaLangMath()));
+
+      if (VMConfig.allowTvmOsaka()) {
+        return getEnergyTIP7883(baseLen, modLen, expHighBytes, expLen);
+      }
 
       long multComplexity = getMultComplexity(max(baseLen, modLen, VMConfig.disableJavaLangMath()));
       long adjExpLen = getAdjustedExponentLength(expHighBytes, expLen);
@@ -670,12 +777,24 @@ public class PrecompiledContracts {
       int expLen = parseLen(data, 1);
       int modLen = parseLen(data, 2);
 
+      if (VMConfig.allowTvmOsaka()
+          && (baseLen > UPPER_BOUND || expLen > UPPER_BOUND || modLen > UPPER_BOUND)) {
+        return Pair.of(false, EMPTY_BYTE_ARRAY);
+      }
+
+      if (baseLen == 0 && modLen == 0 && expLen > UPPER_BOUND) {
+        MUtil.checkCPUTimeForModExp();
+      }
+
       BigInteger base = parseArg(data, ARGS_OFFSET, baseLen);
       BigInteger exp = parseArg(data, addSafely(ARGS_OFFSET, baseLen), expLen);
       BigInteger mod = parseArg(data, addSafely(addSafely(ARGS_OFFSET, baseLen), expLen), modLen);
 
       // check if modulus is zero
       if (isZero(mod)) {
+        if (VMConfig.allowTvmOsaka()) {
+          return Pair.of(true, new byte[modLen]);
+        }
         return Pair.of(true, EMPTY_BYTE_ARRAY);
       }
 
@@ -723,6 +842,65 @@ public class PrecompiledContracts {
       } else {
         return 8 * (expLen - 32) + highestBit;
       }
+    }
+
+    /**
+     * TIP-7883: ModExp gas cost increase.
+     * New pricing formula with higher minimum cost and no divisor.
+     */
+    private long getEnergyTIP7883(int baseLen, int modLen, byte[] expHighBytes, int expLen) {
+      long multComplexity = getMultComplexityTIP7883(baseLen, modLen);
+      long iterCount = getIterationCountTIP7883(expHighBytes, expLen);
+
+      // use big numbers to stay safe in case of overflow
+      BigInteger energy = BigInteger.valueOf(multComplexity)
+          .multiply(BigInteger.valueOf(iterCount));
+
+      if (isLessThan(energy, MIN_ENERGY_TIP7883_BI)) {
+        return MIN_ENERGY_TIP7883;
+      }
+
+      return isLessThan(energy, BigInteger.valueOf(Long.MAX_VALUE)) ? energy.longValueExact()
+          : Long.MAX_VALUE;
+    }
+
+    /**
+     * TIP-7883: New multiplication complexity formula.
+     * Minimal complexity of 16; doubled complexity for base/modulus > 32 bytes.
+     */
+    private long getMultComplexityTIP7883(int baseLen, int modLen) {
+      long maxLength = StrictMathWrapper.max(baseLen, modLen);
+      if (maxLength <= 32) {
+        return 16;
+      }
+      // ceil(maxLength / 8)
+      long words = StrictMathWrapper.floorDiv(StrictMathWrapper.addExact(maxLength, 7L), 8L);
+      return StrictMathWrapper.multiplyExact(2L, StrictMathWrapper.multiplyExact(words, words));
+    }
+
+    /**
+     * TIP-7883: New iteration count formula.
+     * Multiplier for exponents > 32 bytes increased from 8 to 16.
+     */
+    private long getIterationCountTIP7883(byte[] expHighBytes, long expLen) {
+      int leadingZeros = numberOfLeadingZeros(expHighBytes);
+      long highestBit = StrictMathWrapper.subtractExact(
+          StrictMathWrapper.multiplyExact(8L, expHighBytes.length), leadingZeros);
+
+      if (highestBit > 0) {
+        highestBit = StrictMathWrapper.subtractExact(highestBit, 1L);
+      }
+
+      long iterCount;
+      if (expLen <= 32) {
+        iterCount = highestBit;
+      } else {
+        iterCount = StrictMathWrapper.addExact(
+            StrictMathWrapper.multiplyExact(16L, StrictMathWrapper.subtractExact(expLen, 32L)),
+            highestBit);
+      }
+
+      return StrictMathWrapper.max(iterCount, 1L);
     }
 
     private int parseLen(byte[] data, int idx) {
@@ -941,6 +1119,8 @@ public class PrecompiledContracts {
 
     private static final int ENGERYPERSIGN = 1500;
     private static final int MAX_SIZE = 5;
+    private static final int ABI_HEADER_WORDS = 5;
+    private static final int ABI_ITEM_WORDS = 5;
 
 
     @Override
@@ -952,6 +1132,10 @@ public class PrecompiledContracts {
 
     @Override
     public Pair<Boolean, byte[]> execute(byte[] rawData) {
+      if (VMConfig.allowTvmOsaka()
+          && !isValidAbiEncoding(rawData, ABI_HEADER_WORDS, ABI_ITEM_WORDS)) {
+        return Pair.of(false, EMPTY_BYTE_ARRAY);
+      }
       DataWord[] words = DataWord.parseArray(rawData);
       byte[] address = words[0].toTronAddress();
       int permissionId = words[1].intValueSafe();
@@ -1024,6 +1208,8 @@ public class PrecompiledContracts {
     private static final String workersName = "validate-sign-contract";
     private static final int ENGERYPERSIGN = 1500;
     private static final int MAX_SIZE = 16;
+    private static final int ABI_HEADER_WORDS = 5;
+    private static final int ABI_ITEM_WORDS = 6;
 
     static {
       workers = ExecutorServiceManager.newFixedThreadPool(workersName,
@@ -1042,7 +1228,7 @@ public class PrecompiledContracts {
       try {
         return doExecute(data);
       } catch (Throwable t) {
-        if (t instanceof InterruptedException){
+        if (t instanceof InterruptedException) {
           Thread.currentThread().interrupt();
         }
         return Pair.of(true, new byte[WORD_SIZE]);
@@ -1051,6 +1237,10 @@ public class PrecompiledContracts {
 
     private Pair<Boolean, byte[]> doExecute(byte[] data)
         throws InterruptedException, ExecutionException {
+      if (VMConfig.allowTvmOsaka()
+          && !isValidAbiEncoding(data, ABI_HEADER_WORDS, ABI_ITEM_WORDS)) {
+        return Pair.of(false, EMPTY_BYTE_ARRAY);
+      }
       DataWord[] words = DataWord.parseArray(data);
       byte[] hash = words[0].getData();
 
@@ -1133,8 +1323,6 @@ public class PrecompiledContracts {
       private byte[] addr;
       private int nonce;
     }
-
-
   }
 
   public abstract static class VerifyProof extends PrecompiledContract {
@@ -2269,4 +2457,58 @@ public class PrecompiledContracts {
     }
   }
 
+  public static class P256Verify extends PrecompiledContract {
+
+    private static final X9ECParameters CURVE = SECNamedCurves.getByName("secp256r1");
+    private static final ECDomainParameters DOMAIN = new ECDomainParameters(
+        CURVE.getCurve(), CURVE.getG(), CURVE.getN(), CURVE.getH());
+    private static final BigInteger N = CURVE.getN();
+    private static final BigInteger P = CURVE.getCurve().getField().getCharacteristic();
+    private static final int INPUT_LEN = 160;
+    private static final long ENERGY = 6900L;
+
+    @Override
+    public long getEnergyForData(byte[] data) {
+      return ENERGY;
+    }
+
+    @Override
+    public Pair<Boolean, byte[]> execute(byte[] data) {
+      if (data == null || data.length != INPUT_LEN) {
+        return Pair.of(true, EMPTY_BYTE_ARRAY);
+      }
+      try {
+        byte[] hash = copyOfRange(data, 0, 32);
+        BigInteger r = bytesToBigInteger(copyOfRange(data, 32, 64));
+        BigInteger s = bytesToBigInteger(copyOfRange(data, 64, 96));
+        BigInteger qx = bytesToBigInteger(copyOfRange(data, 96, 128));
+        BigInteger qy = bytesToBigInteger(copyOfRange(data, 128, 160));
+
+        if (r.signum() <= 0 || r.compareTo(N) >= 0
+            || s.signum() <= 0 || s.compareTo(N) >= 0) {
+          return Pair.of(true, EMPTY_BYTE_ARRAY);
+        }
+        if (qx.signum() < 0 || qx.compareTo(P) >= 0
+            || qy.signum() < 0 || qy.compareTo(P) >= 0) {
+          return Pair.of(true, EMPTY_BYTE_ARRAY);
+        }
+        if (qx.signum() == 0 && qy.signum() == 0) {
+          return Pair.of(true, EMPTY_BYTE_ARRAY);
+        }
+
+        ECPoint point = CURVE.getCurve().createPoint(qx, qy);
+        DOMAIN.validatePublicPoint(point);
+
+        ECDSASigner verifier = new ECDSASigner();
+        verifier.init(false, new ECPublicKeyParameters(point, DOMAIN));
+        boolean ok = verifier.verifySignature(hash, r, s);
+        return Pair.of(true, ok ? dataOne() : EMPTY_BYTE_ARRAY);
+      } catch (Exception e) {
+        // Off-curve point: createPoint / validatePublicPoint throw IllegalArgumentException.
+        // Crafted signature: BouncyCastle has a known NPE bug inside verifySignature.
+        // EIP-7951 mandates the precompile never reverts; map any failure to (true, empty).
+        return Pair.of(true, EMPTY_BYTE_ARRAY);
+      }
+    }
+  }
 }
