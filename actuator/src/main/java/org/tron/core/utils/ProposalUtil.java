@@ -873,6 +873,104 @@ public class ProposalUtil {
         }
         break;
       }
+      case ALLOW_TVM_OSAKA: {
+        if (!forkController.pass(ForkBlockVersionEnum.VERSION_4_8_2)) {
+          throw new ContractValidateException(
+              "Bad chain parameter id [ALLOW_TVM_OSAKA]");
+        }
+        if (dynamicPropertiesStore.getAllowTvmOsaka() == 1) {
+          throw new ContractValidateException(
+              "[ALLOW_TVM_OSAKA] has been valid, no need to propose again");
+        }
+        if (value != 1) {
+          throw new ContractValidateException(
+              "This value[ALLOW_TVM_OSAKA] is only allowed to be 1");
+        }
+        break;
+      }
+      case ALLOW_TVM_PRAGUE: {
+        if (!forkController.pass(ForkBlockVersionEnum.VERSION_4_8_2)) {
+          throw new ContractValidateException(
+              "Bad chain parameter id [ALLOW_TVM_PRAGUE]");
+        }
+        // The deployed BlockHashHistory bytecode contains PUSH0 (0x5f), which
+        // is itself gated on ALLOW_TVM_SHANGHAI at execution time. Refuse the
+        // proposal until Shanghai is enacted so an out-of-order activation
+        // can't leave a contract whose every STATICCALL hits InvalidOpcode.
+        if (dynamicPropertiesStore.getAllowTvmShangHai() != 1) {
+          throw new ContractValidateException(
+              "[ALLOW_TVM_PRAGUE] requires [ALLOW_TVM_SHANGHAI] to be enacted first");
+        }
+        if (dynamicPropertiesStore.getAllowTvmPrague() == 1) {
+          throw new ContractValidateException(
+              "[ALLOW_TVM_PRAGUE] has been valid, no need to propose again");
+        }
+        if (value != 1) {
+          throw new ContractValidateException(
+              "This value[ALLOW_TVM_PRAGUE] is only allowed to be 1");
+        }
+        break;
+      }
+      case ALLOW_HARDEN_RESOURCE_CALCULATION: {
+        if (!forkController.pass(ForkBlockVersionEnum.VERSION_4_8_2)) {
+          throw new ContractValidateException(
+              "Bad chain parameter id [ALLOW_HARDEN_RESOURCE_CALCULATION]");
+        }
+        if (dynamicPropertiesStore.getAllowHardenResourceCalculation() == 1) {
+          throw new ContractValidateException(
+              "[ALLOW_HARDEN_RESOURCE_CALCULATION] has been valid, "
+                  + "no need to propose again");
+        }
+        if (value != 1) {
+          throw new ContractValidateException(
+              "This value[ALLOW_HARDEN_RESOURCE_CALCULATION] is only allowed to be 1");
+        }
+        break;
+      }
+      case ALLOW_HARDEN_EXCHANGE_CALCULATION: {
+        if (!forkController.pass(ForkBlockVersionEnum.VERSION_4_8_2)) {
+          throw new ContractValidateException(
+              "Bad chain parameter id [ALLOW_HARDEN_EXCHANGE_CALCULATION]");
+        }
+        if (value != 0 && value != 1) {
+          throw new ContractValidateException(
+              "This value[ALLOW_HARDEN_EXCHANGE_CALCULATION] is only allowed to be 0 or 1");
+        }
+        if (dynamicPropertiesStore.getAllowHardenExchangeCalculation() == value) {
+          throw new ContractValidateException(
+              "[ALLOW_HARDEN_EXCHANGE_CALCULATION] has been set to " + value
+                  + ", no need to propose again");
+        }
+        break;
+      }
+      case ALLOW_FN_DSA_512: {
+        if (!forkController.pass(ForkBlockVersionEnum.VERSION_4_8_2_PQ1)) {
+          throw new ContractValidateException("Bad chain parameter id [ALLOW_FN_DSA_512]");
+        }
+        if (value != 0 && value != 1) {
+          throw new ContractValidateException(
+              "This value[ALLOW_FN_DSA_512] is only allowed to be 0 or 1");
+        }
+        if (dynamicPropertiesStore.getAllowFnDsa512() == value) {
+          throw new ContractValidateException(
+              "[ALLOW_FN_DSA_512] has been set to " + value + ", no need to propose again");
+        }
+        break;
+      }
+      case ALLOW_ML_DSA_44: {
+        if (!forkController.pass(ForkBlockVersionEnum.VERSION_4_8_2_PQ1)) {
+          throw new ContractValidateException("Bad chain parameter id [ALLOW_ML_DSA_44]");
+        }
+        if (value != 0 && value != 1) {
+          throw new ContractValidateException(
+              "This value[ALLOW_ML_DSA_44] is only allowed to be 0 or 1");
+        }
+        if (dynamicPropertiesStore.getAllowMlDsa44() == value) {
+          throw new ContractValidateException(
+              "[ALLOW_ML_DSA_44] has been set to " + value + ", no need to propose again");
+        }
+        break;
+      }
       default:
         break;
     }
@@ -957,7 +1055,13 @@ public class ProposalUtil {
     CONSENSUS_LOGIC_OPTIMIZATION(88), // 0, 1
     ALLOW_TVM_BLOB(89), // 0, 1
     PROPOSAL_EXPIRE_TIME(92), // (0, 31536003000)
-    ALLOW_TVM_SELFDESTRUCT_RESTRICTION(94); // 0, 1
+    ALLOW_TVM_SELFDESTRUCT_RESTRICTION(94), // 0, 1
+    ALLOW_TVM_PRAGUE(95), // 0, 1
+    ALLOW_TVM_OSAKA(96), // 0, 1
+    ALLOW_HARDEN_RESOURCE_CALCULATION(97), // 0, 1
+    ALLOW_HARDEN_EXCHANGE_CALCULATION(98), // 0, 1
+    ALLOW_FN_DSA_512(1000), // 0, 1
+    ALLOW_ML_DSA_44(1001); // 0, 1
 
     private long code;
 
