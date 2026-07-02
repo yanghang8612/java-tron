@@ -339,11 +339,12 @@ public class Args extends CommonParameter {
 
   private static String getCommitIdAbbrev() {
     Properties properties = new Properties();
-    try (InputStream in = Thread.currentThread()
-        .getContextClassLoader().getResourceAsStream("git.properties")) {
+    try {
+      InputStream in = Thread.currentThread()
+          .getContextClassLoader().getResourceAsStream("git.properties");
       if (in == null) {
-        logger.warn("Load resource failed, git.properties not found");
-        return "unknown";
+        logger.warn("git.properties not found on classpath");
+        return "";
       }
       properties.load(in);
     } catch (IOException e) {

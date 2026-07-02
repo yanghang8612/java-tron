@@ -1657,6 +1657,9 @@ public class Program {
       stackPushZero();
       return;
     }
+    if (getCallDeep() == MAX_DEPTH) {
+      MUtil.checkCPUTimeForCreate2();
+    }
     if (VMConfig.allowTvmIstanbul()) {
       senderAddress = getContextAddress();
     } else {
