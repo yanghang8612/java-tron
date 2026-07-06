@@ -57,18 +57,6 @@ public class FullNode {
     Application appT = ApplicationFactory.create(context);
     context.registerShutdownHook();
 
-    // fast-sync-stats: migrate old dynamic-store total2 keys once. Fresh nodes build total2
-    // in TopDelegatorService.init together with the staker-index scan, avoiding two account scans.
-    org.tron.core.store.DynamicPropertiesStore dps = appT.getDbManager().getDynamicPropertiesStore();
-    org.tron.core.store.TrackerStore trackerStore = appT.getChainBaseManager().getTrackerStore();
-    if (!trackerStore.hasTotalNetWeight2()
-        && dps.getUnchecked("TOTAL_NET_WEIGHT2".getBytes()) != null) {
-      trackerStore.saveTotalEnergyWeight2(dps.getTotalEnergyWeight2());
-      trackerStore.saveTotalNetWeight2(dps.getTotalNetWeight2());
-      logger.info("Migrated stake2.0 weight from dynamic store to tracker store, net={}, energy={}",
-          trackerStore.getTotalNetWeight2(), trackerStore.getTotalEnergyWeight2());
-    }
-
     appT.startup();
     appT.blockUntilShutdown();
   }

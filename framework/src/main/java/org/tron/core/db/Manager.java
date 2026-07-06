@@ -160,7 +160,6 @@ import org.tron.core.store.NullifierStore;
 import org.tron.core.store.ProposalStore;
 import org.tron.core.store.StorageRowStore;
 import org.tron.core.store.StoreFactory;
-import org.tron.core.store.TrackerStore;
 import org.tron.core.store.TransactionHistoryStore;
 import org.tron.core.store.TransactionRetStore;
 import org.tron.core.store.VotesStore;
@@ -243,10 +242,6 @@ public class Manager {
   @Autowired
   @Getter
   private ChainBaseManager chainBaseManager;
-  @Autowired
-  private org.tron.core.service.TopDelegatorService topDelegatorService;
-  @Autowired
-  private TrackerStore trackerStore;
   // transactions cache
   private BlockingQueue<TransactionCapsule> pendingTransactions;
   @Getter
@@ -496,8 +491,6 @@ public class Manager {
       transactionCache.initCache();
     }
     rewardViCalService.init();
-    // fast-sync-stats: 启动时一次性扫账户表,建立 staker in-memory 索引(对齐 track_dynamic_energy)
-    topDelegatorService.init(chainBaseManager.getAccountStore());
     this.setProposalController(ProposalController.createInstance(this));
     this.setMerkleContainer(
         merkleContainer.createInstance(chainBaseManager.getMerkleTreeStore(),
@@ -558,7 +551,7 @@ public class Manager {
     //for test only
     chainBaseManager.getDynamicPropertiesStore().updateDynamicStoreByConfig();
 
-    // fast-sync-stats: no mempool/event path, skip lite-node tx-index recovery.
+    // fast-sync: no mempool/event path, skip lite-node tx-index recovery.
     if (!FAST_SYNC_STATS_MODE) {
       initLiteNode();
     }
@@ -1086,14 +1079,13 @@ public class Manager {
       ValidateScheduleException, ReceiptCheckErrException, VMIllegalException,
       TooBigTransactionResultException, ZksnarkException, BadBlockException, EventBloomException {
     processBlock(block, txs);
-    // fast-sync-stats: 保留完整区块体(近窗口可查交易体);窗口外旧块由 pruneOldTransactions 清理
+    // fast-sync: keep recent full block bodies; older block transactions are pruned in batches.
     chainBaseManager.getBlockStore().put(block.getBlockId().getBytes(), block);
     chainBaseManager.getBlockIndexStore().put(block.getBlockId());
     if (block.getTransactions().size() != 0) {
       chainBaseManager.getTransactionRetStore()
           .put(ByteArray.fromLong(block.getNum()), block.getResult());
     }
-    // fast-sync-stats: 交易体与收据滚动保留最近约1个月,裁剪窗口外的旧块
     pruneOldTransactions(block.getNum());
 
     updateFork(block);
@@ -1114,11 +1106,10 @@ public class Manager {
     }
   }
 
-  // ===== fast-sync-stats: 交易体与收据滚动保留(约30天,3s/块)=====
+  // fast-sync: rolling retention for transaction bodies and receipts, about 30 days at 3s/block.
   private static final long TX_RETENTION_BLOCKS = 864_000L;
   // 批量裁剪:每 PRUNE_BATCH_SIZE 个新块触发一次,一次裁掉累积的 N 个旧块,
-  // 把单块 ~1-2ms 的 I/O 摊薄到 0.01-0.02ms/块。游标持久化在 tracker DB 的 LAST_PRUNED_BLOCK_NUM
-  // 里(随当前区块 session 一起 flush,回滚天然安全)。
+  // 把单块 ~1-2ms 的 I/O 摊薄到 0.01-0.02ms/块。游标持久化在 dynamic store 中。
   private static final long PRUNE_BATCH_SIZE = 100L;
   // 仅首次真正裁剪时打一条 info 日志,便于运维区分"裁剪进行中"与"卡住"
   private volatile boolean txPruneStarted = false;
@@ -1139,7 +1130,8 @@ public class Manager {
       return;
     }
 
-    long lastPruned = trackerStore.getLastPrunedBlockNum();
+    DynamicPropertiesStore dynamicStore = chainBaseManager.getDynamicPropertiesStore();
+    long lastPruned = dynamicStore.getLastPrunedBlockNum();
     if (lastPruned < 0) {
       // 首次启动/快照启动:跳过历史块,游标对齐到 target - 1
       lastPruned = target - 1;
@@ -1152,13 +1144,13 @@ public class Manager {
     long batchEnd = target;
     if (!txPruneStarted) {
       txPruneStarted = true;
-      logger.info("fast-sync-stats: start pruning tx & receipts in batches of {}, first batch {}..{}",
+      logger.info("fast-sync: start pruning tx & receipts in batches of {}, first batch {}..{}",
           PRUNE_BATCH_SIZE, batchStart, batchEnd);
     }
     for (long n = batchStart; n <= batchEnd; n++) {
       pruneOneBlock(n);
     }
-    trackerStore.saveLastPrunedBlockNum(batchEnd);
+    dynamicStore.saveLastPrunedBlockNum(batchEnd);
   }
 
   /**
@@ -1180,9 +1172,9 @@ public class Manager {
           oldBlock.getInstance().toBuilder().clearTransactions().build());
       chainBaseManager.getBlockStore().put(cleared.getBlockId().getBytes(), cleared);
     } catch (ItemNotFoundException e) {
-      logger.debug("fast-sync-stats: prune skip, block {} index not found", oldNum);
+      logger.debug("fast-sync: prune skip, block {} index not found", oldNum);
     } catch (BadItemException e) {
-      logger.warn("fast-sync-stats: prune skip, block {} bad item: {}", oldNum, e.getMessage());
+      logger.warn("fast-sync: prune skip, block {} bad item: {}", oldNum, e.getMessage());
     }
   }
 
@@ -2063,11 +2055,6 @@ public class Manager {
         <= block.getTimeStamp();
     if (flag) {
       proposalController.processProposals();
-      // fast-sync-stats 功能2:周期末同步统计 staker(在 consensus.applyBlock 推进 cycle 之前调用,
-      // recordStakerStat 内部读 getCurrentCycleNumber 得 N=刚结束周期,SS_N_* 落库正确)。
-      // 同步而非线程化:依赖 AccountStore.put hook 增量维护的 in-memory stakers,doStats 是
-      // O(|stakers|) 不是全表扫,可在主线程跑;同时避免了原异步实现追块期被 CAS 跳过 cycle 的问题。
-      topDelegatorService.doStats();
     }
 
     if (!consensus.applyBlock(block)) {

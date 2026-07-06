@@ -281,14 +281,12 @@ public class UnfreezeBalanceV2Actuator extends AbstractActuator {
         accountCapsule.addFrozenBalanceForBandwidthV2(-unfreezeBalance);
         long newNetWeight = accountCapsule.getFrozenV2BalanceWithDelegated(BANDWIDTH) / TRX_PRECISION;
         dynamicStore.addTotalNetWeight(newNetWeight - oldNetWeight);
-        chainBaseManager.getTrackerStore().addTotalNetWeight2(newNetWeight - oldNetWeight);
         break;
       case ENERGY:
         long oldEnergyWeight = accountCapsule.getFrozenV2BalanceWithDelegated(ENERGY) / TRX_PRECISION;
         accountCapsule.addFrozenBalanceForEnergyV2(-unfreezeBalance);
         long newEnergyWeight = accountCapsule.getFrozenV2BalanceWithDelegated(ENERGY) / TRX_PRECISION;
         dynamicStore.addTotalEnergyWeight(newEnergyWeight - oldEnergyWeight);
-        chainBaseManager.getTrackerStore().addTotalEnergyWeight2(newEnergyWeight - oldEnergyWeight);
         break;
       case TRON_POWER:
         long oldTPWeight = accountCapsule.getTronPowerFrozenV2Balance() / TRX_PRECISION;

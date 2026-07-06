@@ -33,7 +33,6 @@ import org.tron.core.exception.BadItemException;
 import org.tron.core.exception.HeaderNotFound;
 import org.tron.core.exception.ItemNotFoundException;
 import org.tron.core.service.MortgageService;
-import org.tron.core.service.TopDelegatorService;
 import org.tron.core.store.AbiStore;
 import org.tron.core.store.AccountAssetStore;
 import org.tron.core.store.AccountIdIndexStore;
@@ -50,8 +49,6 @@ import org.tron.core.store.DelegatedResourceAccountIndexStore;
 import org.tron.core.store.DelegatedResourceStore;
 import org.tron.core.store.DelegationStore;
 import org.tron.core.store.DynamicPropertiesStore;
-import org.tron.core.store.StakerIndexStore;
-import org.tron.core.store.TrackerStore;
 import org.tron.core.store.ExchangeStore;
 import org.tron.core.store.ExchangeV2Store;
 import org.tron.core.store.IncrementalMerkleTreeStore;
@@ -178,19 +175,7 @@ public class ChainBaseManager {
 
   @Autowired
   @Getter
-  private TopDelegatorService topDelegatorService;
-
-  @Autowired
-  @Getter
   private DelegationStore delegationStore;
-
-  @Autowired
-  @Getter
-  private StakerIndexStore stakerIndexStore;
-
-  @Autowired
-  @Getter
-  private TrackerStore trackerStore;
 
   @Autowired
   @Getter

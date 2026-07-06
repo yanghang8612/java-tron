@@ -293,15 +293,6 @@ public class FullNodeHttpApiService extends HttpService {
   @Autowired
   private CancelAllUnfreezeV2Servlet cancelAllUnfreezeV2Servlet;
 
-  @Autowired
-  private org.tron.core.services.http.tracker.StakeWeightServlet stakeWeightServlet;
-
-  @Autowired
-  private org.tron.core.services.http.tracker.StakerStatsServlet stakerStatsServlet;
-
-  @Autowired
-  private org.tron.core.services.http.tracker.ListCycleServlet listCycleServlet;
-
   public FullNodeHttpApiService() {
     port = Args.getInstance().getFullNodeHttpPort();
     enable = isFullNode() && Args.getInstance().isFullNodeHttpEnable();
@@ -522,9 +513,6 @@ public class FullNodeHttpApiService extends HttpService {
         "/wallet/undelegateresource");
     context.addServlet(new ServletHolder(cancelAllUnfreezeV2Servlet),
         "/wallet/cancelallunfreezev2");
-    context.addServlet(new ServletHolder(stakeWeightServlet), "/stake_weight");
-    context.addServlet(new ServletHolder(stakerStatsServlet), "/staker_stats");
-    context.addServlet(new ServletHolder(listCycleServlet), "/list_cycle");
 
   }
 

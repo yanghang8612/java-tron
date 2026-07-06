@@ -10,11 +10,9 @@ import org.tron.common.parameter.CommonParameter;
 import org.tron.common.utils.Commons;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.BlockCapsule;
-import org.tron.core.db.EnergyProcessor;
 import org.tron.core.db.TronStoreWithRevoking;
 import org.tron.core.db.accountstate.AccountStateCallBackUtils;
 import org.tron.core.exception.TronError;
-import org.tron.core.service.TopDelegatorService;
 import org.tron.protos.contract.BalanceContract.TransactionBalanceTrace;
 import org.tron.protos.contract.BalanceContract.TransactionBalanceTrace.Operation;
 
@@ -45,9 +43,6 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
   private DynamicPropertiesStore dynamicPropertiesStore;
 
   @Autowired
-  private TopDelegatorService topDelegatorService;
-
-  @Autowired
   private AccountStore(@Value("account") String dbName) {
     super(dbName);
   }
@@ -73,9 +68,8 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
 
   @Override
   public void put(byte[] key, AccountCapsule item) {
-    AccountCapsule old = null;
     if (!FAST_SYNC_STATS_MODE && CommonParameter.getInstance().isHistoryBalanceLookup()) {
-      old = super.getUnchecked(key);
+      AccountCapsule old = super.getUnchecked(key);
       if (old == null) {
         if (item.getBalance() != 0) {
           recordBalance(item, item.getBalance());
@@ -93,15 +87,6 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
       }
     }
 
-    // fast-sync-stats: TopDelegatorService keeps the old stake in memory, so account writes
-    // avoid an extra AccountStore/staker-index read on the hot path.
-    topDelegatorService.updateStaker(item);
-
-    long now = EnergyProcessor.getHeadSlot(dynamicPropertiesStore);
-    if (item != null && item.getLatestConsumeTimeForEnergy() == now) {
-      topDelegatorService.updateMEU(item);
-    }
-
     super.put(key, item);
     if (!FAST_SYNC_STATS_MODE) {
       accountStateCallBackUtils.accountCallBack(key, item);
@@ -110,7 +95,6 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
 
   @Override
   public void delete(byte[] key) {
-    topDelegatorService.removeStaker(com.google.protobuf.ByteString.copyFrom(key));
     if (!FAST_SYNC_STATS_MODE && CommonParameter.getInstance().isHistoryBalanceLookup()) {
       AccountCapsule old = super.getUnchecked(key);
       if (old != null) {

@@ -25,7 +25,6 @@ import org.tron.core.exception.ContractExeException;
 import org.tron.core.exception.ContractValidateException;
 import org.tron.core.store.AccountStore;
 import org.tron.core.store.DynamicPropertiesStore;
-import org.tron.core.store.TrackerStore;
 import org.tron.protos.Protocol.Account.UnFreezeV2;
 import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 import org.tron.protos.Protocol.Transaction.Result.code;
@@ -73,7 +72,7 @@ public class CancelAllUnfreezeV2Actuator extends AbstractActuator {
       updateAndCalculate(triple, ownerCapsule, now, atomicWithdrawExpireBalance, unFreezeV2);
     }
     ownerCapsule.clearUnfrozenV2();
-    addTotalResourceWeight(dynamicStore, chainBaseManager.getTrackerStore(), triple);
+    addTotalResourceWeight(dynamicStore, triple);
 
     long withdrawExpireBalance = atomicWithdrawExpireBalance.get();
     if (withdrawExpireBalance > 0) {
@@ -91,14 +90,12 @@ public class CancelAllUnfreezeV2Actuator extends AbstractActuator {
     return true;
   }
 
-  private void addTotalResourceWeight(DynamicPropertiesStore dynamicStore, TrackerStore trackerStore,
+  private void addTotalResourceWeight(DynamicPropertiesStore dynamicStore,
       Triple<Pair<AtomicLong, AtomicLong>,
           Pair<AtomicLong, AtomicLong>,
           Pair<AtomicLong, AtomicLong>> triple) {
     dynamicStore.addTotalNetWeight(triple.getLeft().getLeft().get());
-    trackerStore.addTotalNetWeight2(triple.getLeft().getLeft().get());
     dynamicStore.addTotalEnergyWeight(triple.getMiddle().getLeft().get());
-    trackerStore.addTotalEnergyWeight2(triple.getMiddle().getLeft().get());
     dynamicStore.addTotalTronPowerWeight(triple.getRight().getLeft().get());
   }
 
