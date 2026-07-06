@@ -95,7 +95,9 @@ public class CancelAllUnfreezeV2Actuator extends AbstractActuator {
           Pair<AtomicLong, AtomicLong>,
           Pair<AtomicLong, AtomicLong>> triple) {
     dynamicStore.addTotalNetWeight(triple.getLeft().getLeft().get());
+    dynamicStore.addTotalNetWeight2(triple.getLeft().getLeft().get());
     dynamicStore.addTotalEnergyWeight(triple.getMiddle().getLeft().get());
+    dynamicStore.addTotalEnergyWeight2(triple.getMiddle().getLeft().get());
     dynamicStore.addTotalTronPowerWeight(triple.getRight().getLeft().get());
   }
 

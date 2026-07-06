@@ -191,6 +191,9 @@ public class AdvService {
   }
 
   public void broadcast(Message msg) {
+    if (msg instanceof TransactionMessage) {
+      return;
+    }
 
     if (fastForward) {
       return;

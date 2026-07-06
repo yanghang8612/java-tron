@@ -128,6 +128,8 @@ public class EnergyProcessor extends ResourceProcessor {
     accountCapsule.setLatestOperationTime(latestOperationTime);
     accountCapsule.setLatestConsumeTimeForEnergy(now);
 
+    // fast-sync-stats: MEU 改由 AccountStore.put hook 在 latestConsumeTimeForEnergy == now
+    // 时调 topDelegatorService.updateMEU 采集,此处不再做 peakMeu 写入
     accountStore.put(accountCapsule.createDbKey(), accountCapsule);
 
     if (dynamicPropertiesStore.getAllowAdaptiveEnergy() == 1) {

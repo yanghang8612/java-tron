@@ -10,8 +10,10 @@ import org.tron.common.parameter.CommonParameter;
 import org.tron.common.utils.Commons;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.BlockCapsule;
+import org.tron.core.db.EnergyProcessor;
 import org.tron.core.db.TronStoreWithRevoking;
 import org.tron.core.db.accountstate.AccountStateCallBackUtils;
+import org.tron.core.service.TopDelegatorService;
 import org.tron.protos.contract.BalanceContract.TransactionBalanceTrace;
 import org.tron.protos.contract.BalanceContract.TransactionBalanceTrace.Operation;
 
@@ -38,6 +40,9 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
   private DynamicPropertiesStore dynamicPropertiesStore;
 
   @Autowired
+  private TopDelegatorService topDelegatorService;
+
+  @Autowired
   private AccountStore(@Value("account") String dbName) {
     super(dbName);
   }
@@ -60,8 +65,10 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
 
   @Override
   public void put(byte[] key, AccountCapsule item) {
+    // fast-sync-stats: 读一次旧值,history-balance 与 staker hook 共用,避免重复 store read
+    AccountCapsule old = super.getUnchecked(key);
+
     if (CommonParameter.getInstance().isHistoryBalanceLookup()) {
-      AccountCapsule old = super.getUnchecked(key);
       if (old == null) {
         if (item.getBalance() != 0) {
           recordBalance(item, item.getBalance());
@@ -78,6 +85,27 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
         }
       }
     }
+
+    // fast-sync-stats: staker stats 增量维护 hook(对齐 track_dynamic_energy)
+    long preStakedTRXForEnergy = old == null ? 0 : old.getAllStakedTRXForEnergy();
+    long curStakedTRXForEnergy = item == null ? 0 : item.getAllStakedTRXForEnergy();
+    if (preStakedTRXForEnergy != curStakedTRXForEnergy) {
+      if (curStakedTRXForEnergy == 0) {
+        topDelegatorService.removeStaker(old);
+      } else if (preStakedTRXForEnergy == 0) {
+        topDelegatorService.addStaker(item);
+      } else {
+        topDelegatorService.updateStaker(item);
+      }
+    }
+
+    long now = EnergyProcessor.getHeadSlot(dynamicPropertiesStore);
+    long preDelegated = old == null ? 0 : old.getDelegatedFrozenV2BalanceForEnergy();
+    if (item != null && (item.getLatestConsumeTimeForEnergy() == now
+        || item.getDelegatedFrozenV2BalanceForEnergy() > preDelegated)) {
+      topDelegatorService.updateMEU(item);
+    }
+
     super.put(key, item);
     accountStateCallBackUtils.accountCallBack(key, item);
   }

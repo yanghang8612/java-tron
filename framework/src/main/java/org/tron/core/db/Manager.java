@@ -234,6 +234,8 @@ public class Manager {
   @Autowired
   @Getter
   private ChainBaseManager chainBaseManager;
+  @Autowired
+  private org.tron.core.service.TopDelegatorService topDelegatorService;
   // transactions cache
   private BlockingQueue<TransactionCapsule> pendingTransactions;
   @Getter
@@ -481,6 +483,8 @@ public class Manager {
     revokingStore.check();
     transactionCache.initCache();
     rewardViCalService.init();
+    // fast-sync-stats: 启动时一次性扫账户表,建立 staker in-memory 索引(对齐 track_dynamic_energy)
+    topDelegatorService.init(chainBaseManager.getAccountStore());
     this.setProposalController(ProposalController.createInstance(this));
     this.setMerkleContainer(
         merkleContainer.createInstance(chainBaseManager.getMerkleTreeStore(),
@@ -1058,12 +1062,15 @@ public class Manager {
       ValidateScheduleException, ReceiptCheckErrException, VMIllegalException,
       TooBigTransactionResultException, ZksnarkException, BadBlockException, EventBloomException {
     processBlock(block, txs);
+    // fast-sync-stats: 保留完整区块体(近窗口可查交易体);窗口外旧块由 pruneOldTransactions 清理
     chainBaseManager.getBlockStore().put(block.getBlockId().getBytes(), block);
     chainBaseManager.getBlockIndexStore().put(block.getBlockId());
     if (block.getTransactions().size() != 0) {
       chainBaseManager.getTransactionRetStore()
           .put(ByteArray.fromLong(block.getNum()), block.getResult());
     }
+    // fast-sync-stats: 交易体与收据滚动保留最近约1个月,裁剪窗口外的旧块
+    pruneOldTransactions(block.getNum());
 
     updateFork(block);
     if (System.currentTimeMillis() - block.getTimeStamp() >= 60_000) {
@@ -1081,6 +1088,51 @@ public class Manager {
     } else {
       revokingStore.setMaxFlushCount(SnapshotManager.DEFAULT_MIN_FLUSH_COUNT);
     }
+  }
+
+  // ===== fast-sync-stats: 交易体与收据滚动保留(约30天,3s/块)=====
+  private static final long TX_RETENTION_BLOCKS = 864_000L;
+  // 仅首次真正裁剪时打一条 info 日志,便于运维区分"裁剪进行中"与"卡住"
+  private volatile boolean txPruneStarted = false;
+
+  /**
+   * 滚动保留最近 TX_RETENTION_BLOCKS 个区块的交易体与收据:处理到区块 H 时,对区块
+   * H-WINDOW 清空交易体(保留区块头并重存以回收磁盘),并删除其交易索引(transactionStore)
+   * 与收据(transactionRetStore)。窗口预热期(H<=WINDOW)不做任何事。旧块远在分叉/回滚深度
+   * 之外,删除/重存对 revoking 层安全;delete 经 flush 落到底层 LevelDB 真实删除,确实回收磁盘。
+   */
+  private void pruneOldTransactions(long currentBlockNum) {
+    long oldNum = currentBlockNum - TX_RETENTION_BLOCKS;
+    if (oldNum <= 0) {
+      return;
+    }
+    try {
+      BlockCapsule oldBlock = chainBaseManager.getBlockByNum(oldNum);
+      if (oldBlock.getTransactions().isEmpty()) {
+        return; // 已裁剪过或本就是空块
+      }
+      if (!txPruneStarted) {
+        txPruneStarted = true;
+        logger.info("fast-sync-stats: start pruning tx & receipts, window={} blocks, first block={}",
+            TX_RETENTION_BLOCKS, oldNum);
+      }
+      for (TransactionCapsule tx : oldBlock.getTransactions()) {
+        chainBaseManager.getTransactionStore().delete(tx.getTransactionId().getBytes());
+      }
+      chainBaseManager.getTransactionRetStore().delete(ByteArray.fromLong(oldNum));
+      // 清空块体交易、保留区块头,重存以回收磁盘
+      BlockCapsule cleared = new BlockCapsule(
+          oldBlock.getInstance().toBuilder().clearTransactions().build());
+      chainBaseManager.getBlockStore().put(cleared.getBlockId().getBytes(), cleared);
+    } catch (ItemNotFoundException e) {
+      // 旧块索引缺失(从快照/lite 启动、窗口预热期):预期情形,发生在任何 mutation 之前,debug 跳过避免刷屏
+      logger.debug("fast-sync-stats: prune skip, block {} index not found", oldNum);
+    } catch (BadItemException e) {
+      // 旧块体损坏/读取失败:同样发生在 getBlockByNum 阶段(mutation 之前),跳过但 warn 提示潜在 DB 不一致
+      logger.warn("fast-sync-stats: prune skip, block {} bad item: {}", oldNum, e.getMessage());
+    }
+    // 不再兜底 catch 其它异常:getBlockByNum 之后的 delete/put 若抛错,此时已发生部分 mutation,
+    // 任其上抛使本区块 session 回滚,避免提交"半裁剪"的中间状态(tx index/receipt/block 不一致)。
   }
 
   private void switchFork(BlockCapsule newHead)
@@ -1263,12 +1315,13 @@ public class Manager {
         try (PendingManager pm = new PendingManager(this)) {
 
           if (!block.generatedByMyself) {
-            if (!block.calcMerkleRoot().equals(block.getMerkleRoot())) {
-              logger.warn("Num: {}, the merkle root doesn't match, expect is {} , actual is {}.",
-                  block.getNum(), block.getMerkleRoot(), block.calcMerkleRoot());
-              throw new BadBlockException(CALC_MERKLE_ROOT_FAILED,
-                      String.format("The merkle hash is not validated for %d", block.getNum()));
-            }
+            // fast-sync: skip merkle root check
+//          if (!block.calcMerkleRoot().equals(block.getMerkleRoot())) {
+//              logger.warn("Num: {}, the merkle root doesn't match, expect is {} , actual is {}.",
+//                  block.getNum(), block.getMerkleRoot(), block.calcMerkleRoot());
+//              throw new BadBlockException(CALC_MERKLE_ROOT_FAILED,
+//                      String.format("The merkle hash is not validated for %d", block.getNum()));
+//            }
             consensus.receiveBlock(block);
           }
 
@@ -1840,6 +1893,11 @@ public class Manager {
         <= block.getTimeStamp();
     if (flag) {
       proposalController.processProposals();
+      // fast-sync-stats 功能2:周期末同步统计 staker(在 consensus.applyBlock 推进 cycle 之前调用,
+      // recordStakerStat 内部读 getCurrentCycleNumber 得 N=刚结束周期,SS_N_* 落库正确)。
+      // 同步而非线程化:依赖 AccountStore.put hook 增量维护的 in-memory stakers,doStats 是
+      // O(|stakers|) 不是全表扫,可在主线程跑;同时避免了原异步实现追块期被 CAS 跳过 cycle 的问题。
+      topDelegatorService.doStats();
     }
 
     if (!consensus.applyBlock(block)) {
