@@ -240,8 +240,8 @@ public class Program {
     InternalTransaction addedInternalTx = null;
     if (internalTransaction != null) {
       addedInternalTx = getResult()
-          .addInternalTransaction(internalTransaction.getHash(), getCallDeep(),
-              senderAddress, transferAddress, value, data, note, nonce, tokenInfo);
+          .addInternalTransaction(internalTransaction.getHash(), internalTransaction.getRootHash(),
+              getCallDeep(), senderAddress, transferAddress, value, data, note, nonce, tokenInfo);
     }
 
     return addedInternalTx;
@@ -1628,9 +1628,12 @@ public class Program {
       if (rd == null) {
         rd = EMPTY_BYTE_ARRAY;
       }
-      System.out.printf("%d %d %s %s %s %d %d %d %s %s%n",
+      String txHash = internalTransaction == null ? "" : Hex.toHexString(
+          internalTransaction.getRootHash());
+      System.out.printf("%d %d %s %s %s %s %d %d %d %s %s%n",
           contractState.getDynamicPropertiesStore().getLatestBlockHeaderNumber(),
           contractState.getDynamicPropertiesStore().getLatestBlockHeaderTimestamp(),
+          txHash,
           StringUtil.encode58Check(getContextAddress()),
           contract.getClass().getSimpleName(),
           Hex.toHexString(data),

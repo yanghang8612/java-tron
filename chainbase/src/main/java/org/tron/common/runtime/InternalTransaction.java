@@ -39,6 +39,7 @@ public class InternalTransaction {
 
   private Transaction transaction;
   private byte[] hash;
+  private byte[] rootHash;
   private byte[] parentHash;
   /* the amount of trx to transfer (calculated as sun) */
   private long value;
@@ -111,7 +112,8 @@ public class InternalTransaction {
     } else {
       // do nothing, just for running byte code
     }
-    this.hash = trxCap.getTransactionId().getBytes();
+    this.rootHash = trxCap.getTransactionId().getBytes();
+    this.hash = this.rootHash.clone();
   }
 
   /**
@@ -121,7 +123,15 @@ public class InternalTransaction {
   public InternalTransaction(byte[] parentHash, int deep, int index,
       byte[] sendAddress, byte[] transferToAddress, long value, byte[] data, String note,
       long nonce, Map<String, Long> tokenInfo) {
+    this(parentHash, parentHash, deep, index, sendAddress, transferToAddress, value, data, note,
+        nonce, tokenInfo);
+  }
+
+  public InternalTransaction(byte[] parentHash, byte[] rootHash, int deep, int index,
+      byte[] sendAddress, byte[] transferToAddress, long value, byte[] data, String note,
+      long nonce, Map<String, Long> tokenInfo) {
     this.parentHash = parentHash.clone();
+    this.rootHash = ArrayUtils.nullToEmpty(rootHash).clone();
     this.deep = deep;
     this.index = index;
     this.note = note;
@@ -232,6 +242,13 @@ public class InternalTransaction {
     System.arraycopy(nonceByte, 0, forHash, plainMsg.length, nonceByte.length);
     this.hash = Hash.sha3(forHash);
     return Arrays.copyOf(hash, hash.length);
+  }
+
+  public byte[] getRootHash() {
+    if (isEmpty(rootHash)) {
+      return EMPTY_BYTE_ARRAY;
+    }
+    return Arrays.copyOf(rootHash, rootHash.length);
   }
 
   public long getNonce() {
