@@ -174,7 +174,7 @@ public class HttpApiOnPBFTService extends HttpService {
   public HttpApiOnPBFTService() {
     port = Args.getInstance().getPBFTHttpPort();
     enable = !FAST_SYNC_STATS_MODE && isFullNode() && Args.getInstance().isPBFTHttpEnable();
-    contextPath = "/walletpbft/";
+    contextPath = "/walletpbft";
   }
 
   @Override

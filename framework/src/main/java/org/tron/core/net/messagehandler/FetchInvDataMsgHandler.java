@@ -62,7 +62,9 @@ public class FetchInvDataMsgHandler implements TronMsgHandler {
       return;
     }
 
-    check(peer, fetchInvDataMsg);
+    boolean isAdv = isAdvInv(peer, fetchInvDataMsg);
+
+    check(peer, fetchInvDataMsg, isAdv);
 
     List<Transaction> transactions = Lists.newArrayList();
 
@@ -70,6 +72,15 @@ public class FetchInvDataMsgHandler implements TronMsgHandler {
 
     for (Sha256Hash hash : fetchInvDataMsg.getHashList()) {
       Item item = new Item(hash, type);
+      /* Cache the Inventory sent to the peer.
+      Once a FetchInvData message is received from the peer, remove this Inventory from the cache.
+      If the same FetchInvData request is received from the peer again and it is
+      no longer in the cache, then reject the request.
+      * */
+      if (isAdv) {
+        peer.getAdvInvSpread().invalidate(item);
+      }
+
       Message message = advService.getMessage(item);
       if (message == null) {
         try {
@@ -90,7 +101,7 @@ public class FetchInvDataMsgHandler implements TronMsgHandler {
       } else {
         transactions.add(((TransactionMessage) message).getTransactionCapsule().getInstance());
         size += ((TransactionMessage) message).getTransactionCapsule().getInstance()
-            .getSerializedSize();
+                .getSerializedSize();
         if (size > MAX_SIZE) {
           peer.sendMessage(new TransactionsMessage(transactions));
           transactions = Lists.newArrayList();
@@ -113,16 +124,16 @@ public class FetchInvDataMsgHandler implements TronMsgHandler {
       }
       long epoch = 0;
       PbftSignCapsule pbftSignCapsule = tronNetDelegate
-          .getBlockPbftCommitData(blockCapsule.getNum());
+              .getBlockPbftCommitData(blockCapsule.getNum());
       long maintenanceTimeInterval = consensusDelegate.getDynamicPropertiesStore()
-          .getMaintenanceTimeInterval();
+              .getMaintenanceTimeInterval();
       if (pbftSignCapsule != null) {
         Raw raw = Raw.parseFrom(pbftSignCapsule.getPbftCommitResult().getData());
         epoch = raw.getEpoch();
         peer.sendMessage(new PbftCommitMessage(pbftSignCapsule));
       } else {
-        epoch =
-            (blockCapsule.getTimeStamp() / maintenanceTimeInterval + 1) * maintenanceTimeInterval;
+        epoch = (blockCapsule.getTimeStamp() / maintenanceTimeInterval + 1)
+                * maintenanceTimeInterval;
       }
       if (epochCache.getIfPresent(epoch) == null) {
         PbftSignCapsule srl = tronNetDelegate.getSRLPbftCommitData(epoch);
@@ -136,7 +147,21 @@ public class FetchInvDataMsgHandler implements TronMsgHandler {
     }
   }
 
-  private void check(PeerConnection peer, FetchInvDataMessage fetchInvDataMsg) throws P2pException {
+  public boolean isAdvInv(PeerConnection peer, FetchInvDataMessage msg) {
+    MessageTypes type = msg.getInvMessageType();
+    if (type == MessageTypes.TRX) {
+      return true;
+    }
+    for (Sha256Hash hash : msg.getHashList()) {
+      if (peer.getAdvInvSpread().getIfPresent(new Item(hash, InventoryType.BLOCK)) == null) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private void check(PeerConnection peer, FetchInvDataMessage fetchInvDataMsg,
+                     boolean isAdv) throws P2pException {
     MessageTypes type = fetchInvDataMsg.getInvMessageType();
 
     if (type == MessageTypes.TRX) {
@@ -153,36 +178,37 @@ public class FetchInvDataMsgHandler implements TronMsgHandler {
                         + "maxCount: {}, fetchCount: {}, peer: {}",
                 maxCount, fetchCount, peer.getInetAddress());
       }
-    } else {
-      boolean isAdv = true;
-      for (Sha256Hash hash : fetchInvDataMsg.getHashList()) {
-        if (peer.getAdvInvSpread().getIfPresent(new Item(hash, InventoryType.BLOCK)) == null) {
-          isAdv = false;
-          break;
-        }
+    }
+
+    if (!isAdv) {
+      if (!peer.isNeedSyncFromUs()) {
+        throw new P2pException(TypeEnum.BAD_MESSAGE, "no need sync");
       }
-      if (!isAdv) {
-        if (!peer.isNeedSyncFromUs()) {
-          throw new P2pException(TypeEnum.BAD_MESSAGE, "no need sync");
+      if (!peer.getP2pRateLimiter().tryAcquire(fetchInvDataMsg.getType().asByte())) {
+        throw new P2pException(TypeEnum.RATE_LIMIT_EXCEEDED, fetchInvDataMsg.getType()
+                + " message exceeds the rate limit");
+      }
+      if (fetchInvDataMsg.getHashList().size() > NetConstants.MAX_BLOCK_FETCH_PER_PEER) {
+        throw new P2pException(TypeEnum.BAD_MESSAGE, "fetch too many blocks, size:"
+                + fetchInvDataMsg.getHashList().size());
+      }
+      for (Sha256Hash hash : fetchInvDataMsg.getHashList()) {
+        long blockNum = new BlockId(hash).getNum();
+        long minBlockNum =
+                peer.getLastSyncBlockId().getNum() - 2 * NetConstants.SYNC_FETCH_BATCH_NUM;
+        if (blockNum < minBlockNum) {
+          throw new P2pException(TypeEnum.BAD_MESSAGE,
+                  "minBlockNum: " + minBlockNum + ", blockNum: " + blockNum);
         }
-        for (Sha256Hash hash : fetchInvDataMsg.getHashList()) {
-          long blockNum = new BlockId(hash).getNum();
-          long minBlockNum =
-              peer.getLastSyncBlockId().getNum() - 2 * NetConstants.SYNC_FETCH_BATCH_NUM;
-          if (blockNum < minBlockNum) {
-            throw new P2pException(TypeEnum.BAD_MESSAGE,
-                "minBlockNum: " + minBlockNum + ", blockNum: " + blockNum);
-          }
-          if (blockNum > peer.getLastSyncBlockId().getNum()) {
-            throw new P2pException(TypeEnum.BAD_MESSAGE,
-                "maxBlockNum: " + peer.getLastSyncBlockId().getNum() + ", blockNum: " + blockNum);
-          }
-          if (peer.getSyncBlockIdCache().getIfPresent(hash) != null) {
-            throw new P2pException(TypeEnum.BAD_MESSAGE,
-                new BlockId(hash).getString() + " is exist");
-          }
-          peer.getSyncBlockIdCache().put(hash, System.currentTimeMillis());
+        if (blockNum > peer.getLastSyncBlockId().getNum()) {
+          throw new P2pException(TypeEnum.BAD_MESSAGE,
+                  "maxBlockNum: " + peer.getLastSyncBlockId().getNum() + ", blockNum: " + blockNum);
         }
+        if (peer.getSyncBlockIdCache().getIfPresent(hash) != null) {
+          throw new P2pException(TypeEnum.BAD_MESSAGE,
+                  new BlockId(hash).getString() + " is exist");
+        }
+        peer.getSyncBlockIdCache().put(hash, System.currentTimeMillis());
       }
     }
   }

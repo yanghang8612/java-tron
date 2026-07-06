@@ -43,7 +43,8 @@ public class HttpInterceptor implements Filter {
         chain.doFilter(request, response);
         return;
       }
-      endpoint = ((HttpServletRequest) request).getRequestURI();
+      String contextPath = ((HttpServletRequest) request).getContextPath();
+      endpoint = contextPath + ((HttpServletRequest) request).getServletPath();
       CharResponseWrapper responseWrapper = new CharResponseWrapper(
               (HttpServletResponse) response);
       chain.doFilter(request, responseWrapper);
