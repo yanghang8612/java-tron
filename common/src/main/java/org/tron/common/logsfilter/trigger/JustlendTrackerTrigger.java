@@ -1,6 +1,6 @@
 package org.tron.common.logsfilter.trigger;
 
-import com.beust.jcommander.internal.Lists;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -21,7 +21,7 @@ public class JustlendTrackerTrigger extends Trigger {
 
   private Boolean solidity = false;
 
-  private List<AssetStatusPojo> assetStatusList = Lists.newArrayList();
+  private List<AssetStatusPojo> assetStatusList = new ArrayList<>();
 
   public JustlendTrackerTrigger() {
     super();
@@ -131,5 +131,4 @@ public class JustlendTrackerTrigger extends Trigger {
   }
 
 }
-
 

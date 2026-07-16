@@ -1,10 +1,9 @@
 package org.tron.common.logsfilter;
 
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
 import com.beust.jcommander.internal.Sets;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import java.io.File;
 import java.util.ArrayList;
@@ -20,8 +19,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.util.encoders.Hex;
 import org.pf4j.CompoundPluginDescriptorFinder;
 import org.pf4j.DefaultPluginManager;
+import org.pf4j.DefaultVersionManager;
 import org.pf4j.ManifestPluginDescriptorFinder;
 import org.pf4j.PluginManager;
+import org.pf4j.VersionManager;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.tron.common.logsfilter.trigger.BlockContractLogTrigger;
@@ -40,12 +41,23 @@ import org.tron.common.logsfilter.trigger.SolidityTrigger;
 import org.tron.common.logsfilter.trigger.StakeBalanceTrigger;
 import org.tron.common.logsfilter.trigger.TransactionLogTrigger;
 import org.tron.common.logsfilter.trigger.Trigger;
-import org.tron.core.Constant;
 import org.tron.core.config.args.Args;
 import org.tron.core.exception.TronError;
+import org.tron.json.JSONArray;
+import org.tron.json.JSONObject;
 
 @Slf4j(topic = "DB")
 public class EventPluginLoader {
+
+  /**
+   * Minimum event-plugin Plugin-Version compatible with this node. Bumped to 3.0.0 to
+   * reject pre-fastjson-removal builds whose worker threads would fail with
+   * NoClassDefFoundError on com.alibaba.fastjson at runtime. The previous event-plugin
+   * release is 2.2.0, so 3.0.0 is the first version that ships the Jackson replacement.
+   */
+  static final String MIN_PLUGIN_VERSION = "3.0.0";
+
+  private static final VersionManager VERSION_MANAGER = new DefaultVersionManager();
 
   private static EventPluginLoader instance;
 
@@ -158,6 +170,21 @@ public class EventPluginLoader {
       if (Objects.isNull(filterQueryMap) || filterQueryMap.isEmpty()) {
         return new ArrayList<>(0);
       }
+
+      // ContractEventTrigger instances built from decoded ABI events may not carry the raw
+      // LogInfo used by the topic-indexed fast path. Fall back to the legacy address/topic
+      // predicates so both decoded contract events and raw contract logs remain filterable.
+      if (trigger.getLogInfo() == null) {
+        for (FilterQuery candidate : EventPluginLoader.getInstance().filterQuery) {
+          if (matchesBlockRange(blockNumber, candidate)
+              && filterContractAddress(trigger, candidate.getContractAddressList())
+              && filterContractTopicList(trigger, candidate.getContractTopicList())) {
+            matchedFilterName.add(candidate.getName());
+          }
+        }
+        return new ArrayList<>(matchedFilterName);
+      }
+
       List<List<FilterQuery>> maybeMatchFilters = new ArrayList<>(4);
       if (!trigger.getLogInfo().getTopics().isEmpty()) {
         String topic0 = trigger.getLogInfo().getTopics().get(0).toHexString();
@@ -222,6 +249,22 @@ public class EventPluginLoader {
       logger.error("matchFilter failed trigger:{}", trigger, e);
       return Lists.newArrayList("default");
     }
+  }
+
+  private static boolean matchesBlockRange(long blockNumber, FilterQuery filterQuery) {
+    long fromBlockNumber = filterQuery.getFromBlock();
+    long toBlockNumber = filterQuery.getToBlock();
+    if (fromBlockNumber == FilterQuery.LATEST_BLOCK_NUM
+        || toBlockNumber == FilterQuery.EARLIEST_BLOCK_NUM) {
+      logger.error("invalid filter {}: fromBlockNumber: {}, toBlockNumber: {}",
+          filterQuery.getName(), fromBlockNumber, toBlockNumber);
+      return false;
+    }
+    boolean afterStart = fromBlockNumber == FilterQuery.EARLIEST_BLOCK_NUM
+        || blockNumber >= fromBlockNumber;
+    boolean beforeEnd = toBlockNumber == FilterQuery.LATEST_BLOCK_NUM
+        || blockNumber <= toBlockNumber;
+    return afterStart && beforeEnd;
   }
 
   private static boolean filterContractAddress(ContractTrigger trigger, List<String> addressList) {
@@ -291,8 +334,8 @@ public class EventPluginLoader {
         (CollectionUtils.isEmpty(config.getJustlendTokens()) || StringUtils.isEmpty(config.getJustlendRentMarket()))) {
       throw new TronError(
           String.format("Node type is JustLend, `%s` & `%s` must be configured",
-              Constant.EVENT_SUBSCRIBE_JUSTLEND_TOKENS,
-              Constant.EVENT_SUBSCRIBE_JUSTLEND_RENT_MARKET),
+              "event.subscribe.justlend.token.list",
+              "event.subscribe.justlend.rent.market"),
           TronError.ErrCode.EVENT_SUBSCRIBE_INIT);
     }
 
@@ -317,13 +360,10 @@ public class EventPluginLoader {
         (CollectionUtils.isEmpty(config.getJustlendTokens()) || StringUtils.isEmpty(config.getJustlendRentMarket()))) {
       throw new TronError(
           String.format("Node type is JustLend, `%s` & `%s` must be configured",
-              Constant.EVENT_SUBSCRIBE_JUSTLEND_TOKENS,
-              Constant.EVENT_SUBSCRIBE_JUSTLEND_RENT_MARKET),
+              "event.subscribe.justlend.token.list",
+              "event.subscribe.justlend.rent.market"),
           TronError.ErrCode.EVENT_SUBSCRIBE_INIT);
     }
-    this.justlendTokens = config.getJustlendTokens();
-    this.justlendRentMarket = config.getJustlendRentMarket();
-
     if (Objects.nonNull(eventListeners)) {
       eventListeners.forEach(listener -> listener.start());
     }
@@ -344,6 +384,12 @@ public class EventPluginLoader {
     this.triggerConfigList = config.getTriggerConfigList();
 
     useNativeQueue = config.isUseNativeQueue();
+
+    // === JustLend Feature ===
+    // Populate for both native-queue and plugin modes. JustlendTrackerCapsule reads these
+    // fields from the loader singleton regardless of the selected transport.
+    this.justlendTokens = config.getJustlendTokens();
+    this.justlendRentMarket = config.getJustlendRentMarket();
 
     if (config.isUseNativeQueue()) {
       return launchNativeQueue(config);
@@ -708,6 +754,10 @@ public class EventPluginLoader {
       return false;
     }
 
+    if (!isPluginVersionSupported(pluginManager, pluginId)) {
+      return false;
+    }
+
     pluginManager.startPlugins();
 
     eventListeners = pluginManager.getExtensions(IPluginEventListener.class);
@@ -720,6 +770,21 @@ public class EventPluginLoader {
     logger.info("'{}' loaded", path);
 
     return true;
+  }
+
+  static boolean isPluginVersionSupported(PluginManager pm, String pluginId) {
+    String pluginVersion = pm.getPlugin(pluginId).getDescriptor().getVersion();
+    if (Strings.isNullOrEmpty(pluginVersion)) {
+      return false;
+    }
+    boolean isSupported = VERSION_MANAGER.compareVersions(pluginVersion, MIN_PLUGIN_VERSION) >= 0;
+
+    if (!isSupported) {
+      logger.error(
+          "event-plugin '{}' version {} is older than required {}, please upgrade event-plugin",
+          pluginId, pluginVersion, MIN_PLUGIN_VERSION);
+    }
+    return isSupported;
   }
 
   public void stopPlugin() {
@@ -996,7 +1061,7 @@ public class EventPluginLoader {
       if(eventFilters != null && !eventFilters.isEmpty()) {
         List<FilterQuery> newFilterQuery = parseEventFilters(eventFilters);
         if(!newFilterQuery.isEmpty()) {
-          setFilterQuery(newFilterQuery);
+          setFilterQueries(newFilterQuery);
           this.filterQueryLastUpdate = System.currentTimeMillis();
         }
       }
@@ -1015,13 +1080,13 @@ public class EventPluginLoader {
 
   // === DeFi Feature ===
   public void setFilterQuery(FilterQuery filterQuery) {
-    setFilterQuery(Lists.newArrayList(filterQuery));
+    setFilterQueries(filterQuery == null ? null : Lists.newArrayList(filterQuery));
   }
 
   // === DeFi Feature ===
-  public void setFilterQuery(List<FilterQuery> filterQuery) {
+  public void setFilterQueries(List<FilterQuery> filterQuery) {
     this.filterQuery = filterQuery;
-    this.filterQueryMap = filterQueryListToMap(filterQuery);
+    this.filterQueryMap = filterQuery == null ? null : filterQueryListToMap(filterQuery);
   }
 
   // === DeFi Feature ===

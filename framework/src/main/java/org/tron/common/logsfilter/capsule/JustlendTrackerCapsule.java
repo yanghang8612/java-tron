@@ -1,7 +1,7 @@
 package org.tron.common.logsfilter.capsule;
 
-import com.beust.jcommander.internal.Lists;
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import lombok.Getter;
@@ -37,7 +37,7 @@ public class JustlendTrackerCapsule extends TriggerCapsule {
     justlendTrackerTrigger.setTimeStamp(block.getTimeStamp());
     justlendTrackerTrigger.setSolidity(true);
 
-    List<LogInfo> logInfos = Lists.newArrayList();
+    List<LogInfo> logInfos = new ArrayList<>();
     block.getTransactions().stream()
         .map(transactionCapsule -> transactionCapsule.getTrxTrace().getTransactionContext().getProgramResult().getLogInfoList())
         .filter(list -> !CollectionUtils.isEmpty(list))
@@ -50,7 +50,7 @@ public class JustlendTrackerCapsule extends TriggerCapsule {
   }
 
   private List<JustlendTrackerTrigger.AssetStatusPojo> buildAssetStatusList(BlockCapsule blockCapsule, List<LogInfo> logInfos) {
-    List<JustlendTrackerTrigger.AssetStatusPojo> result = Lists.newArrayList();
+    List<JustlendTrackerTrigger.AssetStatusPojo> result = new ArrayList<>();
 
     for (LogInfo logInfo : logInfos) {
       List<String> topics = logInfo.getHexTopics();
