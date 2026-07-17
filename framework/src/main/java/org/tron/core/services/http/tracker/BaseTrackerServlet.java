@@ -1,6 +1,5 @@
 package org.tron.core.services.http.tracker;
 
-import com.alibaba.fastjson.JSONObject;
 import java.io.IOException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -8,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.tron.core.services.http.RateLimiterServlet;
 import org.tron.core.store.DynamicPropertiesStore;
+import org.tron.json.JSONObject;
 
 /**
  * fast-sync-stats: 移植自 track_dynamic_energy/BaseTrackerServlet。

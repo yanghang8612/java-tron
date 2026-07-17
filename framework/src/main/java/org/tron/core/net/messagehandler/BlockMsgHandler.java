@@ -81,6 +81,8 @@ public class BlockMsgHandler implements TronMsgHandler {
       check(peer, blockMessage);
     }
 
+    blockMessage.sanitize();
+
     if (peer.getSyncBlockRequested().containsKey(blockId)) {
       peer.getSyncBlockRequested().remove(blockId);
       peer.getSyncBlockInProcess().add(blockId);
@@ -168,6 +170,7 @@ public class BlockMsgHandler implements TronMsgHandler {
 
     try {
       tronNetDelegate.processBlock(block, false);
+      peer.setBlockRcvTime(System.currentTimeMillis());
       if (!FAST_SYNC_STATS_MODE) {
         witnessProductBlockService.validWitnessProductTwoBlock(block);
       }

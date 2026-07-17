@@ -183,6 +183,7 @@ public class HttpApiOnSolidityService extends HttpService {
     port = Args.getInstance().getSolidityHttpPort();
     enable = !FAST_SYNC_STATS_MODE && isFullNode() && Args.getInstance().isSolidityNodeHttpEnable();
     contextPath = "/";
+    maxRequestSize = Args.getInstance().getHttpMaxMessageSize();
   }
 
   @Override

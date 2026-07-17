@@ -5,6 +5,7 @@ import static org.tron.core.config.Parameter.NetConstants.MAX_BLOCK_FETCH_PER_PE
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -48,9 +49,9 @@ public class SyncService {
   @Autowired
   private PbftDataSyncHandler pbftDataSyncHandler;
 
-  private Map<BlockMessage, PeerConnection> blockWaitToProcess = new ConcurrentHashMap<>();
+  private Map<UnparsedBlock, PeerConnection> blockWaitToProcess = new ConcurrentHashMap<>();
 
-  private Map<BlockMessage, PeerConnection> blockJustReceived = new ConcurrentHashMap<>();
+  private Map<UnparsedBlock, PeerConnection> blockJustReceived = new ConcurrentHashMap<>();
 
   private long blockCacheTimeout = Args.getInstance().getBlockCacheTimeout();
   private Cache<BlockId, PeerConnection> requestBlockIds = CacheBuilder.newBuilder()
@@ -72,6 +73,10 @@ public class SyncService {
   private volatile boolean fetchFlag = false;
 
   private final long syncFetchBatchNum = Args.getInstance().getSyncFetchBatchNum();
+
+  private final int maxPendingBlockSize = Args.getInstance().getMaxPendingBlockSize();
+
+  private volatile long maxRequestedBlockNum = 0;
 
   public void init() {
     ExecutorServiceManager.scheduleWithFixedDelay(fetchExecutor, () -> {
@@ -139,7 +144,9 @@ public class SyncService {
 
   public void processBlock(PeerConnection peer, BlockMessage blockMessage) {
     synchronized (blockJustReceived) {
-      blockJustReceived.put(blockMessage, peer);
+      UnparsedBlock unparsedBlock = new UnparsedBlock(
+          blockMessage.getBlockId(), blockMessage.getData());
+      blockJustReceived.put(unparsedBlock, peer);
     }
     handleFlag = true;
     if (peer.isSyncIdle()) {
@@ -231,8 +238,18 @@ public class SyncService {
   }
 
   private void startFetchSyncBlock() {
+    Collection<PeerConnection> activePeers = tronNetDelegate.getActivePeer();
+    int reqNum = activePeers.stream()
+        .mapToInt(p -> p.getSyncBlockRequested().size()).sum();
+    int remainNum;
+    synchronized (blockJustReceived) {
+      remainNum = maxPendingBlockSize - reqNum
+          - blockJustReceived.size() - blockWaitToProcess.size();
+    }
+
     HashMap<PeerConnection, List<BlockId>> send = new HashMap<>();
-    tronNetDelegate.getActivePeer().stream()
+    int[] fetchingBlockSize = {0};
+    activePeers.stream()
         .filter(peer -> peer.isNeedSyncFromPeer() && peer.isSyncIdle())
         .filter(peer -> peer.isFetchAble())
         .forEach(peer -> {
@@ -240,6 +257,12 @@ public class SyncService {
           for (BlockId blockId : peer.getSyncBlockToFetch()) {
             if (requestBlockIds.getIfPresent(blockId) == null
                 && !peer.getSyncBlockInProcess().contains(blockId)) {
+              if (fetchingBlockSize[0] >= remainNum && blockId.getNum() > maxRequestedBlockNum) {
+                break;
+              }
+              if (blockId.getNum() > maxRequestedBlockNum) {
+                maxRequestedBlockNum = blockId.getNum();
+              }
               requestBlockIds.put(blockId, peer);
               peer.getSyncBlockRequested().put(blockId, System.currentTimeMillis());
               if (blockIds == null) {
@@ -247,6 +270,7 @@ public class SyncService {
                 send.put(peer, blockIds);
               }
               blockIds.add(blockId);
+              fetchingBlockSize[0]++;
               if (blockIds.size() >= MAX_BLOCK_FETCH_PER_PEER) {
                 break;
               }
@@ -276,23 +300,31 @@ public class SyncService {
       isProcessed[0] = false;
       Set<BlockId> nextBlockIds = getNextBlockIdsToProcess();
 
-      blockWaitToProcess.forEach((msg, peerConnection) -> {
+      blockWaitToProcess.forEach((unparsedBlock, peerConnection) -> {
         synchronized (tronNetDelegate.getBlockLock()) {
+          BlockId blockId = unparsedBlock.getBlockId();
           if (peerConnection.isDisconnect()) {
-            blockWaitToProcess.remove(msg);
-            invalid(msg.getBlockId(), peerConnection);
+            blockWaitToProcess.remove(unparsedBlock);
+            invalid(blockId, peerConnection);
             return;
           }
-          if (msg.getBlockId().getNum() <= solidNum) {
-            blockWaitToProcess.remove(msg);
-            peerConnection.getSyncBlockInProcess().remove(msg.getBlockId());
+          if (blockId.getNum() <= solidNum) {
+            blockWaitToProcess.remove(unparsedBlock);
+            peerConnection.getSyncBlockInProcess().remove(blockId);
             return;
           }
-          if (nextBlockIds.contains(msg.getBlockId())) {
-            blockWaitToProcess.remove(msg);
+          if (nextBlockIds.contains(blockId)) {
+            blockWaitToProcess.remove(unparsedBlock);
             isProcessed[0] = true;
-            processSyncBlock(msg.getBlockCapsule(), peerConnection);
-            peerConnection.getSyncBlockInProcess().remove(msg.getBlockId());
+            BlockCapsule block;
+            try {
+              block = new BlockCapsule(unparsedBlock.getData());
+            } catch (Exception e) {
+              logger.warn("Deserialize block {} failed", blockId.getString(), e);
+              return;
+            }
+            processSyncBlock(block, peerConnection);
+            peerConnection.getSyncBlockInProcess().remove(blockId);
           }
         }
       });
@@ -317,14 +349,15 @@ public class SyncService {
     try {
       tronNetDelegate.validSignature(block);
       tronNetDelegate.processBlock(block, true);
+      peerConnection.setBlockRcvTime(System.currentTimeMillis());
       if (!FAST_SYNC_STATS_MODE) {
         pbftDataSyncHandler.processPBFTCommitData(block);
       }
     } catch (P2pException p2pException) {
       logger.error("Process sync block {} failed, type: {}",
               blockId.getString(), p2pException.getType());
-      attackFlag = p2pException.getType().equals(TypeEnum.BLOCK_SIGN_ERROR)
-              || p2pException.getType().equals(TypeEnum.BLOCK_MERKLE_ERROR);
+      attackFlag = p2pException.getType().equals(TypeEnum.BLOCK_SIGN_INVALID)
+              || p2pException.getType().equals(TypeEnum.BLOCK_MERKLE_INVALID);
       flag = false;
     } catch (Exception e) {
       logger.error("Process sync block {} failed", blockId.getString(), e);

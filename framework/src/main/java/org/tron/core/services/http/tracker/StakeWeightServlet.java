@@ -1,11 +1,11 @@
 package org.tron.core.services.http.tracker;
 
-import com.alibaba.fastjson.JSONObject;
 import java.io.IOException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.tron.core.store.TrackerStore;
+import org.tron.json.JSONObject;
 
 /**
  * fast-sync-stats: /stake_weight — 全网质押权重按 stake1.0/2.0 拆分。

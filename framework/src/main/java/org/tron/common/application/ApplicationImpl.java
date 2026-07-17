@@ -8,9 +8,9 @@ import org.tron.core.ChainBaseManager;
 import org.tron.core.config.args.Args;
 import org.tron.core.consensus.ConsensusService;
 import org.tron.core.db.Manager;
-import org.tron.core.metrics.MetricsUtil;
 import org.tron.core.net.TronNetService;
 import org.tron.core.services.event.EventService;
+import org.tron.program.SolidityNode;
 
 @Slf4j(topic = "app")
 @Component
@@ -36,6 +36,9 @@ public class ApplicationImpl implements Application {
   @Autowired
   private ConsensusService consensusService;
 
+  @Autowired(required = false)
+  private SolidityNode solidityNode;
+
   private final CountDownLatch shutdown = new CountDownLatch(1);
 
   /**
@@ -50,20 +53,20 @@ public class ApplicationImpl implements Application {
     if ((!Args.getInstance().isSolidityNode()) && (!Args.getInstance().isP2pDisable())) {
       tronNetService.start();
     }
-    if (!FAST_SYNC_STATS_MODE) {
-      MetricsUtil.init();
-    }
   }
 
   @Override
   public void shutdown() {
     this.shutdownServices();
-    if (!Args.getInstance().isSolidityNode() && (!Args.getInstance().p2pDisable)) {
+    if (!Args.getInstance().isSolidityNode() && !Args.getInstance().p2pDisable) {
       tronNetService.close();
     }
     consensusService.stop();
     if (!FAST_SYNC_STATS_MODE) {
       eventService.close();
+    }
+    if (solidityNode != null) {
+      solidityNode.close();
     }
     dbManager.close();
     shutdown.countDown();

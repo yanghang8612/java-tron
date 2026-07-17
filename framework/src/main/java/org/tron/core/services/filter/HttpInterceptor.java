@@ -1,6 +1,5 @@
 package org.tron.core.services.filter;
 
-import com.google.common.base.Strings;
 import java.io.IOException;
 import javax.servlet.ServletException;
 import javax.servlet.Filter;
@@ -11,6 +10,8 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.eclipse.jetty.http.BadMessageException;
+import org.eclipse.jetty.http.HttpStatus;
 import org.tron.common.prometheus.MetricKeys;
 import org.tron.common.prometheus.MetricLabels;
 import org.tron.common.prometheus.Metrics;
@@ -75,6 +76,10 @@ public class HttpInterceptor implements Filter {
       }
       MetricsUtil.meterMark(MetricsKey.NET_API_QPS, 1);
       MetricsUtil.meterMark(MetricsKey.NET_API_FAIL_QPS, 1);
+      if (e instanceof BadMessageException
+          && ((BadMessageException) e).getCode() == HttpStatus.PAYLOAD_TOO_LARGE_413) {
+        throw (BadMessageException) e;
+      }
     }
   }
 
@@ -82,4 +87,3 @@ public class HttpInterceptor implements Filter {
   public void destroy() {
   }
 }
-

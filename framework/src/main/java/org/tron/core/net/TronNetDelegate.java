@@ -114,7 +114,9 @@ public class TronNetDelegate {
   @PostConstruct
   public void init() {
     hitThread =  new Thread(() -> {
-      LockSupport.park();
+      while (!hitDown && !Thread.currentThread().isInterrupted()) {
+        LockSupport.park();
+      }
       // to Guarantee Some other thread invokes unpark with the current thread as the target
       if (hitDown && exit) {
         System.exit(0);
@@ -236,6 +238,19 @@ public class TronNetDelegate {
     }
   }
 
+  public void pushVerifiedBlock(BlockCapsule block) throws P2pException {
+    block.generatedByMyself = true;
+    long start = System.currentTimeMillis();
+    processBlock(block, true);
+    if (!hitDown) {
+      logger.info("Push block cost: {} ms, blockNum: {}, blockHash: {}, trx count: {}.",
+          System.currentTimeMillis() - start,
+          block.getNum(),
+          block.getBlockId(),
+          block.getTransactions().size());
+    }
+  }
+
   public void processBlock(BlockCapsule block, boolean isSync) throws P2pException {
     if (!hitDown && dbManager.getLatestSolidityNumShutDown() > 0
         && dbManager.getLatestSolidityNumShutDown() == dbManager.getDynamicPropertiesStore()
@@ -309,7 +324,7 @@ public class TronNetDelegate {
         logger.error("Process block failed, {}, reason: {}", blockId.getString(), e.getMessage());
         if (e instanceof BadBlockException
                 && ((BadBlockException) e).getType().equals(CALC_MERKLE_ROOT_FAILED)) {
-          throw new P2pException(TypeEnum.BLOCK_MERKLE_ERROR, e);
+          throw new P2pException(TypeEnum.BLOCK_MERKLE_INVALID, e);
         } else {
           throw new P2pException(TypeEnum.BAD_BLOCK, e);
         }
@@ -348,10 +363,10 @@ public class TronNetDelegate {
       flag = block.validateSignature(dbManager.getDynamicPropertiesStore(),
               dbManager.getAccountStore());
     } catch (Exception e) {
-      throw new P2pException(TypeEnum.BLOCK_SIGN_ERROR, e);
+      throw new P2pException(TypeEnum.BLOCK_SIGN_INVALID, e);
     }
     if (!flag) {
-      throw new P2pException(TypeEnum.BLOCK_SIGN_ERROR, "valid signature failed.");
+      throw new P2pException(TypeEnum.BLOCK_SIGN_INVALID, "valid signature failed.");
     }
   }
 
@@ -360,6 +375,11 @@ public class TronNetDelegate {
     if (block.getTimeStamp() - time > timeout) {
       throw new P2pException(TypeEnum.BAD_BLOCK,
               "time:" + time + ",block time:" + block.getTimeStamp());
+    }
+    try {
+      block.validateMerkleRoot();
+    } catch (BadBlockException e) {
+      throw new P2pException(TypeEnum.BLOCK_MERKLE_INVALID, e.getMessage());
     }
     validSignature(block);
     return witnessScheduleStore.getActiveWitnesses().contains(block.getWitnessAddress());
@@ -396,6 +416,10 @@ public class TronNetDelegate {
     long headNum = chainBaseManager.getHeadBlockNum();
     long solidNum = chainBaseManager.getSolidBlockId().getNum();
     return headNum - solidNum >= maxUnsolidifiedBlocks;
+  }
+
+  public int getCachedTransactionSize() {
+    return dbManager.getCachedTransactionSize();
   }
 
 }
