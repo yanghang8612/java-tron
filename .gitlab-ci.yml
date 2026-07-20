@@ -21,7 +21,7 @@ build_job:
     - short_sha=$(git rev-parse --short=8 $CI_COMMIT_SHA)
     - |
       if [ -n "$CI_COMMIT_TAG" ]; then
-        short_sha="$short_sha:$CI_COMMIT_TAG"
+        short_sha="${short_sha}_${CI_COMMIT_TAG}"
       fi
     - log "当前编译的版本号为：$short_sha"
     #    - sed -i "s/1\.0\.0/$short_sha/g" src/main/java/org/tron/http/HealthServlet.java
@@ -30,11 +30,11 @@ build_job:
     - log "编译成功...tronlink-statics:$short_sha.jar"
     #  拷贝到指定目录
     - cp -f ./build/libs/FullNode.jar /data/tronlink-backend/FullNode/FullNode:$short_sha.jar
-  only:
-    - master
-    - merge_requests
-    - tags
-    - main_tronlink
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+    - if: '$CI_COMMIT_BRANCH == "main_tronlink"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_TAG'
   allow_failure: false
 
 upload_job:
@@ -47,11 +47,15 @@ upload_job:
     - short_sha=$(git rev-parse --short=8 "$CI_COMMIT_SHA")
     - |
       if [ -n "$CI_COMMIT_TAG" ]; then
-        short_sha="$short_sha:$CI_COMMIT_TAG"
+        export VERSION="${short_sha}_${CI_COMMIT_TAG}"
+        export ZIP_VERSION="${short_sha}_${CI_COMMIT_TAG}"
+      else
+        export VERSION="$short_sha"
+        export ZIP_VERSION="$short_sha"
       fi
-      echo "使用版本号：$short_sha"
-      export VERSION="$short_sha"
+      echo "使用版本号：$VERSION"
 
+    - cp -f scripts/s3_utils.py /data/tronlink-backend/FullNode/s3_utils.py
     - cp -f scripts/s3up.py /data/tronlink-backend/FullNode/s3up.py
     - cp -f scripts/s3up2.py /data/tronlink-backend/FullNode/s3up2.py
 
@@ -59,7 +63,7 @@ upload_job:
 
     - JAR_NAME="FullNode:${VERSION}.jar"
     - ASC_NAME="${JAR_NAME}.asc"
-    - ZIP_NAME="buildsign:${VERSION}.zip"
+    - ZIP_NAME="FullNode_${ZIP_VERSION}.zip"
 
     - echo "准备签名：$JAR_NAME"
     - gpg --batch --yes --armor --sign --local-user 993261E937FFD00CBEAD76F318F3C1F8D9FC809B "$JAR_NAME"
@@ -70,17 +74,17 @@ upload_job:
     - zip -j "$ZIP_NAME" "$JAR_NAME" "$ASC_NAME"
     - echo "打包完成：$ZIP_NAME"
 
-    - python3 ../s3up.py "$ZIP_NAME" tronlink-fullnode
-    - python3 ../s3up2.py "$ZIP_NAME" tronlink-fullnode
+    - python3 s3up.py "$ZIP_NAME" tronlink-FullNode
+    - python3 s3up2.py "$ZIP_NAME" tronlink-FullNode
     - echo "上传成功 -> $ZIP_NAME"
 
     - rm -f "$ZIP_NAME" "$JAR_NAME" "$ASC_NAME"
-    - rm -f s3up.py s3up2.py
-  only:
-    - master
-    - merge_requests
-    - tags
-    - main_tronlink
+    - rm -f s3_utils.py s3up.py s3up2.py
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+    - if: '$CI_COMMIT_BRANCH == "main_tronlink"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_TAG'
   allow_failure: false
 
 
@@ -91,8 +95,10 @@ deploy_test:
   script:
     - chmod +x scripts/deploy.sh
     - ./scripts/deploy.sh
-  only:
-    - master
-    - merge_requests
-    - main_tronlink
-  allow_failure: true
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+    - if: '$CI_COMMIT_BRANCH == "main_tronlink"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  # deploy.sh 自动判断是否需要部署（有变更或服务不健康才执行），
+  # 无需部署时 exit 0，真实部署失败才非零退出，所以改为 false。
+  allow_failure: false

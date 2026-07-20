@@ -8,7 +8,7 @@ log() {
 
 short_sha=$(git rev-parse --short=8 "$CI_COMMIT_SHA")
 if [[ -n "$CI_COMMIT_TAG" ]]; then
-  short_sha="$short_sha:$CI_COMMIT_TAG"
+  short_sha="${short_sha}_${CI_COMMIT_TAG}"
 fi
 
 log "Commit Message: $CI_COMMIT_MESSAGE"
@@ -25,9 +25,9 @@ log "开始部署...$SERVICE:$short_sha.jar"
 
 cd /data/${SERVICE}/
 
-aws s3 cp "s3://tronlink-artifacts-dev/tronlink-fullnode/buildsign:$short_sha.zip" "buildsign:$short_sha.zip"
+aws s3 cp "s3://tronlink-dev/backend/tronlink-FullNode/${SERVICE}_$short_sha.zip" "${SERVICE}_$short_sha.zip"
 
-unzip -o "buildsign:$short_sha.zip"
+unzip -o "${SERVICE}_$short_sha.zip"
 
 mv -f "${SERVICE}:$short_sha.jar" "${SERVICE}.jar"
 
@@ -35,4 +35,4 @@ sudo /usr/local/bin/supervisorctl restart fullnode
 
 log "等待启动...$SERVICE:$short_sha.jar"
 
-rm -f "buildsign:$short_sha.zip" "statics-server:$short_sha.jar.asc"
+rm -f "${SERVICE}_$short_sha.zip" "${SERVICE}:$short_sha.jar.asc"
