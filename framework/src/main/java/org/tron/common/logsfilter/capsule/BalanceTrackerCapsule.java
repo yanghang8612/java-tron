@@ -17,17 +17,14 @@ import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.capsule.TransactionCapsule;
 import org.tron.core.db.accountchange.AccountChangeRecord;
 
-/**
- * === TronLink Feature ===
- */
+/** === TronLink Feature === */
 @Slf4j
 public class BalanceTrackerCapsule extends TriggerCapsule {
 
-  @Getter
-  @Setter
-  private BalanceTrackerTrigger trc20TrackerTrigger;
+  @Getter @Setter private BalanceTrackerTrigger trc20TrackerTrigger;
 
-  public BalanceTrackerCapsule(BlockCapsule block, Map<String, AccountChangeRecord.AccountInfo> accountInfoMap) {
+  public BalanceTrackerCapsule(
+      BlockCapsule block, Map<String, AccountChangeRecord.AccountInfo> accountInfoMap) {
     trc20TrackerTrigger = new BalanceTrackerTrigger();
     trc20TrackerTrigger.setBlockHash(block.getBlockId().toString());
     trc20TrackerTrigger.setParentHash(block.getParentHash().toString());
@@ -36,8 +33,12 @@ public class BalanceTrackerCapsule extends TriggerCapsule {
     List<TransactionCapsule> transactionCapsules = block.getTransactions();
     List<LogInfo> logInfos = new ArrayList<>();
     for (TransactionCapsule transactionCapsule : transactionCapsules) {
-      List<LogInfo> innerList = transactionCapsule.getTrxTrace().getTransactionContext()
-          .getProgramResult().getLogInfoList();
+      List<LogInfo> innerList =
+          transactionCapsule
+              .getTrxTrace()
+              .getTransactionContext()
+              .getProgramResult()
+              .getLogInfoList();
       if (innerList != null && !innerList.isEmpty()) {
         logInfos.addAll(innerList);
       }
@@ -45,8 +46,10 @@ public class BalanceTrackerCapsule extends TriggerCapsule {
     if (!logInfos.isEmpty()) {
       Map<String, Object> result = TRC20Utils.parseTrc20AssetStatusPojo(block, logInfos);
       trc20TrackerTrigger.setAssetStatusList((List<AssetStatusPojo>) result.get(TRC20Utils.TRC20));
-      trc20TrackerTrigger.setTrc721InfoList((List<BalanceTrackerTrigger.Trc721Info>) result.get(TRC20Utils.TRC721));
-      trc20TrackerTrigger.setTrc1155InfoList((List<BalanceTrackerTrigger.Trc1155Info>) result.get(TRC20Utils.TRC1155));
+      trc20TrackerTrigger.setTrc721InfoList(
+          (List<BalanceTrackerTrigger.Trc721Info>) result.get(TRC20Utils.TRC721));
+      trc20TrackerTrigger.setTrc1155InfoList(
+          (List<BalanceTrackerTrigger.Trc1155Info>) result.get(TRC20Utils.TRC1155));
     }
 
     List<BalanceTrackerTrigger.Trc10StatusPojo> trc10StatusList = new LinkedList<>();
@@ -54,22 +57,25 @@ public class BalanceTrackerCapsule extends TriggerCapsule {
     handlerTrxAndTrc10(accountInfoMap, trxStatusList, trc10StatusList);
     trc20TrackerTrigger.setTrxStatusList(trxStatusList);
     trc20TrackerTrigger.setTrc10StatusList(trc10StatusList);
-
   }
 
-  private void handlerTrxAndTrc10(Map<String, AccountChangeRecord.AccountInfo> accountInfoMap,
-                                  List<BalanceTrackerTrigger.TrxStatusPojo> trxStatusList,
-                                  List<BalanceTrackerTrigger.Trc10StatusPojo> trc10StatusList) {
+  private void handlerTrxAndTrc10(
+      Map<String, AccountChangeRecord.AccountInfo> accountInfoMap,
+      List<BalanceTrackerTrigger.TrxStatusPojo> trxStatusList,
+      List<BalanceTrackerTrigger.Trc10StatusPojo> trc10StatusList) {
     if (CollectionUtils.isEmpty(accountInfoMap)) {
       return;
     }
 
-    accountInfoMap.values().stream().forEach(info -> {
-      final BalanceTrackerTrigger.TrxStatusPojo trxStatusPojo = converterTrx(info);
-      trxStatusList.add(trxStatusPojo);
-      final List<BalanceTrackerTrigger.Trc10StatusPojo> trc10List = converterTrc10(info.getAccountAddress(), info.getTrc10Map());
-      trc10StatusList.addAll(trc10List);
-    });
+    accountInfoMap.values().stream()
+        .forEach(
+            info -> {
+              final BalanceTrackerTrigger.TrxStatusPojo trxStatusPojo = converterTrx(info);
+              trxStatusList.add(trxStatusPojo);
+              final List<BalanceTrackerTrigger.Trc10StatusPojo> trc10List =
+                  converterTrc10(info.getAccountAddress(), info.getTrc10Map());
+              trc10StatusList.addAll(trc10List);
+            });
   }
 
   private BalanceTrackerTrigger.TrxStatusPojo converterTrx(AccountChangeRecord.AccountInfo info) {
@@ -80,51 +86,67 @@ public class BalanceTrackerCapsule extends TriggerCapsule {
     trx.setBalance(String.valueOf(info.getBalance()));
     trx.setFrozenBalance(String.valueOf(info.getFrozenBalance()));
     trx.setEnergyFrozenBalance(String.valueOf(info.getEnergyFrozenBalance()));
-    trx.setDelegatedFrozenBalanceForEnergy(String.valueOf(info.getDelegatedFrozenBalanceForEnergy()));
-    trx.setDelegatedFrozenBalanceForBandwidth(String.valueOf(info.getDelegatedFrozenBalanceForBandwidth()));
+    trx.setDelegatedFrozenBalanceForEnergy(
+        String.valueOf(info.getDelegatedFrozenBalanceForEnergy()));
+    trx.setDelegatedFrozenBalanceForBandwidth(
+        String.valueOf(info.getDelegatedFrozenBalanceForBandwidth()));
     trx.setFrozenSupplyBalance(String.valueOf(info.getFrozenSupplyBalance()));
-    trx.setAcquiredDelegatedFrozenBalanceForEnergy(String.valueOf(info.getAcquiredDelegatedFrozenBalanceForEnergy()));
-    trx.setAcquiredDelegatedFrozenBalanceForBandwidth(String.valueOf(info.getAcquiredDelegatedFrozenBalanceForBandwidth()));
+    trx.setAcquiredDelegatedFrozenBalanceForEnergy(
+        String.valueOf(info.getAcquiredDelegatedFrozenBalanceForEnergy()));
+    trx.setAcquiredDelegatedFrozenBalanceForBandwidth(
+        String.valueOf(info.getAcquiredDelegatedFrozenBalanceForBandwidth()));
 
     trx.setIncrementBalance(String.valueOf(info.getIncrementBalance()));
     trx.setIncrementFrozenBalance(String.valueOf(info.getIncrementFrozenBalance()));
     trx.setIncrementEnergyFrozenBalance(String.valueOf(info.getIncrementEnergyFrozenBalance()));
-    trx.setIncrementDelegatedFrozenBalanceForEnergy(String.valueOf(info.getIncrementDelegatedFrozenBalanceForEnergy()));
-    trx.setIncrementDelegatedFrozenBalanceForBandwidth(String.valueOf(info.getIncrementDelegatedFrozenBalanceForBandwidth()));
+    trx.setIncrementDelegatedFrozenBalanceForEnergy(
+        String.valueOf(info.getIncrementDelegatedFrozenBalanceForEnergy()));
+    trx.setIncrementDelegatedFrozenBalanceForBandwidth(
+        String.valueOf(info.getIncrementDelegatedFrozenBalanceForBandwidth()));
     trx.setIncrementFrozenSupplyBalance(String.valueOf(info.getIncrementFrozenSupplyBalance()));
-    trx.setIncrementAcquiredDelegatedFrozenBalanceForEnergy(String.valueOf(info.getIncrementAcquiredDelegatedFrozenBalanceForEnergy()));
-    trx.setIncrementAcquiredDelegatedFrozenBalanceForBandwidth(String.valueOf(info.getIncrementAcquiredDelegatedFrozenBalanceForBandwidth()));
+    trx.setIncrementAcquiredDelegatedFrozenBalanceForEnergy(
+        String.valueOf(info.getIncrementAcquiredDelegatedFrozenBalanceForEnergy()));
+    trx.setIncrementAcquiredDelegatedFrozenBalanceForBandwidth(
+        String.valueOf(info.getIncrementAcquiredDelegatedFrozenBalanceForBandwidth()));
 
     trx.setFrozenBalanceForBandwidthV2(String.valueOf(info.getFrozenBalanceForBandwidthV2()));
     trx.setFrozenBalanceForEnergyV2(String.valueOf(info.getFrozenBalanceForEnergyV2()));
     trx.setFrozenForTronPowerV2(String.valueOf(info.getFrozenForTronPowerV2()));
-    trx.setDelegatedFrozenV2BalanceForBandwidth(String.valueOf(info.getDelegatedFrozenV2BalanceForBandwidth()));
-    trx.setDelegatedFrozenV2BalanceForEnergy(String.valueOf(info.getDelegatedFrozenV2BalanceForEnergy()));
+    trx.setDelegatedFrozenV2BalanceForBandwidth(
+        String.valueOf(info.getDelegatedFrozenV2BalanceForBandwidth()));
+    trx.setDelegatedFrozenV2BalanceForEnergy(
+        String.valueOf(info.getDelegatedFrozenV2BalanceForEnergy()));
 
-    trx.setIncrementFrozenBalanceForBandwidthV2(String.valueOf(info.getIncrementFrozenBalanceForBandwidthV2()));
-    trx.setIncrementFrozenBalanceForEnergyV2(String.valueOf(info.getIncrementFrozenBalanceForEnergyV2()));
+    trx.setIncrementFrozenBalanceForBandwidthV2(
+        String.valueOf(info.getIncrementFrozenBalanceForBandwidthV2()));
+    trx.setIncrementFrozenBalanceForEnergyV2(
+        String.valueOf(info.getIncrementFrozenBalanceForEnergyV2()));
     trx.setIncrementFrozenForTronPowerV2(String.valueOf(info.getIncrementFrozenForTronPowerV2()));
-    trx.setIncrementDelegatedFrozenV2BalanceForBandwidth(String.valueOf(info.getIncrementDelegatedFrozenV2BalanceForBandwidth()));
-    trx.setIncrementDelegatedFrozenV2BalanceForEnergy(String.valueOf(info.getIncrementDelegatedFrozenV2BalanceForEnergy()));
+    trx.setIncrementDelegatedFrozenV2BalanceForBandwidth(
+        String.valueOf(info.getIncrementDelegatedFrozenV2BalanceForBandwidth()));
+    trx.setIncrementDelegatedFrozenV2BalanceForEnergy(
+        String.valueOf(info.getIncrementDelegatedFrozenV2BalanceForEnergy()));
 
     return trx;
   }
 
-  private List<BalanceTrackerTrigger.Trc10StatusPojo> converterTrc10(String accountAddress,
-                                                                   Map<String, AccountChangeRecord.Trc10Info> trc10Map) {
+  private List<BalanceTrackerTrigger.Trc10StatusPojo> converterTrc10(
+      String accountAddress, Map<String, AccountChangeRecord.Trc10Info> trc10Map) {
     List<BalanceTrackerTrigger.Trc10StatusPojo> list = new LinkedList<>();
     if (CollectionUtils.isEmpty(trc10Map)) {
       return list;
     }
 
-    trc10Map.forEach((key, info) -> {
-      BalanceTrackerTrigger.Trc10StatusPojo trc10Info = new BalanceTrackerTrigger.Trc10StatusPojo();
-      trc10Info.setAccountAddress(accountAddress);
-      trc10Info.setTokenAddress(info.getTokenId());
-      trc10Info.setBalance(String.valueOf(info.getBalance()));
-      trc10Info.setIncrementBalance(String.valueOf(info.getIncrementBalance()));
-      list.add(trc10Info);
-    });
+    trc10Map.forEach(
+        (key, info) -> {
+          BalanceTrackerTrigger.Trc10StatusPojo trc10Info =
+              new BalanceTrackerTrigger.Trc10StatusPojo();
+          trc10Info.setAccountAddress(accountAddress);
+          trc10Info.setTokenAddress(info.getTokenId());
+          trc10Info.setBalance(String.valueOf(info.getBalance()));
+          trc10Info.setIncrementBalance(String.valueOf(info.getIncrementBalance()));
+          list.add(trc10Info);
+        });
     return list;
   }
 
@@ -132,6 +154,4 @@ public class BalanceTrackerCapsule extends TriggerCapsule {
   public void processTrigger() {
     EventPluginLoader.getInstance().postTRC20TrackerTrigger(trc20TrackerTrigger);
   }
-
-
 }

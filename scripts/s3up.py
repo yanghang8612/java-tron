@@ -1,32 +1,23 @@
 # -*- coding: utf-8 -*-
 import sys
-import boto3
+from s3_utils import sanitize_path, validate_local_path, upload_file_using_client
 
-def upload_file_using_client(file_path, bucket_name, s3_key):
-    # 创建 S3 客户端
-    s3 = boto3.client('s3')
+ALLOWED_MODULES = {'tronlink-FullNode'}
 
-    try:
-        # 上传文件
-        s3.upload_file(
-            Filename=file_path,
-            Bucket=bucket_name,
-            Key=s3_key,
-            ExtraArgs={
-                #'ACL': 'public-read',  # 设置访问权限（可选）
-                'ContentType': 'text/plain'  # 设置内容类型（可选）
-            }
-        )
-        print(f"File {local_file_path} uploaded to {s3_key}")
-    except Exception as e:
-        print(f"Error uploading file: {e}")
 
 if __name__ == "__main__":
-    # 获取第一个参数
+    if len(sys.argv) != 3:
+        print("Usage: python s3up.py <local_file_path> <module>")
+        sys.exit(1)
+
     local_file_path = sys.argv[1]
-    # S3 存储桶名称
-    s3_bucket_name = 'tronlink-artifacts-dev'
-    # S3  对象键（即上传到 S3 后的文件名和路径）
-    s3_prefix = sys.argv[2]  # 例如传入 "tronlink-server"
-    s3_object_key = f"{s3_prefix}/{local_file_path}"
-    upload_file_using_client(local_file_path, s3_bucket_name, s3_object_key)
+    s3_bucket_name = 'tronlink-dev'
+    s3_prefix = sys.argv[2]
+
+    if s3_prefix not in ALLOWED_MODULES:
+        print(f"Error: unknown module '{s3_prefix}'")
+        sys.exit(1)
+    validated_path = validate_local_path(local_file_path)
+    safe_file_name = sanitize_path(validated_path)
+    s3_object_key = f"backend/{s3_prefix}/{safe_file_name}"
+    upload_file_using_client(validated_path, s3_bucket_name, s3_object_key)

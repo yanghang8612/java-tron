@@ -10,34 +10,29 @@ import org.tron.common.logsfilter.EventPluginLoader;
 import org.tron.common.logsfilter.trigger.MultiAuthTrackerTrigger;
 import org.tron.core.capsule.BlockCapsule;
 
-/**
- * === TronLink Feature ===
- */
+/** === TronLink Feature === */
 @Slf4j
 public class MultiAuthTrackerCapsule extends TriggerCapsule {
 
-    @Getter
-    @Setter
-    private MultiAuthTrackerTrigger multiAuthTrackerTrigger;
+  @Getter @Setter private MultiAuthTrackerTrigger multiAuthTrackerTrigger;
 
-    public MultiAuthTrackerCapsule(BlockCapsule block, Map<String, OwnerAuthInfo> ownerAuthMap) {
-//      logger.info("MultiAuthTrackerCapsule start, blockNum={}", block.getNum());
-      multiAuthTrackerTrigger = new MultiAuthTrackerTrigger();
-      multiAuthTrackerTrigger.setBlockHash(block.getBlockId().toString());
-      multiAuthTrackerTrigger.setParentHash(block.getParentHash().toString());
-      multiAuthTrackerTrigger.setBlockNumber(block.getNum());
-      multiAuthTrackerTrigger.setTimeStamp(block.getTimeStamp());
+  public MultiAuthTrackerCapsule(BlockCapsule block, Map<String, OwnerAuthInfo> ownerAuthMap) {
+    //      logger.info("MultiAuthTrackerCapsule start, blockNum={}", block.getNum());
+    multiAuthTrackerTrigger = new MultiAuthTrackerTrigger();
+    multiAuthTrackerTrigger.setBlockHash(block.getBlockId().toString());
+    multiAuthTrackerTrigger.setParentHash(block.getParentHash().toString());
+    multiAuthTrackerTrigger.setBlockNumber(block.getNum());
+    multiAuthTrackerTrigger.setTimeStamp(block.getTimeStamp());
 
-      if (CollectionUtils.isEmpty(ownerAuthMap)) {
-        return;
-      }
-
-      multiAuthTrackerTrigger.getAuthInfoList().addAll(ownerAuthMap.values());
+    if (CollectionUtils.isEmpty(ownerAuthMap)) {
+      return;
     }
 
-    @Override
-    public void processTrigger() {
-      EventPluginLoader.getInstance().postMultiAuthTrigger(multiAuthTrackerTrigger);
-    }
-
+    multiAuthTrackerTrigger.getAuthInfoList().addAll(ownerAuthMap.values());
   }
+
+  @Override
+  public void processTrigger() {
+    EventPluginLoader.getInstance().postMultiAuthTrigger(multiAuthTrackerTrigger);
+  }
+}

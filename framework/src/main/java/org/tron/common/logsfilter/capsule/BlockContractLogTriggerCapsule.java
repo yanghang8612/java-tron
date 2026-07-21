@@ -16,15 +16,10 @@ import org.tron.common.utils.StringUtil;
 import org.tron.core.capsule.BlockCapsule;
 import org.tron.core.capsule.TransactionCapsule;
 
-/**
- * === DeFi Feature ===
- */
+/** === DeFi Feature === */
 public class BlockContractLogTriggerCapsule extends TriggerCapsule {
 
-  @Getter
-  @Setter
-  private BlockContractLogTrigger blockContractLogTrigger;
-
+  @Getter @Setter private BlockContractLogTrigger blockContractLogTrigger;
 
   public BlockContractLogTriggerCapsule(BlockCapsule block, long solidifiedNumber) {
     blockContractLogTrigger = new BlockContractLogTrigger();
@@ -35,27 +30,31 @@ public class BlockContractLogTriggerCapsule extends TriggerCapsule {
     blockContractLogTrigger.setLatestSolidifiedBlockNumber(solidifiedNumber);
     blockContractLogTrigger.setParentHash(block.getParentBlockId().toString());
     // bloom filter
-//    BloomFilter<String> bloomFilterContractAndTopic = BloomFilter.create(Funnels.stringFunnel(
-//        Charsets.UTF_8), 80, 0.01);
-//    BloomFilter<String> bloomFilterContract = BloomFilter.create(Funnels.stringFunnel(
-//        Charsets.UTF_8), 80, 0.01);
-//    BloomFilter<String> bloomFilterTopic = BloomFilter.create(Funnels.stringFunnel(
-//        Charsets.UTF_8), 80, 0.01);
+    //    BloomFilter<String> bloomFilterContractAndTopic = BloomFilter.create(Funnels.stringFunnel(
+    //        Charsets.UTF_8), 80, 0.01);
+    //    BloomFilter<String> bloomFilterContract = BloomFilter.create(Funnels.stringFunnel(
+    //        Charsets.UTF_8), 80, 0.01);
+    //    BloomFilter<String> bloomFilterTopic = BloomFilter.create(Funnels.stringFunnel(
+    //        Charsets.UTF_8), 80, 0.01);
 
     // get transaction info
-    List<BlockContractLogTrigger.TransactionInBlock> transactionInBlockList = new ArrayList<>(block.getTransactions().size());
+    List<BlockContractLogTrigger.TransactionInBlock> transactionInBlockList =
+        new ArrayList<>(block.getTransactions().size());
     blockContractLogTrigger.setTransactionList(transactionInBlockList);
     for (int i = 0; i < block.getTransactions().size(); i++) {
       TransactionCapsule trxCapsule = block.getTransactions().get(i);
-      BlockContractLogTrigger.TransactionInBlock transactionInBlock = blockContractLogTrigger.new TransactionInBlock();
-      List<ContractTrigger> contractTriggerCapsuleList = trxCapsule.getTrxTrace().getRuntimeResult().getTriggerList();
-      if(contractTriggerCapsuleList.isEmpty()){
+      BlockContractLogTrigger.TransactionInBlock transactionInBlock =
+          blockContractLogTrigger.new TransactionInBlock();
+      List<ContractTrigger> contractTriggerCapsuleList =
+          trxCapsule.getTrxTrace().getRuntimeResult().getTriggerList();
+      if (contractTriggerCapsuleList.isEmpty()) {
         continue;
       }
-      ByteString contractAddress = ByteString.copyFrom(trxCapsule.getTrxTrace().getRuntimeResult().getContractAddress());
+      ByteString contractAddress =
+          ByteString.copyFrom(trxCapsule.getTrxTrace().getRuntimeResult().getContractAddress());
       if (contractAddress.size() > 0) {
-          transactionInBlock
-              .setContractAddress(StringUtil.encode58Check((contractAddress.toByteArray())));
+        transactionInBlock.setContractAddress(
+            StringUtil.encode58Check((contractAddress.toByteArray())));
       }
       transactionInBlock.setTransactionId(trxCapsule.getTransactionId().toString());
       transactionInBlock.setTransactionIndex(i);
@@ -64,38 +63,42 @@ public class BlockContractLogTriggerCapsule extends TriggerCapsule {
       transactionInBlock.setLogList(logTriggers);
       for (ContractTrigger trigger : contractTriggerCapsuleList) {
         // boomFilter
-//        bloomFilterContract.put(trigger.getContractAddress());
-//        if(!trigger.getLogInfo().getTopics().isEmpty()) {
-//          bloomFilterTopic.put(trigger.getLogInfo().getTopics().get(0).toHexString());
-//          bloomFilterContractAndTopic.put(
-//              trigger.getContractAddress() + trigger.getLogInfo().getTopics().get(0).toHexString());
-//        }
+        //        bloomFilterContract.put(trigger.getContractAddress());
+        //        if(!trigger.getLogInfo().getTopics().isEmpty()) {
+        //          bloomFilterTopic.put(trigger.getLogInfo().getTopics().get(0).toHexString());
+        //          bloomFilterContractAndTopic.put(
+        //              trigger.getContractAddress() +
+        // trigger.getLogInfo().getTopics().get(0).toHexString());
+        //        }
         List<String> filterNames = matchFilter(trigger);
         if (filterNames.isEmpty()) {
           continue;
         }
         trigger.setFilterNameList(filterNames);
         trigger.setBlockHash(blockContractLogTrigger.getBlockHash());
-        trigger.setLatestSolidifiedBlockNumber(blockContractLogTrigger.getLatestSolidifiedBlockNumber());
+        trigger.setLatestSolidifiedBlockNumber(
+            blockContractLogTrigger.getLatestSolidifiedBlockNumber());
         ContractLogTrigger contractLogTrigger = parseContractTriggerToLogTrigger(trigger);
         logTriggers.add(contractLogTrigger);
       }
-      if(!logTriggers.isEmpty()){
+      if (!logTriggers.isEmpty()) {
         transactionInBlockList.add(transactionInBlock);
       }
     }
-//    try {
-//      ByteArrayOutputStream outStreamContract = new ByteArrayOutputStream();
-//      ByteArrayOutputStream outStreamTopic = new ByteArrayOutputStream();
-//      ByteArrayOutputStream outStreamContractAndTopic = new ByteArrayOutputStream();
-//      bloomFilterContract.writeTo(outStreamContract);
-//      bloomFilterTopic.writeTo(outStreamTopic);
-//      bloomFilterContractAndTopic.writeTo(outStreamContractAndTopic);
-//      blockContractLogTrigger.setBloomFilterContract(outStreamContract.toByteArray());
-//      blockContractLogTrigger.setBloomFilterTopic(outStreamTopic.toByteArray());
-//      blockContractLogTrigger.setBloomFilterContractAndTopic(outStreamContractAndTopic.toByteArray());
-//    } catch (IOException ioE){
-//    }
+    //    try {
+    //      ByteArrayOutputStream outStreamContract = new ByteArrayOutputStream();
+    //      ByteArrayOutputStream outStreamTopic = new ByteArrayOutputStream();
+    //      ByteArrayOutputStream outStreamContractAndTopic = new ByteArrayOutputStream();
+    //      bloomFilterContract.writeTo(outStreamContract);
+    //      bloomFilterTopic.writeTo(outStreamTopic);
+    //      bloomFilterContractAndTopic.writeTo(outStreamContractAndTopic);
+    //      blockContractLogTrigger.setBloomFilterContract(outStreamContract.toByteArray());
+    //      blockContractLogTrigger.setBloomFilterTopic(outStreamTopic.toByteArray());
+    //
+    // blockContractLogTrigger.setBloomFilterContractAndTopic(
+    //     outStreamContractAndTopic.toByteArray());
+    //    } catch (IOException ioE){
+    //    }
   }
 
   private ContractLogTrigger parseContractTriggerToLogTrigger(ContractTrigger contractTrigger) {
