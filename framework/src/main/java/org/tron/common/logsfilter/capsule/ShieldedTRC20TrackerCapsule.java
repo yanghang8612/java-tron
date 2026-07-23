@@ -9,18 +9,13 @@ import org.tron.common.logsfilter.trigger.ShieldedTRC20TrackerTrigger;
 import org.tron.common.logsfilter.trigger.ShieldedTRC20TrackerTrigger.TransactionPojo;
 import org.tron.core.capsule.BlockCapsule;
 
-/**
- * === TronLink Feature ===
- */
+/** === TronLink Feature === */
 @Slf4j
 public class ShieldedTRC20TrackerCapsule extends TriggerCapsule {
 
-  @Getter
-  @Setter
-  ShieldedTRC20TrackerTrigger shieldedTRC20TrackerTrigger;
+  @Getter @Setter ShieldedTRC20TrackerTrigger shieldedTRC20TrackerTrigger;
 
-  public ShieldedTRC20TrackerCapsule(BlockCapsule block,
-      List<TransactionPojo> transactionList) {
+  public ShieldedTRC20TrackerCapsule(BlockCapsule block, List<TransactionPojo> transactionList) {
 
     shieldedTRC20TrackerTrigger = new ShieldedTRC20TrackerTrigger();
     shieldedTRC20TrackerTrigger.setBlockHash(block.getBlockId().toString());
@@ -30,7 +25,8 @@ public class ShieldedTRC20TrackerCapsule extends TriggerCapsule {
     if (transactionList != null && !transactionList.isEmpty()) {
       shieldedTRC20TrackerTrigger.setTransactionList(transactionList);
     }
-    //logger.info("---------------------shieldedTRC20TrackerTrigger------------------------{}", JSONObject.toJSONString(shieldedTRC20TrackerTrigger));
+    // logger.info("---------------------shieldedTRC20TrackerTrigger------------------------{}",
+    // JSONObject.toJSONString(shieldedTRC20TrackerTrigger));
 
   }
 

@@ -1,10 +1,9 @@
 package org.tron.common.logsfilter;
 
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
 import com.beust.jcommander.internal.Sets;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import java.io.File;
 import java.util.ArrayList;
@@ -20,32 +19,45 @@ import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.util.encoders.Hex;
 import org.pf4j.CompoundPluginDescriptorFinder;
 import org.pf4j.DefaultPluginManager;
+import org.pf4j.DefaultVersionManager;
 import org.pf4j.ManifestPluginDescriptorFinder;
 import org.pf4j.PluginManager;
+import org.pf4j.VersionManager;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
-import org.tron.common.logsfilter.trigger.BlockContractLogTrigger;
-import org.tron.common.logsfilter.trigger.MultiAuthTrackerTrigger;
-import org.tron.common.logsfilter.trigger.TransferTrackerTrigger;
 import org.tron.common.logsfilter.nativequeue.NativeMessageQueue;
 import org.tron.common.logsfilter.trigger.BalanceTrackerTrigger;
+import org.tron.common.logsfilter.trigger.BlockContractLogTrigger;
 import org.tron.common.logsfilter.trigger.BlockLogTrigger;
 import org.tron.common.logsfilter.trigger.ContractEventTrigger;
 import org.tron.common.logsfilter.trigger.ContractLogTrigger;
 import org.tron.common.logsfilter.trigger.ContractTrigger;
 import org.tron.common.logsfilter.trigger.FreezeBalanceTrigger;
 import org.tron.common.logsfilter.trigger.JustlendTrackerTrigger;
+import org.tron.common.logsfilter.trigger.MultiAuthTrackerTrigger;
 import org.tron.common.logsfilter.trigger.ShieldedTRC20TrackerTrigger;
 import org.tron.common.logsfilter.trigger.SolidityTrigger;
 import org.tron.common.logsfilter.trigger.StakeBalanceTrigger;
 import org.tron.common.logsfilter.trigger.TransactionLogTrigger;
+import org.tron.common.logsfilter.trigger.TransferTrackerTrigger;
 import org.tron.common.logsfilter.trigger.Trigger;
-import org.tron.core.Constant;
 import org.tron.core.config.args.Args;
 import org.tron.core.exception.TronError;
+import org.tron.json.JSONArray;
+import org.tron.json.JSONObject;
 
 @Slf4j(topic = "DB")
 public class EventPluginLoader {
+
+  /**
+   * Minimum event-plugin Plugin-Version compatible with this node. Bumped to 3.0.0 to reject
+   * pre-fastjson-removal builds whose worker threads would fail with NoClassDefFoundError on
+   * com.alibaba.fastjson at runtime. The previous event-plugin release is 2.2.0, so 3.0.0 is the
+   * first version that ships the Jackson replacement.
+   */
+  static final String MIN_PLUGIN_VERSION = "3.0.0";
+
+  private static final VersionManager VERSION_MANAGER = new DefaultVersionManager();
 
   private static EventPluginLoader instance;
 
@@ -130,8 +142,7 @@ public class EventPluginLoader {
   // === DeFi Feature ===
   private Map<String, Map<String, List<FilterQuery>>> filterQueryMap = null;
 
-  @Getter
-  private boolean useNativeQueue = false;
+  @Getter private boolean useNativeQueue = false;
 
   // === DeFi Feature ===
   private long filterQueryLastUpdate = 0;
@@ -153,15 +164,30 @@ public class EventPluginLoader {
       long blockNumber = trigger.getBlockNumber();
 
       Set<String> matchedFilterName = new HashSet<>();
-      Map<String, Map<String, List<FilterQuery>>> filterQueryMap = EventPluginLoader.getInstance()
-          .getFilterQuery();
+      Map<String, Map<String, List<FilterQuery>>> filterQueryMap =
+          EventPluginLoader.getInstance().getFilterQuery();
       if (Objects.isNull(filterQueryMap) || filterQueryMap.isEmpty()) {
         return new ArrayList<>(0);
       }
+
+      // ContractEventTrigger instances built from decoded ABI events may not carry the raw
+      // LogInfo used by the topic-indexed fast path. Fall back to the legacy address/topic
+      // predicates so both decoded contract events and raw contract logs remain filterable.
+      if (trigger.getLogInfo() == null) {
+        for (FilterQuery candidate : EventPluginLoader.getInstance().filterQuery) {
+          if (matchesBlockRange(blockNumber, candidate)
+              && filterContractAddress(trigger, candidate.getContractAddressList())
+              && filterContractTopicList(trigger, candidate.getContractTopicList())) {
+            matchedFilterName.add(candidate.getName());
+          }
+        }
+        return new ArrayList<>(matchedFilterName);
+      }
+
       List<List<FilterQuery>> maybeMatchFilters = new ArrayList<>(4);
       if (!trigger.getLogInfo().getTopics().isEmpty()) {
         String topic0 = trigger.getLogInfo().getTopics().get(0).toHexString();
-        if(filterQueryMap.containsKey(topic0)) {
+        if (filterQueryMap.containsKey(topic0)) {
           Map<String, List<FilterQuery>> filterQueryMapForTopic = filterQueryMap.get(topic0);
           if (filterQueryMapForTopic.containsKey(trigger.getContractAddress())) {
             maybeMatchFilters.add(filterQueryMapForTopic.get(trigger.getContractAddress()));
@@ -189,8 +215,11 @@ public class EventPluginLoader {
           boolean matched = false;
           if (fromBlockNumber == FilterQuery.LATEST_BLOCK_NUM
               || toBlockNumber == FilterQuery.EARLIEST_BLOCK_NUM) {
-            logger.error("invalid filter {}: fromBlockNumber: {}, toBlockNumber: {}",
-                maybeMatchFilter.getName(), fromBlockNumber, toBlockNumber);
+            logger.error(
+                "invalid filter {}: fromBlockNumber: {}, toBlockNumber: {}",
+                maybeMatchFilter.getName(),
+                fromBlockNumber,
+                toBlockNumber);
             continue;
           }
           if (toBlockNumber == FilterQuery.LATEST_BLOCK_NUM) {
@@ -218,16 +247,36 @@ public class EventPluginLoader {
         }
       }
       return new ArrayList<>(matchedFilterName);
-    } catch (Exception e){
+    } catch (Exception e) {
       logger.error("matchFilter failed trigger:{}", trigger, e);
       return Lists.newArrayList("default");
     }
   }
 
+  private static boolean matchesBlockRange(long blockNumber, FilterQuery filterQuery) {
+    long fromBlockNumber = filterQuery.getFromBlock();
+    long toBlockNumber = filterQuery.getToBlock();
+    if (fromBlockNumber == FilterQuery.LATEST_BLOCK_NUM
+        || toBlockNumber == FilterQuery.EARLIEST_BLOCK_NUM) {
+      logger.error(
+          "invalid filter {}: fromBlockNumber: {}, toBlockNumber: {}",
+          filterQuery.getName(),
+          fromBlockNumber,
+          toBlockNumber);
+      return false;
+    }
+    boolean afterStart =
+        fromBlockNumber == FilterQuery.EARLIEST_BLOCK_NUM || blockNumber >= fromBlockNumber;
+    boolean beforeEnd =
+        toBlockNumber == FilterQuery.LATEST_BLOCK_NUM || blockNumber <= toBlockNumber;
+    return afterStart && beforeEnd;
+  }
+
   private static boolean filterContractAddress(ContractTrigger trigger, List<String> addressList) {
-    addressList = addressList.stream().filter(item ->
-            org.apache.commons.lang3.StringUtils.isNotEmpty(item))
-        .collect(Collectors.toList());
+    addressList =
+        addressList.stream()
+            .filter(item -> org.apache.commons.lang3.StringUtils.isNotEmpty(item))
+            .collect(Collectors.toList());
     if (Objects.isNull(addressList) || addressList.isEmpty()) {
       return true;
     }
@@ -246,8 +295,10 @@ public class EventPluginLoader {
   }
 
   private static boolean filterContractTopicList(ContractTrigger trigger, List<String> topList) {
-    topList = topList.stream().filter(item -> org.apache.commons.lang3.StringUtils.isNotEmpty(item))
-        .collect(Collectors.toList());
+    topList =
+        topList.stream()
+            .filter(item -> org.apache.commons.lang3.StringUtils.isNotEmpty(item))
+            .collect(Collectors.toList());
     if (Objects.isNull(topList) || topList.isEmpty()) {
       return true;
     }
@@ -258,8 +309,10 @@ public class EventPluginLoader {
     } else if (trigger instanceof ContractEventTrigger) {
       hset = new HashSet<>(((ContractEventTrigger) trigger).getTopicMap().values());
     } else if (trigger != null) {
-      hset = trigger.getLogInfo().getClonedTopics()
-          .stream().map(Hex::toHexString).collect(Collectors.toSet());
+      hset =
+          trigger.getLogInfo().getClonedTopics().stream()
+              .map(Hex::toHexString)
+              .collect(Collectors.toSet());
     }
 
     for (String top : topList) {
@@ -282,17 +335,19 @@ public class EventPluginLoader {
       return false;
     }
 
-    triggerConfigList.forEach(triggerConfig -> {
-      setSingleTriggerConfig(triggerConfig);
-    });
+    triggerConfigList.forEach(
+        triggerConfig -> {
+          setSingleTriggerConfig(triggerConfig);
+        });
 
     // === JustLend Feature ===
-    if (justlendTrackerTriggerEnable &&
-        (CollectionUtils.isEmpty(config.getJustlendTokens()) || StringUtils.isEmpty(config.getJustlendRentMarket()))) {
+    if (justlendTrackerTriggerEnable
+        && (CollectionUtils.isEmpty(config.getJustlendTokens())
+            || StringUtils.isEmpty(config.getJustlendRentMarket()))) {
       throw new TronError(
-          String.format("Node type is JustLend, `%s` & `%s` must be configured",
-              Constant.EVENT_SUBSCRIBE_JUSTLEND_TOKENS,
-              Constant.EVENT_SUBSCRIBE_JUSTLEND_RENT_MARKET),
+          String.format(
+              "Node type is JustLend, `%s` & `%s` must be configured",
+              "event.subscribe.justlend.token.list", "event.subscribe.justlend.rent.market"),
           TronError.ErrCode.EVENT_SUBSCRIBE_INIT);
     }
 
@@ -313,17 +368,15 @@ public class EventPluginLoader {
     setPluginConfig();
 
     // === JustLend Feature ===
-    if (justlendTrackerTriggerEnable &&
-        (CollectionUtils.isEmpty(config.getJustlendTokens()) || StringUtils.isEmpty(config.getJustlendRentMarket()))) {
+    if (justlendTrackerTriggerEnable
+        && (CollectionUtils.isEmpty(config.getJustlendTokens())
+            || StringUtils.isEmpty(config.getJustlendRentMarket()))) {
       throw new TronError(
-          String.format("Node type is JustLend, `%s` & `%s` must be configured",
-              Constant.EVENT_SUBSCRIBE_JUSTLEND_TOKENS,
-              Constant.EVENT_SUBSCRIBE_JUSTLEND_RENT_MARKET),
+          String.format(
+              "Node type is JustLend, `%s` & `%s` must be configured",
+              "event.subscribe.justlend.token.list", "event.subscribe.justlend.rent.market"),
           TronError.ErrCode.EVENT_SUBSCRIBE_INIT);
     }
-    this.justlendTokens = config.getJustlendTokens();
-    this.justlendRentMarket = config.getJustlendRentMarket();
-
     if (Objects.nonNull(eventListeners)) {
       eventListeners.forEach(listener -> listener.start());
     }
@@ -345,6 +398,12 @@ public class EventPluginLoader {
 
     useNativeQueue = config.isUseNativeQueue();
 
+    // === JustLend Feature ===
+    // Populate for both native-queue and plugin modes. JustlendTrackerCapsule reads these
+    // fields from the loader singleton regardless of the selected transport.
+    this.justlendTokens = config.getJustlendTokens();
+    this.justlendRentMarket = config.getJustlendRentMarket();
+
     if (config.isUseNativeQueue()) {
       return launchNativeQueue(config);
     }
@@ -364,9 +423,10 @@ public class EventPluginLoader {
     // set db config to plugin
     eventListeners.forEach(listener -> listener.setDBConfig(this.dbConfig));
 
-    triggerConfigList.forEach(triggerConfig -> {
-      setSingleTriggerConfig(triggerConfig);
-    });
+    triggerConfigList.forEach(
+        triggerConfig -> {
+          setSingleTriggerConfig(triggerConfig);
+        });
   }
 
   private void setSingleTriggerConfig(TriggerConfig triggerConfig) {
@@ -385,8 +445,8 @@ public class EventPluginLoader {
         setPluginTopic(Trigger.BLOCK_TRIGGER, triggerConfig.getTopic());
       }
 
-    } else if (EventPluginConfig.TRANSACTION_TRIGGER_NAME
-        .equalsIgnoreCase(triggerConfig.getTriggerName())) {
+    } else if (EventPluginConfig.TRANSACTION_TRIGGER_NAME.equalsIgnoreCase(
+        triggerConfig.getTriggerName())) {
       if (triggerConfig.isEnabled()) {
         transactionLogTriggerEnable = true;
         if (triggerConfig.isEthCompatible()) {
@@ -405,8 +465,8 @@ public class EventPluginLoader {
         setPluginTopic(Trigger.TRANSACTION_TRIGGER, triggerConfig.getTopic());
       }
 
-    } else if (EventPluginConfig.CONTRACTEVENT_TRIGGER_NAME
-        .equalsIgnoreCase(triggerConfig.getTriggerName())) {
+    } else if (EventPluginConfig.CONTRACTEVENT_TRIGGER_NAME.equalsIgnoreCase(
+        triggerConfig.getTriggerName())) {
       if (triggerConfig.isEnabled()) {
         contractEventTriggerEnable = true;
       } else {
@@ -417,8 +477,8 @@ public class EventPluginLoader {
         setPluginTopic(Trigger.CONTRACTEVENT_TRIGGER, triggerConfig.getTopic());
       }
 
-    } else if (EventPluginConfig.CONTRACTLOG_TRIGGER_NAME
-        .equalsIgnoreCase(triggerConfig.getTriggerName())) {
+    } else if (EventPluginConfig.CONTRACTLOG_TRIGGER_NAME.equalsIgnoreCase(
+        triggerConfig.getTriggerName())) {
       if (triggerConfig.isEnabled()) {
         contractLogTriggerEnable = true;
         if (triggerConfig.isRedundancy()) {
@@ -432,8 +492,8 @@ public class EventPluginLoader {
       if (!useNativeQueue) {
         setPluginTopic(Trigger.CONTRACTLOG_TRIGGER, triggerConfig.getTopic());
       }
-    } else if (EventPluginConfig.SOLIDITY_TRIGGER_NAME
-        .equalsIgnoreCase(triggerConfig.getTriggerName())) {
+    } else if (EventPluginConfig.SOLIDITY_TRIGGER_NAME.equalsIgnoreCase(
+        triggerConfig.getTriggerName())) {
       if (triggerConfig.isEnabled()) {
         solidityTriggerEnable = true;
       } else {
@@ -442,8 +502,8 @@ public class EventPluginLoader {
       if (!useNativeQueue) {
         setPluginTopic(Trigger.SOLIDITY_TRIGGER, triggerConfig.getTopic());
       }
-    } else if (EventPluginConfig.SOLIDITY_EVENT_NAME
-        .equalsIgnoreCase(triggerConfig.getTriggerName())) {
+    } else if (EventPluginConfig.SOLIDITY_EVENT_NAME.equalsIgnoreCase(
+        triggerConfig.getTriggerName())) {
       if (triggerConfig.isEnabled()) {
         solidityEventTriggerEnable = true;
       } else {
@@ -453,8 +513,8 @@ public class EventPluginLoader {
       if (!useNativeQueue) {
         setPluginTopic(Trigger.SOLIDITY_EVENT_TRIGGER, triggerConfig.getTopic());
       }
-    } else if (EventPluginConfig.SOLIDITY_LOG_NAME
-        .equalsIgnoreCase(triggerConfig.getTriggerName())) {
+    } else if (EventPluginConfig.SOLIDITY_LOG_NAME.equalsIgnoreCase(
+        triggerConfig.getTriggerName())) {
       if (triggerConfig.isEnabled()) {
         solidityLogTriggerEnable = true;
         if (triggerConfig.isRedundancy()) {
@@ -467,8 +527,8 @@ public class EventPluginLoader {
       if (!useNativeQueue) {
         setPluginTopic(Trigger.SOLIDITY_LOG_TRIGGER, triggerConfig.getTopic());
       }
-    } else if (EventPluginConfig.BLOCK_CONTRACTLOG_TRIGGER_NAME
-        .equalsIgnoreCase(triggerConfig.getTriggerName())) {
+    } else if (EventPluginConfig.BLOCK_CONTRACTLOG_TRIGGER_NAME.equalsIgnoreCase(
+        triggerConfig.getTriggerName())) {
       // === DeFi Feature ===
       if (triggerConfig.isEnabled()) {
         blockContractLogTriggerEnable = true;
@@ -478,8 +538,7 @@ public class EventPluginLoader {
       if (!useNativeQueue) {
         setPluginTopic(Trigger.BLOCK_CONTRACTLOG_TRIGGER, triggerConfig.getTopic());
       }
-    } else if (EventPluginConfig.BALANCE_TRACKER
-        .equalsIgnoreCase(triggerConfig.getTriggerName())) {
+    } else if (EventPluginConfig.BALANCE_TRACKER.equalsIgnoreCase(triggerConfig.getTriggerName())) {
       // === TronLink Feature ===
       if (triggerConfig.isEnabled()) {
         balanceTrackerTriggerEnable = true;
@@ -489,8 +548,8 @@ public class EventPluginLoader {
       if (!useNativeQueue) {
         setPluginTopic(Trigger.TRC20TRACKER_TRIGGER, triggerConfig.getTopic());
       }
-    } else if (EventPluginConfig.TRANSFER_TRACKER
-        .equalsIgnoreCase(triggerConfig.getTriggerName())) {
+    } else if (EventPluginConfig.TRANSFER_TRACKER.equalsIgnoreCase(
+        triggerConfig.getTriggerName())) {
       // === TronLink Feature ===
       if (triggerConfig.isEnabled()) {
         transferTrackerTriggerEnable = true;
@@ -498,8 +557,8 @@ public class EventPluginLoader {
       if (!useNativeQueue) {
         setPluginTopic(Trigger.TRANSFER_TRACKER_TRIGGER, triggerConfig.getTopic());
       }
-    } else if (EventPluginConfig.FREEZE_BALANCE_TRACKER
-        .equalsIgnoreCase(triggerConfig.getTriggerName())) {
+    } else if (EventPluginConfig.FREEZE_BALANCE_TRACKER.equalsIgnoreCase(
+        triggerConfig.getTriggerName())) {
       // === TronLink Feature ===
       if (triggerConfig.isEnabled()) {
         freezeBalanceTriggerEnable = true;
@@ -507,8 +566,8 @@ public class EventPluginLoader {
       if (!useNativeQueue) {
         setPluginTopic(Trigger.FREEZE_TRACKER_TRIGGER, triggerConfig.getTopic());
       }
-    } else if (EventPluginConfig.STAKE_BALANCE_TRACKER
-        .equalsIgnoreCase(triggerConfig.getTriggerName())) {
+    } else if (EventPluginConfig.STAKE_BALANCE_TRACKER.equalsIgnoreCase(
+        triggerConfig.getTriggerName())) {
       // === TronLink Feature ===
       if (triggerConfig.isEnabled()) {
         stakeBalanceTriggerEnable = true;
@@ -516,8 +575,8 @@ public class EventPluginLoader {
       if (!useNativeQueue) {
         setPluginTopic(Trigger.STAKE_TRACKER_TRIGGER, triggerConfig.getTopic());
       }
-    } else if (EventPluginConfig.MULTIAUTH_TRACKER
-        .equalsIgnoreCase(triggerConfig.getTriggerName())) {
+    } else if (EventPluginConfig.MULTIAUTH_TRACKER.equalsIgnoreCase(
+        triggerConfig.getTriggerName())) {
       // === TronLink Feature ===
       if (triggerConfig.isEnabled()) {
         multiAuthTriggerEnable = true;
@@ -525,8 +584,8 @@ public class EventPluginLoader {
       if (!useNativeQueue) {
         setPluginTopic(Trigger.MULTIAUTH_TRACKER_TRIGGER, triggerConfig.getTopic());
       }
-    } else if (EventPluginConfig.SHIELDED_TRC20_SOLIDITY_TRACKER
-        .equalsIgnoreCase(triggerConfig.getTriggerName())) {
+    } else if (EventPluginConfig.SHIELDED_TRC20_SOLIDITY_TRACKER.equalsIgnoreCase(
+        triggerConfig.getTriggerName())) {
       // === TronLink Feature ===
       if (triggerConfig.isEnabled()) {
         shieldedTRC20TrackerSolidityTriggerEnable = true;
@@ -534,8 +593,8 @@ public class EventPluginLoader {
       if (!useNativeQueue) {
         setPluginTopic(Trigger.SHIELDED_TRC20SOLIDITYTRACKER_TRIGGER, triggerConfig.getTopic());
       }
-    } else if (EventPluginConfig.SHIELDED_TRC20_TRACKER
-        .equalsIgnoreCase(triggerConfig.getTriggerName())) {
+    } else if (EventPluginConfig.SHIELDED_TRC20_TRACKER.equalsIgnoreCase(
+        triggerConfig.getTriggerName())) {
       // === TronLink Feature ===
       if (triggerConfig.isEnabled()) {
         shieldedTRC20TrackerTriggerEnable = true;
@@ -543,8 +602,8 @@ public class EventPluginLoader {
       if (!useNativeQueue) {
         setPluginTopic(Trigger.SHIELDED_TRC20TRACKER_TRIGGER, triggerConfig.getTopic());
       }
-    } else if (EventPluginConfig.JUSTLEND_TRACKER
-        .equalsIgnoreCase(triggerConfig.getTriggerName())) {
+    } else if (EventPluginConfig.JUSTLEND_TRACKER.equalsIgnoreCase(
+        triggerConfig.getTriggerName())) {
       // === JustLend Feature ===
       if (triggerConfig.isEnabled()) {
         justlendTrackerTriggerEnable = true;
@@ -560,8 +619,7 @@ public class EventPluginLoader {
       NativeMessageQueue.getInstance()
           .publishTrigger(toJsonString(trigger), trigger.getTriggerName());
     } else {
-      eventListeners.forEach(listener ->
-          listener.handleSolidityTrigger(toJsonString(trigger)));
+      eventListeners.forEach(listener -> listener.handleSolidityTrigger(toJsonString(trigger)));
     }
   }
 
@@ -574,7 +632,6 @@ public class EventPluginLoader {
   public synchronized String getJustlendRentMarket() {
     return justlendRentMarket;
   }
-
 
   public synchronized int getVersion() {
     return version;
@@ -693,18 +750,22 @@ public class EventPluginLoader {
 
     if (Objects.isNull(pluginManager)) {
 
-      pluginManager = new DefaultPluginManager(pluginPath.toPath()) {
-        @Override
-        protected CompoundPluginDescriptorFinder createPluginDescriptorFinder() {
-          return new CompoundPluginDescriptorFinder()
-              .add(new ManifestPluginDescriptorFinder());
-        }
-      };
+      pluginManager =
+          new DefaultPluginManager(pluginPath.toPath()) {
+            @Override
+            protected CompoundPluginDescriptorFinder createPluginDescriptorFinder() {
+              return new CompoundPluginDescriptorFinder().add(new ManifestPluginDescriptorFinder());
+            }
+          };
     }
 
     String pluginId = pluginManager.loadPlugin(pluginPath.toPath());
     if (StringUtils.isEmpty(pluginId)) {
       logger.error("invalid pluginID");
+      return false;
+    }
+
+    if (!isPluginVersionSupported(pluginManager, pluginId)) {
       return false;
     }
 
@@ -722,6 +783,23 @@ public class EventPluginLoader {
     return true;
   }
 
+  static boolean isPluginVersionSupported(PluginManager pm, String pluginId) {
+    String pluginVersion = pm.getPlugin(pluginId).getDescriptor().getVersion();
+    if (Strings.isNullOrEmpty(pluginVersion)) {
+      return false;
+    }
+    boolean isSupported = VERSION_MANAGER.compareVersions(pluginVersion, MIN_PLUGIN_VERSION) >= 0;
+
+    if (!isSupported) {
+      logger.error(
+          "event-plugin '{}' version {} is older than required {}, please upgrade event-plugin",
+          pluginId,
+          pluginVersion,
+          MIN_PLUGIN_VERSION);
+    }
+    return isSupported;
+  }
+
   public void stopPlugin() {
     if (Objects.nonNull(pluginManager)) {
       pluginManager.stopPlugins();
@@ -737,8 +815,7 @@ public class EventPluginLoader {
       NativeMessageQueue.getInstance()
           .publishTrigger(toJsonString(trigger), trigger.getTriggerName());
     } else {
-      eventListeners.forEach(listener ->
-          listener.handleBlockEvent(toJsonString(trigger)));
+      eventListeners.forEach(listener -> listener.handleBlockEvent(toJsonString(trigger)));
     }
   }
 
@@ -747,8 +824,7 @@ public class EventPluginLoader {
       NativeMessageQueue.getInstance()
           .publishTrigger(toJsonString(trigger), trigger.getTriggerName());
     } else {
-      eventListeners.forEach(listener ->
-          listener.handleSolidityLogTrigger(toJsonString(trigger)));
+      eventListeners.forEach(listener -> listener.handleSolidityLogTrigger(toJsonString(trigger)));
     }
   }
 
@@ -757,8 +833,8 @@ public class EventPluginLoader {
       NativeMessageQueue.getInstance()
           .publishTrigger(toJsonString(trigger), trigger.getTriggerName());
     } else {
-      eventListeners.forEach(listener ->
-          listener.handleSolidityEventTrigger(toJsonString(trigger)));
+      eventListeners.forEach(
+          listener -> listener.handleSolidityEventTrigger(toJsonString(trigger)));
     }
   }
 
@@ -776,8 +852,7 @@ public class EventPluginLoader {
       NativeMessageQueue.getInstance()
           .publishTrigger(toJsonString(trigger), trigger.getTriggerName());
     } else {
-      eventListeners.forEach(listener ->
-          listener.handleContractLogTrigger(toJsonString(trigger)));
+      eventListeners.forEach(listener -> listener.handleContractLogTrigger(toJsonString(trigger)));
     }
   }
 
@@ -786,8 +861,8 @@ public class EventPluginLoader {
       NativeMessageQueue.getInstance()
           .publishTrigger(toJsonString(trigger), trigger.getTriggerName());
     } else {
-      eventListeners.forEach(listener ->
-          listener.handleContractEventTrigger(toJsonString(trigger)));
+      eventListeners.forEach(
+          listener -> listener.handleContractEventTrigger(toJsonString(trigger)));
     }
   }
 
@@ -798,8 +873,8 @@ public class EventPluginLoader {
           .publishTrigger(toJsonString(trigger), trigger.getTriggerName());
     } else {
       logger.info("postBlockContractLogTrigger {}", trigger.getBlockNumber());
-      eventListeners.forEach(listener ->
-          listener.handleBlockContractLogTrigger(toJsonString(trigger)));
+      eventListeners.forEach(
+          listener -> listener.handleBlockContractLogTrigger(toJsonString(trigger)));
     }
   }
 
@@ -810,27 +885,23 @@ public class EventPluginLoader {
           .publishTrigger(toJsonString(trigger), trigger.getTriggerName());
     } else {
       long start = System.currentTimeMillis();
-      eventListeners.forEach(listener ->
-          listener.handleTRC20Event(toJsonString(trigger)));
-      logger.info("EventTrigger-1 postTRC20TrackerTrigger blockNum {}, " +
-          "AssetStatus-size {}, Trc10Status-size {}, Trc1155-size {}, Trc721-size {}, TrxStatus-size {}, " +
-          "total-size {}, " +
-          "cost {}ms",
-        trigger.getBlockNumber(),
-
-        trigger.getAssetStatusList().size(),
-        trigger.getTrc10StatusList().size(),
-        trigger.getTrc1155InfoList().size(),
-        trigger.getTrc721InfoList().size(),
-        trigger.getTrxStatusList().size(),
-
-        trigger.getAssetStatusList().size()
-          + trigger.getTrc10StatusList().size()
-          + trigger.getTrc1155InfoList().size()
-          + trigger.getTrc721InfoList().size()
-          + trigger.getTrxStatusList().size(),
-
-        System.currentTimeMillis() - start);
+      eventListeners.forEach(listener -> listener.handleTRC20Event(toJsonString(trigger)));
+      logger.info(
+          "EventTrigger-1 postTRC20TrackerTrigger blockNum {}, AssetStatus-size {},"
+              + " Trc10Status-size {}, Trc1155-size {}, Trc721-size {}, TrxStatus-size {},"
+              + " total-size {}, cost {}ms",
+          trigger.getBlockNumber(),
+          trigger.getAssetStatusList().size(),
+          trigger.getTrc10StatusList().size(),
+          trigger.getTrc1155InfoList().size(),
+          trigger.getTrc721InfoList().size(),
+          trigger.getTrxStatusList().size(),
+          trigger.getAssetStatusList().size()
+              + trigger.getTrc10StatusList().size()
+              + trigger.getTrc1155InfoList().size()
+              + trigger.getTrc721InfoList().size()
+              + trigger.getTrxStatusList().size(),
+          System.currentTimeMillis() - start);
     }
   }
 
@@ -841,12 +912,12 @@ public class EventPluginLoader {
           .publishTrigger(toJsonString(trigger), trigger.getTriggerName());
     } else {
       long start = System.currentTimeMillis();
-      eventListeners.forEach(listener ->
-          listener.handleFreezeBalanceEvent(toJsonString(trigger)));
-      logger.info("EventTrigger-2 postFreezeBalanceTrigger blockNum {}, size {}, cost {}ms",
-        trigger.getBlockNumber(),
-        trigger.getFreezeList().size(),
-        System.currentTimeMillis() - start);
+      eventListeners.forEach(listener -> listener.handleFreezeBalanceEvent(toJsonString(trigger)));
+      logger.info(
+          "EventTrigger-2 postFreezeBalanceTrigger blockNum {}, size {}, cost {}ms",
+          trigger.getBlockNumber(),
+          trigger.getFreezeList().size(),
+          System.currentTimeMillis() - start);
     }
   }
 
@@ -857,12 +928,12 @@ public class EventPluginLoader {
           .publishTrigger(toJsonString(trigger), trigger.getTriggerName());
     } else {
       long start = System.currentTimeMillis();
-      eventListeners.forEach(listener ->
-          listener.handleStakeBalanceEvent(toJsonString(trigger)));
-      logger.info("EventTrigger-3 postStakeBalanceTrigger blockNum {}, size {}, cost {}ms",
-        trigger.getBlockNumber(),
-        trigger.getStakeList().size(),
-        System.currentTimeMillis() - start);
+      eventListeners.forEach(listener -> listener.handleStakeBalanceEvent(toJsonString(trigger)));
+      logger.info(
+          "EventTrigger-3 postStakeBalanceTrigger blockNum {}, size {}, cost {}ms",
+          trigger.getBlockNumber(),
+          trigger.getStakeList().size(),
+          System.currentTimeMillis() - start);
     }
   }
 
@@ -873,12 +944,12 @@ public class EventPluginLoader {
           .publishTrigger(toJsonString(trigger), trigger.getTriggerName());
     } else {
       long start = System.currentTimeMillis();
-      eventListeners.forEach(listener ->
-          listener.handleShieldedTRC20Event(toJsonString(trigger)));
-      logger.info("EventTrigger-4 postShieldedTRC20TrackerTrigger blockNum {}, size {}, cost {}ms",
-        trigger.getBlockNumber(),
-        trigger.getTransactionList().size(),
-        System.currentTimeMillis() - start);
+      eventListeners.forEach(listener -> listener.handleShieldedTRC20Event(toJsonString(trigger)));
+      logger.info(
+          "EventTrigger-4 postShieldedTRC20TrackerTrigger blockNum {}, size {}, cost {}ms",
+          trigger.getBlockNumber(),
+          trigger.getTransactionList().size(),
+          System.currentTimeMillis() - start);
     }
   }
 
@@ -889,36 +960,32 @@ public class EventPluginLoader {
           .publishTrigger(toJsonString(trigger), trigger.getTriggerName());
     } else {
       long start = System.currentTimeMillis();
-      eventListeners.forEach(listener ->
-          listener.handleTransferEvent(toJsonString(trigger)));
-      logger.info("EventTrigger-5 postTransferTrigger blockNum {}, " +
-          "AssetStatus-size {}, Trc10Status-size {}, Trc1155-size {}, Trc721-size {}, TrxStatus-size {}, " +
-          "Trc10Asset-size {}, Trc20Asset-size {}, Trc721Asset-size {}, TrcAsset-size {}, total-size {}, " +
-          "cost {}ms",
-        trigger.getBlockNumber(),
-
-        trigger.getAssetStatusList().size(),
-        trigger.getTrc10StatusList().size(),
-        trigger.getTrc1155InfoList().size(),
-        trigger.getTrc721InfoList().size(),
-        trigger.getTrxStatusList().size(),
-
-        trigger.getTrc10AssetTransferInfoList().size(),
-        trigger.getTrc20AssetTransferInfoList().size(),
-        trigger.getTrc721AssetTransferInfoList().size(),
-        trigger.getTrxAssetTransferInfoList().size(),
-
-        trigger.getAssetStatusList().size()
-          + trigger.getTrc10StatusList().size()
-          + trigger.getTrc1155InfoList().size()
-          + trigger.getTrc721InfoList().size()
-          + trigger.getTrxStatusList().size()
-          + trigger.getTrc10AssetTransferInfoList().size()
-          + trigger.getTrc20AssetTransferInfoList().size()
-          + trigger.getTrc721AssetTransferInfoList().size()
-          + trigger.getTrxAssetTransferInfoList().size(),
-
-        System.currentTimeMillis() - start);
+      eventListeners.forEach(listener -> listener.handleTransferEvent(toJsonString(trigger)));
+      logger.info(
+          "EventTrigger-5 postTransferTrigger blockNum {}, AssetStatus-size {}, Trc10Status-size"
+              + " {}, Trc1155-size {}, Trc721-size {}, TrxStatus-size {}, Trc10Asset-size {},"
+              + " Trc20Asset-size {}, Trc721Asset-size {}, TrcAsset-size {}, total-size {}, cost"
+              + " {}ms",
+          trigger.getBlockNumber(),
+          trigger.getAssetStatusList().size(),
+          trigger.getTrc10StatusList().size(),
+          trigger.getTrc1155InfoList().size(),
+          trigger.getTrc721InfoList().size(),
+          trigger.getTrxStatusList().size(),
+          trigger.getTrc10AssetTransferInfoList().size(),
+          trigger.getTrc20AssetTransferInfoList().size(),
+          trigger.getTrc721AssetTransferInfoList().size(),
+          trigger.getTrxAssetTransferInfoList().size(),
+          trigger.getAssetStatusList().size()
+              + trigger.getTrc10StatusList().size()
+              + trigger.getTrc1155InfoList().size()
+              + trigger.getTrc721InfoList().size()
+              + trigger.getTrxStatusList().size()
+              + trigger.getTrc10AssetTransferInfoList().size()
+              + trigger.getTrc20AssetTransferInfoList().size()
+              + trigger.getTrc721AssetTransferInfoList().size()
+              + trigger.getTrxAssetTransferInfoList().size(),
+          System.currentTimeMillis() - start);
     }
   }
 
@@ -929,12 +996,12 @@ public class EventPluginLoader {
           .publishTrigger(toJsonString(trigger), trigger.getTriggerName());
     } else {
       long start = System.currentTimeMillis();
-      eventListeners.forEach(listener ->
-          listener.handleMultiAuthTrigger(toJsonString(trigger)));
-      logger.info("EventTrigger-6 postMultiAuthTrigger blockNum {}, size {}, cost {}ms",
-        trigger.getBlockNumber(),
-        trigger.getAuthInfoList().size(),
-        System.currentTimeMillis() - start);
+      eventListeners.forEach(listener -> listener.handleMultiAuthTrigger(toJsonString(trigger)));
+      logger.info(
+          "EventTrigger-6 postMultiAuthTrigger blockNum {}, size {}, cost {}ms",
+          trigger.getBlockNumber(),
+          trigger.getAuthInfoList().size(),
+          System.currentTimeMillis() - start);
     }
   }
 
@@ -944,8 +1011,8 @@ public class EventPluginLoader {
       NativeMessageQueue.getInstance()
           .publishTrigger(toJsonString(trigger), trigger.getTriggerName());
     } else {
-      eventListeners.forEach(listener ->
-          listener.handleJustLendTrackerTrigger(toJsonString(trigger)));
+      eventListeners.forEach(
+          listener -> listener.handleJustLendTrackerTrigger(toJsonString(trigger)));
     }
   }
 
@@ -982,21 +1049,22 @@ public class EventPluginLoader {
 
   // === DeFi Feature ===
   public Map<String, Map<String, List<FilterQuery>>> getFilterQuery() {
-    if(System.currentTimeMillis() - this.filterQueryLastUpdate > 60000*10 || this.filterQuery==null){
+    if (System.currentTimeMillis() - this.filterQueryLastUpdate > 60000 * 10
+        || this.filterQuery == null) {
       String eventFilters = null;
       if (eventListeners != null) {
-        for(IPluginEventListener eventListener : eventListeners){
+        for (IPluginEventListener eventListener : eventListeners) {
           eventFilters = eventListener.getEventFilterList();
           logger.info("eventFilters:{}", eventFilters);
-          if(eventFilters != null && !eventFilters.isEmpty()){
+          if (eventFilters != null && !eventFilters.isEmpty()) {
             break;
           }
         }
       }
-      if(eventFilters != null && !eventFilters.isEmpty()) {
+      if (eventFilters != null && !eventFilters.isEmpty()) {
         List<FilterQuery> newFilterQuery = parseEventFilters(eventFilters);
-        if(!newFilterQuery.isEmpty()) {
-          setFilterQuery(newFilterQuery);
+        if (!newFilterQuery.isEmpty()) {
+          setFilterQueries(newFilterQuery);
           this.filterQueryLastUpdate = System.currentTimeMillis();
         }
       }
@@ -1015,13 +1083,13 @@ public class EventPluginLoader {
 
   // === DeFi Feature ===
   public void setFilterQuery(FilterQuery filterQuery) {
-    setFilterQuery(Lists.newArrayList(filterQuery));
+    setFilterQueries(filterQuery == null ? null : Lists.newArrayList(filterQuery));
   }
 
   // === DeFi Feature ===
-  public void setFilterQuery(List<FilterQuery> filterQuery) {
+  public void setFilterQueries(List<FilterQuery> filterQuery) {
     this.filterQuery = filterQuery;
-    this.filterQueryMap = filterQueryListToMap(filterQuery);
+    this.filterQueryMap = filterQuery == null ? null : filterQueryListToMap(filterQuery);
   }
 
   // === DeFi Feature ===
@@ -1047,46 +1115,52 @@ public class EventPluginLoader {
         filter.setToBlock(toBlockLong);
 
         List<String> addressList = filterObj.getObject("contractAddressList", List.class);
-        addressList = addressList.stream().filter(org.apache.commons.lang3.StringUtils::isNotEmpty)
-            .collect(
-                Collectors.toList());
+        addressList =
+            addressList.stream()
+                .filter(org.apache.commons.lang3.StringUtils::isNotEmpty)
+                .collect(Collectors.toList());
         filter.setContractAddressList(addressList);
 
         List<String> topicList = filterObj.getObject("contractTopicList", List.class);
-        topicList = topicList.stream().filter(org.apache.commons.lang3.StringUtils::isNotEmpty)
-            .collect(
-                Collectors.toList());
+        topicList =
+            topicList.stream()
+                .filter(org.apache.commons.lang3.StringUtils::isNotEmpty)
+                .collect(Collectors.toList());
         filter.setContractTopicList(topicList);
         queries.add(filter);
       }
       logger.info("parseEventFilters:{}", queries);
       return queries;
-    } catch (Exception e){
+    } catch (Exception e) {
       logger.error("parseEventFilters error:{}", eventFilters, e);
       return new ArrayList<>();
     }
   }
 
   // === DeFi Feature ===
-  private Map<String, Map<String, List<FilterQuery>>> filterQueryListToMap(List<FilterQuery> filterQueryList){
+  private Map<String, Map<String, List<FilterQuery>>> filterQueryListToMap(
+      List<FilterQuery> filterQueryList) {
     // if filter accept all topic, an empty topic will be used.
     // if filter accept all contract address, an empty contract address will be used.
 
     // Map< topic, Map< contract, List<FilterQuery> > >
-    Map<String, Map<String, List<FilterQuery>>> filterQueryMap = new HashMap<>(filterQueryList.size());
-    for(FilterQuery filter : filterQueryList){
+    Map<String, Map<String, List<FilterQuery>>> filterQueryMap =
+        new HashMap<>(filterQueryList.size());
+    for (FilterQuery filter : filterQueryList) {
       List<String> topicList = filter.getContractTopicList();
-      if(topicList.isEmpty()){
+      if (topicList.isEmpty()) {
         topicList.add("");
       }
-      for(String topic : topicList){
-        Map<String, List<FilterQuery>> filterQueryMapForTopic = filterQueryMap.computeIfAbsent(topic, k->new HashMap<>());
+      for (String topic : topicList) {
+        Map<String, List<FilterQuery>> filterQueryMapForTopic =
+            filterQueryMap.computeIfAbsent(topic, k -> new HashMap<>());
         List<String> contractList = filter.getContractAddressList();
-        if(contractList.isEmpty()){
+        if (contractList.isEmpty()) {
           contractList.add("");
         }
-        for(String contract : contractList){
-          List<FilterQuery> filterQueries = filterQueryMapForTopic.computeIfAbsent(contract, k->new ArrayList<>());
+        for (String contract : contractList) {
+          List<FilterQuery> filterQueries =
+              filterQueryMapForTopic.computeIfAbsent(contract, k -> new ArrayList<>());
           filterQueries.add(filter);
         }
       }

@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.util.Locale;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.encoders.Hex;
 import org.tron.common.utils.ByteArray;
@@ -131,7 +132,7 @@ public class DataWord implements Comparable<DataWord> {
 
   public static String shortHex(byte[] data) {
     byte[] bytes = ByteUtil.stripLeadingZeroes(data);
-    String hexValue = Hex.toHexString(bytes).toUpperCase();
+    String hexValue = Hex.toHexString(bytes).toUpperCase(Locale.ROOT);
     return "0x" + hexValue.replaceFirst("^0+(?!$)", "");
   }
 
@@ -461,7 +462,7 @@ public class DataWord implements Comparable<DataWord> {
   }
 
   public String shortHex() {
-    String hexValue = Hex.toHexString(getNoLeadZeroesData()).toUpperCase();
+    String hexValue = Hex.toHexString(getNoLeadZeroesData()).toUpperCase(Locale.ROOT);
     return "0x" + hexValue.replaceFirst("^0+(?!$)", "");
   }
 
