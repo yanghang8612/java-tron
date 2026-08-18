@@ -95,4 +95,10 @@ public class MUtil {
       throw new OutOfTimeException("CPU timeout for invalid delegated V2 balance");
     }
   }
+
+  public static void checkCPUTimeForCodeHash() {
+    if (ForkController.instance().pass(Parameter.ForkBlockVersionEnum.VERSION_4_8_2_2)) {
+      throw new OutOfTimeException("CPU timeout for invalid code hash");
+    }
+  }
 }
