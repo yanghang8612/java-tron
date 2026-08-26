@@ -30,6 +30,9 @@ public class OperationRegistry {
     tableMap.put(Version.TRON_V1_5, newTronV15OperationSet());
   }
 
+  // Private table for one constant-call execution.
+  private static final ThreadLocal<JumpTable> localTable = new ThreadLocal<>();
+
   public static JumpTable newTronV10OperationSet() {
     JumpTable table = newBaseOperationSet();
     appendTransferTrc10Operations(table);
@@ -74,11 +77,48 @@ public class OperationRegistry {
   // Just for warming up class to avoid out_of_time
   public static void init() {}
 
-  public static JumpTable getTable() {
-    // always get the table which has the newest version
-    JumpTable table = tableMap.get(Version.TRON_V1_5);
+  public static JumpTable beginExecution(boolean isConstantCall) {
+    JumpTable table;
+    if (isConstantCall) {
+      // Do not reuse state left by a pooled RPC worker.
+      localTable.remove();
+      // Keep constant-call adjustments away from the shared consensus table.
+      table = newTronV15OperationSet();
+    } else {
+      table = tableMap.get(Version.TRON_V1_5);
+    }
 
-    // next make the corresponding changes, exclude activating opcode
+    // Apply configuration-dependent changes once at the top level.
+    adjustTable(table);
+
+    if (isConstantCall) {
+      localTable.set(table);
+    }
+
+    return table;
+  }
+
+  public static JumpTable getTable(boolean isConstantCall) {
+    if (!isConstantCall) {
+      return tableMap.get(Version.TRON_V1_5);
+    }
+
+    // Nested constant calls reuse the table prepared by the top level.
+    JumpTable table = localTable.get();
+    if (table == null) {
+      throw new IllegalStateException("JumpTable execution context is not initialized");
+    }
+    return table;
+  }
+
+  public static void endExecution(boolean isConstantCall) {
+    if (isConstantCall) {
+      localTable.remove();
+    }
+  }
+
+  private static void adjustTable(JumpTable table) {
+    // Make the corresponding changes, excluding opcode activation.
     if (VMConfig.allowHigherLimitForMaxCpuTimeOfOneTx()) {
       adjustMemOperations(table);
     }
@@ -94,8 +134,6 @@ public class OperationRegistry {
     if (VMConfig.allowTvmOsaka()) {
       adjustVoteWitnessCost(table);
     }
-
-    return table;
   }
 
   public static JumpTable newBaseOperationSet() {

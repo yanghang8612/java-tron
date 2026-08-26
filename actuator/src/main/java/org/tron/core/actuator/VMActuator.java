@@ -189,7 +189,8 @@ public class VMActuator implements Actuator2 {
           throw e;
         }
 
-        VM.play(program, OperationRegistry.getTable());
+        // Prepare the table once for this execution and all nested calls.
+        VM.play(program, OperationRegistry.beginExecution(isConstantCall));
         result = program.getResult();
 
         if (VMConfig.allowEnergyAdjustment()) {
@@ -293,6 +294,9 @@ public class VMActuator implements Actuator2 {
         result.setRuntimeError(result.getException().getMessage());
       }
       logger.info("runtime result is :{}", result.getException().getMessage());
+    } finally {
+      // Also release constant-call state on early return or failure.
+      OperationRegistry.endExecution(isConstantCall);
     }
     //use program returned fill context
     context.setProgramResult(result);
