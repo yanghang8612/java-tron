@@ -26,6 +26,13 @@ test {
 
     maxHeapSize = "1200m"
 
+    // The opt-in BN128 benchmark should run without coverage instrumentation and stream its
+    // measurements to the terminal. Normal test runs retain the existing Jacoco configuration.
+    if ("true".equalsIgnoreCase(System.getenv("BN128_BENCHMARK"))) {
+        jacoco.enabled = false
+        testLogging.showStandardStreams = true
+    }
+
     if (System.getenv("CI") == null) {
         maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
     }
