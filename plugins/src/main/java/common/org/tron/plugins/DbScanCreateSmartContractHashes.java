@@ -7,6 +7,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
@@ -49,6 +51,7 @@ import picocli.CommandLine;
 public class DbScanCreateSmartContractHashes implements Callable<Integer> {
 
   private static final String BLOCK_DB = "block";
+  private static final String BLOCK_INDEX_DB = "block-index";
   private static final String STDOUT = "-";
   private static final String REPORT_HEADER = "block_number\ttransaction_id\tcontract_index\t"
       + "contract_address_base58\tcontract_address_hex\ttrx_hash_present\ttrx_hash\t"
@@ -76,13 +79,15 @@ public class DbScanCreateSmartContractHashes implements Callable<Integer> {
   private int progressIntervalSeconds;
 
   @CommandLine.Option(names = "--threads", defaultValue = "0",
-      description = "Number of block parsing threads; 0 selects up to 8 based on available CPUs. "
-          + "Default: ${DEFAULT-VALUE}")
+      description = "Number of independent height-range iterators; 0 selects up to 8 based on "
+          + "available CPUs. Default: ${DEFAULT-VALUE}")
   private int requestedThreads;
 
   private long scanStartMillis;
   private long nextProgressMillis;
+  private long expectedHeights;
   private int scanThreads;
+  private int activeShards;
 
   @CommandLine.Option(names = {"-h", "--help"}, usageHelp = true,
       description = "Display a help message")
@@ -91,8 +96,12 @@ public class DbScanCreateSmartContractHashes implements Callable<Integer> {
   @Override
   public Integer call() {
     Path blockDbPath = databaseDirectory.resolve(BLOCK_DB);
+    Path blockIndexDbPath = databaseDirectory.resolve(BLOCK_INDEX_DB);
     if (!Files.isDirectory(blockDbPath)) {
       return fail(String.format("Block database does not exist: %s", blockDbPath));
+    }
+    if (!Files.isDirectory(blockIndexDbPath)) {
+      return fail(String.format("Block index database does not exist: %s", blockIndexDbPath));
     }
     if (progressIntervalSeconds < 0) {
       return fail("--progress must be greater than or equal to 0 seconds");
@@ -106,10 +115,15 @@ public class DbScanCreateSmartContractHashes implements Callable<Integer> {
 
     try {
       DbEngine engine = detectEngine(blockDbPath);
+      DbEngine indexEngine = detectEngine(blockIndexDbPath);
+      if (engine != indexEngine) {
+        return fail(String.format("Database engine mismatch: %s=%s, %s=%s",
+            blockDbPath, engine, blockIndexDbPath, indexEngine));
+      }
       ScanStats stats;
       if (STDOUT.equals(output)) {
         PrintWriter writer = spec.commandLine().getOut();
-        stats = scan(blockDbPath, engine, writer);
+        stats = scan(blockDbPath, blockIndexDbPath, engine, writer);
         writer.flush();
       } else {
         Path reportPath = Paths.get(output).toAbsolutePath().normalize();
@@ -119,7 +133,7 @@ public class DbScanCreateSmartContractHashes implements Callable<Integer> {
         }
         try (PrintWriter writer = new PrintWriter(Files.newBufferedWriter(reportPath,
             StandardCharsets.UTF_8))) {
-          stats = scan(blockDbPath, engine, writer);
+          stats = scan(blockDbPath, blockIndexDbPath, engine, writer);
         }
         spec.commandLine().getErr().format("Report: %s%n", reportPath);
       }
@@ -130,18 +144,17 @@ public class DbScanCreateSmartContractHashes implements Callable<Integer> {
     }
   }
 
-  private ScanStats scan(Path blockDbPath, DbEngine engine, PrintWriter writer)
-      throws Exception {
-    startProgress(engine, blockDbPath);
+  private ScanStats scan(Path blockDbPath, Path blockIndexDbPath, DbEngine engine,
+      PrintWriter writer) throws Exception {
     writer.println(REPORT_HEADER);
     writer.flush();
     ScanStats stats;
     switch (engine) {
       case LEVELDB:
-        stats = scanLevelDb(blockDbPath, writer);
+        stats = scanLevelDb(blockDbPath, blockIndexDbPath, engine, writer);
         break;
       case ROCKSDB:
-        stats = scanRocksDb(blockDbPath, writer);
+        stats = scanRocksDb(blockDbPath, blockIndexDbPath, engine, writer);
         break;
       default:
         throw new IllegalStateException("Unsupported database engine: " + engine);
@@ -152,46 +165,71 @@ public class DbScanCreateSmartContractHashes implements Callable<Integer> {
     return stats;
   }
 
-  private ScanStats scanLevelDb(Path blockDbPath, PrintWriter writer) throws Exception {
-    org.iq80.leveldb.Options options = DBUtils.newDefaultLevelDbOptions()
+  private ScanStats scanLevelDb(Path blockDbPath, Path blockIndexDbPath, DbEngine engine,
+      PrintWriter writer) throws Exception {
+    org.iq80.leveldb.Options blockOptions = DBUtils.newDefaultLevelDbOptions()
         .createIfMissing(false);
-    try (DB database = JniDBFactory.factory.open(blockDbPath.toFile(), options);
-        DBIterator iterator = database.iterator(new ReadOptions().fillCache(false))) {
-      iterator.seekToFirst();
-      return scanEntries(iterator, writer);
+    org.iq80.leveldb.Options indexOptions = DBUtils.newDefaultLevelDbOptions()
+        .createIfMissing(false);
+    try (DB blockDatabase = JniDBFactory.factory.open(blockDbPath.toFile(), blockOptions);
+        DB indexDatabase = JniDBFactory.factory.open(blockIndexDbPath.toFile(), indexOptions)) {
+      HeightRange fullRange = levelDbHeightRange(indexDatabase);
+      return scanShards(fullRange, engine, blockDbPath, blockIndexDbPath, writer,
+          (range, stats, failure) -> scanLevelDbShard(indexDatabase, blockDatabase, range,
+              writer, stats, failure));
     }
   }
 
-  private ScanStats scanRocksDb(Path blockDbPath, PrintWriter writer) throws Exception {
+  private ScanStats scanRocksDb(Path blockDbPath, Path blockIndexDbPath, DbEngine engine,
+      PrintWriter writer) throws Exception {
     RocksDB.loadLibrary();
-    try (Options options = DBUtils.newDefaultRocksDbOptions(false, BLOCK_DB)
+    try (Options blockOptions = DBUtils.newDefaultRocksDbOptions(false, BLOCK_DB)
             .setCreateIfMissing(false);
-        RocksDB database = RocksDB.openReadOnly(options, blockDbPath.toString());
-        org.rocksdb.ReadOptions readOptions = new org.rocksdb.ReadOptions().setFillCache(false);
-        RocksIterator iterator = database.newIterator(readOptions)) {
-      ScanStats stats = new ScanStats();
-      ThreadPoolExecutor executor = newScanExecutor();
-      AtomicReference<Throwable> workerFailure = new AtomicReference<>();
-      try {
-        for (iterator.seekToFirst(); iterator.isValid(); iterator.next()) {
-          submitEntry(executor, workerFailure, iterator.key(), iterator.value(), writer, stats);
-        }
-        return awaitWorkers(executor, workerFailure, writer, stats);
-      } catch (Exception | Error e) {
-        executor.shutdownNow();
-        throw e;
-      }
+        Options indexOptions = DBUtils.newDefaultRocksDbOptions(false, BLOCK_INDEX_DB)
+            .setCreateIfMissing(false);
+        RocksDB blockDatabase = RocksDB.openReadOnly(blockOptions, blockDbPath.toString());
+        RocksDB indexDatabase = RocksDB.openReadOnly(indexOptions, blockIndexDbPath.toString())) {
+      HeightRange fullRange = rocksDbHeightRange(indexDatabase);
+      return scanShards(fullRange, engine, blockDbPath, blockIndexDbPath, writer,
+          (range, stats, failure) -> scanRocksDbShard(indexDatabase, blockDatabase, range,
+              writer, stats, failure));
     }
   }
 
-  private ScanStats scanEntries(DBIterator iterator, PrintWriter writer) throws Exception {
+  private ScanStats scanShards(HeightRange fullRange, DbEngine engine, Path blockDbPath,
+      Path blockIndexDbPath, PrintWriter writer, ShardScanner scanner) throws Exception {
     ScanStats stats = new ScanStats();
+    if (fullRange == null) {
+      activeShards = 0;
+      expectedHeights = 0;
+      startProgress(engine, blockDbPath, blockIndexDbPath, null);
+      return stats;
+    }
+    List<HeightRange> ranges = splitHeightRange(fullRange, scanThreads);
+    activeShards = ranges.size();
+    expectedHeights = fullRange.size();
+    startProgress(engine, blockDbPath, blockIndexDbPath, fullRange);
+    for (int i = 0; i < ranges.size(); i++) {
+      HeightRange range = ranges.get(i);
+      spec.commandLine().getErr().format("Shard %d/%d: start_height=%,d, end_height=%,d%n",
+          i + 1, ranges.size(), range.start, range.end);
+    }
+
     ThreadPoolExecutor executor = newScanExecutor();
     AtomicReference<Throwable> workerFailure = new AtomicReference<>();
     try {
-      while (iterator.hasNext()) {
-        Map.Entry<byte[], byte[]> entry = iterator.next();
-        submitEntry(executor, workerFailure, entry.getKey(), entry.getValue(), writer, stats);
+      for (HeightRange range : ranges) {
+        executor.execute(() -> {
+          if (workerFailure.get() != null) {
+            return;
+          }
+          try {
+            scanner.scan(range, stats, workerFailure);
+            stats.completedShards.increment();
+          } catch (Throwable t) {
+            workerFailure.compareAndSet(null, t);
+          }
+        });
       }
       return awaitWorkers(executor, workerFailure, writer, stats);
     } catch (Exception | Error e) {
@@ -201,33 +239,124 @@ public class DbScanCreateSmartContractHashes implements Callable<Integer> {
   }
 
   private ThreadPoolExecutor newScanExecutor() {
-    int queueCapacity = Math.max(16, scanThreads * 4);
+    int queueCapacity = Math.max(16, activeShards);
     ThreadFactory threadFactory = task -> {
       Thread thread = new Thread(task, "create-contract-scan-" + WORKER_ID.incrementAndGet());
       thread.setDaemon(true);
       return thread;
     };
-    return new ThreadPoolExecutor(scanThreads, scanThreads, 0L, TimeUnit.MILLISECONDS,
+    return new ThreadPoolExecutor(activeShards, activeShards, 0L, TimeUnit.MILLISECONDS,
         new ArrayBlockingQueue<>(queueCapacity), threadFactory,
         new ThreadPoolExecutor.CallerRunsPolicy());
   }
 
-  private void submitEntry(ThreadPoolExecutor executor,
-      AtomicReference<Throwable> workerFailure, byte[] key, byte[] value,
-      PrintWriter writer, ScanStats stats) throws Exception {
-    throwIfWorkerFailed(workerFailure);
+  private void scanLevelDbShard(DB indexDatabase, DB blockDatabase, HeightRange range,
+      PrintWriter writer, ScanStats stats, AtomicReference<Throwable> workerFailure)
+      throws Exception {
+    ReadOptions indexReadOptions = new ReadOptions().fillCache(false);
+    ReadOptions blockReadOptions = new ReadOptions().fillCache(false);
+    try (DBIterator iterator = indexDatabase.iterator(indexReadOptions)) {
+      iterator.seek(ByteArray.fromLong(range.start));
+      while (iterator.hasNext() && workerFailure.get() == null) {
+        Map.Entry<byte[], byte[]> entry = iterator.next();
+        long height = decodeHeight(entry.getKey());
+        if (height > range.end) {
+          break;
+        }
+        scanIndexedBlock(height, entry.getValue(), blockDatabase.get(entry.getValue(),
+            blockReadOptions), writer, stats);
+      }
+    }
+  }
+
+  private void scanRocksDbShard(RocksDB indexDatabase, RocksDB blockDatabase,
+      HeightRange range, PrintWriter writer, ScanStats stats,
+      AtomicReference<Throwable> workerFailure) throws Exception {
+    try (org.rocksdb.ReadOptions indexReadOptions =
+             new org.rocksdb.ReadOptions().setFillCache(false);
+        org.rocksdb.ReadOptions blockReadOptions =
+            new org.rocksdb.ReadOptions().setFillCache(false);
+        RocksIterator iterator = indexDatabase.newIterator(indexReadOptions)) {
+      for (iterator.seek(ByteArray.fromLong(range.start));
+          iterator.isValid() && workerFailure.get() == null; iterator.next()) {
+        byte[] heightKey = iterator.key();
+        long height = decodeHeight(heightKey);
+        if (height > range.end) {
+          break;
+        }
+        byte[] blockId = iterator.value();
+        scanIndexedBlock(height, blockId, blockDatabase.get(blockReadOptions, blockId),
+            writer, stats);
+      }
+    }
+  }
+
+  private static HeightRange levelDbHeightRange(DB indexDatabase) throws IOException {
+    try (DBIterator iterator = indexDatabase.iterator(new ReadOptions().fillCache(false))) {
+      iterator.seekToFirst();
+      if (!iterator.hasNext()) {
+        return null;
+      }
+      long start = decodeHeight(iterator.peekNext().getKey());
+      iterator.seekToLast();
+      if (!iterator.hasNext()) {
+        return null;
+      }
+      return new HeightRange(start, decodeHeight(iterator.peekNext().getKey()));
+    }
+  }
+
+  private static HeightRange rocksDbHeightRange(RocksDB indexDatabase) throws IOException {
+    try (org.rocksdb.ReadOptions readOptions =
+             new org.rocksdb.ReadOptions().setFillCache(false);
+        RocksIterator iterator = indexDatabase.newIterator(readOptions)) {
+      iterator.seekToFirst();
+      if (!iterator.isValid()) {
+        return null;
+      }
+      long start = decodeHeight(iterator.key());
+      iterator.seekToLast();
+      if (!iterator.isValid()) {
+        return null;
+      }
+      return new HeightRange(start, decodeHeight(iterator.key()));
+    }
+  }
+
+  private static long decodeHeight(byte[] key) throws IOException {
+    if (key == null || key.length != Long.BYTES) {
+      throw new IOException(String.format("Invalid block-index key length: %d",
+          key == null ? 0 : key.length));
+    }
+    return ByteArray.toLong(key);
+  }
+
+  private static List<HeightRange> splitHeightRange(HeightRange fullRange, int threads) {
+    long total = fullRange.size();
+    int shardCount = (int) Math.min(total, threads);
+    long baseSize = total / shardCount;
+    long remainder = total % shardCount;
+    List<HeightRange> ranges = new ArrayList<>(shardCount);
+    long start = fullRange.start;
+    for (int i = 0; i < shardCount; i++) {
+      long size = baseSize + (i < remainder ? 1 : 0);
+      long end = start + size - 1;
+      ranges.add(new HeightRange(start, end));
+      start = end + 1;
+    }
+    return ranges;
+  }
+
+  private static void scanIndexedBlock(long height, byte[] blockId, byte[] blockValue,
+      PrintWriter writer, ScanStats stats) {
     stats.databaseEntries.increment();
-    executor.execute(() -> {
-      if (workerFailure.get() != null) {
-        return;
-      }
-      try {
-        scanEntry(key, value, writer, stats);
-      } catch (Throwable t) {
-        workerFailure.compareAndSet(null, t);
-      }
-    });
-    reportProgress(stats, writer);
+    if (blockValue == null) {
+      stats.missingBlocks.increment();
+      System.err.format("Missing block record: height=%d, block_id=%s%n", height,
+          ByteArray.toHexString(blockId));
+      return;
+    }
+    scanEntry(blockId, blockValue, writer, stats);
   }
 
   private ScanStats awaitWorkers(ThreadPoolExecutor executor,
@@ -282,11 +411,13 @@ public class DbScanCreateSmartContractHashes implements Callable<Integer> {
       long codeHashPresent = bothSet + codeHashOnly;
       long eitherHashPresent = bothSet + trxHashOnly + codeHashOnly;
       spec.commandLine().getErr().format(Locale.ROOT,
-          "Progress: elapsed=%.1fs, entries=%,d, blocks=%,d, transactions=%,d, "
+          "Progress: elapsed=%.1fs, entries=%,d/%,d, shards_completed=%,d/%,d, "
+              + "blocks=%,d, transactions=%,d, "
               + "create_contracts=%,d, trx_hash_present=%,d, code_hash_present=%,d, "
               + "either_hash_present=%,d, both_set=%,d, trx_hash_only=%,d, "
               + "code_hash_only=%,d, both_empty=%,d, rate=%,.1f entries/s%n",
-          elapsedSeconds, stats.databaseEntries.sum(), stats.blocks.sum(),
+          elapsedSeconds, stats.databaseEntries.sum(), expectedHeights,
+          stats.completedShards.sum(), activeShards, stats.blocks.sum(),
           stats.transactions.sum(), stats.createContracts.sum(), trxHashPresent,
           codeHashPresent, eitherHashPresent, bothSet, trxHashOnly, codeHashOnly,
           stats.bothEmpty.sum(), entriesPerSecond);
@@ -294,12 +425,17 @@ public class DbScanCreateSmartContractHashes implements Callable<Integer> {
     }
   }
 
-  private void startProgress(DbEngine engine, Path blockDbPath) {
+  private void startProgress(DbEngine engine, Path blockDbPath, Path blockIndexDbPath,
+      HeightRange fullRange) {
     scanStartMillis = System.currentTimeMillis();
     nextProgressMillis = scanStartMillis + progressIntervalSeconds * 1000L;
+    String heights = fullRange == null ? "empty"
+        : String.format(Locale.ROOT, "%,d..%,d", fullRange.start, fullRange.end);
     spec.commandLine().getErr().format(
-        "Scan started: engine=%s, block_db=%s, threads=%d, progress_interval=%ds%n",
-        engine, blockDbPath, scanThreads, progressIntervalSeconds);
+        "Scan started: engine=%s, block_db=%s, block_index_db=%s, height_range=%s, "
+            + "shards=%d, progress_interval=%ds%n",
+        engine, blockDbPath, blockIndexDbPath, heights, activeShards,
+        progressIntervalSeconds);
   }
 
   private double elapsedSeconds(long nowMillis) {
@@ -389,12 +525,14 @@ public class DbScanCreateSmartContractHashes implements Callable<Integer> {
             + "entries=%,d, blocks=%,d, transactions=%,d, create_contracts=%,d, "
             + "trx_hash_present=%,d, code_hash_present=%,d, either_hash_present=%,d, "
             + "both_set=%,d, trx_hash_only=%,d, code_hash_only=%,d, both_empty=%,d, "
-            + "malformed_blocks=%,d, malformed_contracts=%,d%n",
+            + "missing_blocks=%,d, malformed_blocks=%,d, malformed_contracts=%,d, "
+            + "shards_completed=%,d/%,d%n",
         engine, blockDbPath, elapsedSeconds, entriesPerSecond, stats.databaseEntries.sum(),
         stats.blocks.sum(), stats.transactions.sum(), stats.createContracts.sum(),
         trxHashPresent, codeHashPresent, eitherHashPresent, bothSet, trxHashOnly,
-        codeHashOnly, stats.bothEmpty.sum(), stats.malformedBlocks.sum(),
-        stats.malformedContracts.sum());
+        codeHashOnly, stats.bothEmpty.sum(), stats.missingBlocks.sum(),
+        stats.malformedBlocks.sum(), stats.malformedContracts.sum(),
+        stats.completedShards.sum(), activeShards);
   }
 
   private int fail(String message) {
@@ -442,6 +580,30 @@ public class DbScanCreateSmartContractHashes implements Callable<Integer> {
     ROCKSDB
   }
 
+  @FunctionalInterface
+  private interface ShardScanner {
+    void scan(HeightRange range, ScanStats stats, AtomicReference<Throwable> workerFailure)
+        throws Exception;
+  }
+
+  static class HeightRange {
+    final long start;
+    final long end;
+
+    HeightRange(long start, long end) {
+      if (start < 0 || end < start) {
+        throw new IllegalArgumentException(String.format("Invalid height range: %d..%d",
+            start, end));
+      }
+      this.start = start;
+      this.end = end;
+    }
+
+    long size() {
+      return end - start + 1;
+    }
+  }
+
   static class ScanStats {
     final LongAdder databaseEntries = new LongAdder();
     final LongAdder blocks = new LongAdder();
@@ -451,6 +613,8 @@ public class DbScanCreateSmartContractHashes implements Callable<Integer> {
     final LongAdder trxHashOnly = new LongAdder();
     final LongAdder codeHashOnly = new LongAdder();
     final LongAdder bothEmpty = new LongAdder();
+    final LongAdder completedShards = new LongAdder();
+    final LongAdder missingBlocks = new LongAdder();
     final LongAdder malformedBlocks = new LongAdder();
     final LongAdder malformedContracts = new LongAdder();
 
@@ -472,7 +636,8 @@ public class DbScanCreateSmartContractHashes implements Callable<Integer> {
     }
 
     private boolean hasParseErrors() {
-      return malformedBlocks.sum() > 0 || malformedContracts.sum() > 0;
+      return missingBlocks.sum() > 0 || malformedBlocks.sum() > 0
+          || malformedContracts.sum() > 0;
     }
   }
 }
