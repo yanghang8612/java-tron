@@ -31,6 +31,9 @@ test {
     if ("true".equalsIgnoreCase(System.getenv("BN128_BENCHMARK"))) {
         jacoco.enabled = false
         testLogging.showStandardStreams = true
+        // A benchmark result must never be reused: every explicit invocation needs fresh samples.
+        outputs.upToDateWhen { false }
+        outputs.cacheIf { false }
     }
 
     if (System.getenv("CI") == null) {
