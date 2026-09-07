@@ -13,6 +13,8 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.TreeSet;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Assume;
 import org.junit.Test;
@@ -34,6 +36,8 @@ import org.tron.protos.Protocol;
  * BN128_BENCHMARK=true ./gradlew :actuator:cleanTest :actuator:test \
  *   --tests org.tron.core.vm.BN128PairingBenchmarkTest
  * </pre>
+ * Use {@code BN128_PAIR_COUNTS=1,2,4,8,16,32,64,128,256,341} to sample large inputs
+ * without benchmarking every intermediate pair count.
  *
  * <p>The benchmark uses valid, non-zero G1/G2 generator points. It first warms the direct
  * precompile path and the complete TVM CALL path, then reports latency percentiles and the number
@@ -43,6 +47,7 @@ public class BN128PairingBenchmarkTest {
 
   private static final int WORD_SIZE = 32;
   private static final int PAIR_SIZE = 6 * WORD_SIZE;
+  private static final int MAX_PAIR_COUNT = 0xffff / PAIR_SIZE;
 
   private static final String[] GENERATOR_PAIR = {
       "1",
@@ -59,7 +64,7 @@ public class BN128PairingBenchmarkTest {
         "Set BN128_BENCHMARK=true to run this benchmark",
         envBoolean("BN128_BENCHMARK", false));
 
-    int maxPairs = envInt("BN128_MAX_PAIRS", 6, 1, 128);
+    int[] pairCounts = pairCountsFromEnvironment();
     int samples = envInt("BN128_SAMPLES", 101, 11, 10_000);
     int tvmSamples = envInt("BN128_TVM_SAMPLES", 51, 11, 10_000);
     int directWarmupSeconds = envInt("BN128_WARMUP_SECONDS", 30, 1, 3_600);
@@ -76,7 +81,7 @@ public class BN128PairingBenchmarkTest {
     vmLogger.setLevel(Level.WARN);
 
     try {
-      runBenchmark(maxPairs, samples, tvmSamples, directWarmupSeconds,
+      runBenchmark(pairCounts, samples, tvmSamples, directWarmupSeconds,
           tvmWarmupSeconds, timeoutMs);
     } finally {
       VMConfig.initAllowTvmIstanbul(previousIstanbul ? 1 : 0);
@@ -85,26 +90,33 @@ public class BN128PairingBenchmarkTest {
     }
   }
 
-  private static void runBenchmark(int maxPairs, int samples, int tvmSamples,
+  private static void runBenchmark(int[] pairCounts, int samples, int tvmSamples,
       int directWarmupSeconds, int tvmWarmupSeconds, long timeoutMs) throws Exception {
+    int maxPairs = pairCounts[pairCounts.length - 1];
     BN128Pairing pairing = new BN128Pairing();
     byte[][] inputs = new byte[maxPairs + 1][];
-    for (int pairCount = 1; pairCount <= maxPairs; pairCount++) {
+    for (int pairCount : pairCounts) {
       inputs[pairCount] = inputForPairs(pairCount);
     }
 
     System.out.println("BN128_BENCHMARK_BEGIN");
     printEnvironment();
     System.out.printf(Locale.ROOT,
-        "config maxPairs=%d samples=%d tvmSamples=%d timeoutMs=%d "
+        "config pairCounts=%s samples=%d tvmSamples=%d timeoutMs=%d "
             + "directWarmupSeconds=%d tvmWarmupSeconds=%d%n",
-        maxPairs, samples, tvmSamples, timeoutMs, directWarmupSeconds, tvmWarmupSeconds);
+        Arrays.toString(pairCounts), samples, tvmSamples, timeoutMs,
+        directWarmupSeconds, tvmWarmupSeconds);
 
+    int directWarmupMaxPairs = Math.min(maxPairs, 5);
+    byte[][] directWarmupInputs = new byte[directWarmupMaxPairs + 1][];
+    for (int pairCount = 1; pairCount <= directWarmupMaxPairs; pairCount++) {
+      directWarmupInputs[pairCount] = inputForPairs(pairCount);
+    }
     long directWarmupIterations = warmupDirect(
-        pairing, inputs, maxPairs, directWarmupSeconds, 200);
+        pairing, directWarmupInputs, directWarmupMaxPairs, directWarmupSeconds, 200);
     System.out.printf(Locale.ROOT,
-        "warmup path=direct iterations=%d requestedSeconds=%d%n",
-        directWarmupIterations, directWarmupSeconds);
+        "warmup path=direct iterations=%d requestedSeconds=%d maxPairs=%d%n",
+        directWarmupIterations, directWarmupSeconds, directWarmupMaxPairs);
 
     JumpTable jumpTable = OperationRegistry.beginExecution(false);
     int tvmWarmupMaxPairs = Math.min(maxPairs, 5);
@@ -117,7 +129,7 @@ public class BN128PairingBenchmarkTest {
     int directP50Max = 0;
     int directP99Max = 0;
     System.out.println("BN128_DIRECT_RESULTS_BEGIN");
-    for (int pairCount = 1; pairCount <= maxPairs; pairCount++) {
+    for (int pairCount : pairCounts) {
       long[] elapsed = new long[samples];
       int overDeadline = 0;
       for (int i = 0; i < samples; i++) {
@@ -144,7 +156,7 @@ public class BN128PairingBenchmarkTest {
     int tvmAnySuccessMax = 0;
     int tvmAllSuccessMax = 0;
     System.out.println("BN128_TVM_RESULTS_BEGIN");
-    for (int pairCount = 1; pairCount <= maxPairs; pairCount++) {
+    for (int pairCount : pairCounts) {
       long[] elapsed = new long[tvmSamples];
       int success = 0;
       for (int i = 0; i < tvmSamples; i++) {
@@ -344,6 +356,40 @@ public class BN128PairingBenchmarkTest {
           name + " must be in [" + min + ", " + max + "], got " + parsed);
     }
     return parsed;
+  }
+
+  private static int[] pairCountsFromEnvironment() {
+    String configuredCounts = System.getenv("BN128_PAIR_COUNTS");
+    if (configuredCounts == null || configuredCounts.trim().isEmpty()) {
+      int maxPairs = envInt("BN128_MAX_PAIRS", 6, 1, MAX_PAIR_COUNT);
+      int[] pairCounts = new int[maxPairs];
+      for (int i = 0; i < maxPairs; i++) {
+        pairCounts[i] = i + 1;
+      }
+      return pairCounts;
+    }
+
+    Set<Integer> uniqueCounts = new TreeSet<>();
+    for (String token : configuredCounts.split(",")) {
+      String trimmed = token.trim();
+      if (trimmed.isEmpty()) {
+        throw new IllegalArgumentException("BN128_PAIR_COUNTS contains an empty item");
+      }
+      int pairCount = Integer.parseInt(trimmed);
+      if (pairCount < 1 || pairCount > MAX_PAIR_COUNT) {
+        throw new IllegalArgumentException(
+            "BN128_PAIR_COUNTS values must be in [1, " + MAX_PAIR_COUNT + "], got "
+                + pairCount);
+      }
+      uniqueCounts.add(pairCount);
+    }
+
+    int[] pairCounts = new int[uniqueCounts.size()];
+    int index = 0;
+    for (int pairCount : uniqueCounts) {
+      pairCounts[index++] = pairCount;
+    }
+    return pairCounts;
   }
 
   private static void printEnvironment() {
