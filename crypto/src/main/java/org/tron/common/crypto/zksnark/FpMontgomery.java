@@ -1,7 +1,6 @@
 package org.tron.common.crypto.zksnark;
 
 import java.math.BigInteger;
-import java.util.Arrays;
 
 /**
  * Fixed-width Fp arithmetic, radix 2^32, R = 2^256. No native code or mutable shared scratch.
@@ -102,45 +101,42 @@ final class FpMontgomery {
   }
 
   /**
-   * Schoolbook multiplication followed by word-at-a-time Montgomery REDC.
+   * Coarsely integrated operand scanning: multiply one word, reduce, then shift one word.
    * Each inner accumulation is at most (2^32-1)^2 + 2(2^32-1) = 2^64-1.
    * Java long wraparound retains that unsigned 64-bit word; >>> extracts its carry.
    * No signed comparison of a potentially overflowing multiplication is used.
+   *
+   * With B=2^32, each iteration maps T to (T + a[i]*b + m*p)/B. Starting at zero,
+   * T < 2p is invariant since a[i],m < B and b < p. Thus T < 2p < 2^255 always
+   * fits in eight words after the shift; only the temporary multiplication carry needs a
+   * ninth word. The output array is also the call-local accumulator, never an input array.
    */
   static int[] multiply(int[] a, int[] b) {
-    int[] t = new int[2 * LIMBS + 1];
+    int[] t = new int[LIMBS];
     for (int i = 0; i < LIMBS; i++) {
       long carry = 0;
       long ai = a[i] & MASK;
       for (int j = 0; j < LIMBS; j++) {
-        long sum = ai * (b[j] & MASK) + (t[i + j] & MASK) + carry;
-        t[i + j] = (int) sum;
+        long sum = ai * (b[j] & MASK) + (t[j] & MASK) + carry;
+        t[j] = (int) sum;
         carry = sum >>> 32;
       }
-      t[i + LIMBS] = (int) carry;
-    }
-    for (int i = 0; i < LIMBS; i++) {
-      long m = ((t[i] & MASK) * N0) & MASK;
-      long carry = 0;
-      for (int j = 0; j < LIMBS; j++) {
-        long sum = m * (MODULUS[j] & MASK) + (t[i + j] & MASK) + carry;
-        t[i + j] = (int) sum;
+      long high = carry;
+      long m = ((t[0] & MASK) * N0) & MASK;
+      // The low word cancels exactly, so omit it and store the remaining words shifted.
+      carry = (m * (MODULUS[0] & MASK) + (t[0] & MASK)) >>> 32;
+      for (int j = 1; j < LIMBS; j++) {
+        long sum = m * (MODULUS[j] & MASK) + (t[j] & MASK) + carry;
+        t[j - 1] = (int) sum;
         carry = sum >>> 32;
       }
-      int k = i + LIMBS;
-      while (carry != 0) {
-        long sum = (t[k] & MASK) + carry;
-        t[k++] = (int) sum;
-        carry = sum >>> 32;
-      }
-      // t[i] is now zero; advancing i is exact division by radix 2^32.
+      // T < 2p < 2^255 proves high+carry fits in this final word without truncation.
+      t[LIMBS - 1] = (int) (high + carry);
     }
-    // REDC(a*b) < p + p^2/R < 2p < 2^255, hence the extra limb is zero.
-    int[] result = Arrays.copyOfRange(t, LIMBS, 2 * LIMBS);
-    if (atLeastModulus(result)) {
-      subtractModulus(result);
+    if (atLeastModulus(t)) {
+      subtractModulus(t);
     }
-    return result;
+    return t;
   }
 
   private static boolean atLeastModulus(int[] a) {

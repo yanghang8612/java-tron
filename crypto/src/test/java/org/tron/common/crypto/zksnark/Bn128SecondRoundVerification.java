@@ -27,6 +27,7 @@ public final class Bn128SecondRoundVerification {
   static String verify() {
     Bn128SecondRoundVerification test = new Bn128SecondRoundVerification();
     test.fields();
+    test.montgomeryProducts();
     test.signedDigits();
     test.points();
     test.finalExponent();
@@ -88,6 +89,56 @@ public final class Bn128SecondRoundVerification {
     equal(new Fp(a.mod(p)), x.half().dbl());
     equal(a, value(x)); // No arithmetic operation may mutate an operand.
     equal(b, value(y));
+  }
+
+  private void montgomeryProducts() {
+    BigInteger p = Params.P;
+    BigInteger inverseR = BigInteger.ONE.shiftLeft(256).modInverse(p);
+    Random random = new Random(0xC105128L);
+    for (int i = 0; i < 100000; i++) {
+      BigInteger a = new BigInteger(256, random).mod(p);
+      BigInteger b = new BigInteger(256, random).mod(p);
+      montgomeryCase(a, b, inverseR);
+    }
+    // Raw Montgomery words, not values encoded through the implementation under test.
+    for (int bit = 0; bit <= 256; bit++) {
+      for (int delta = -2; delta <= 2; delta++) {
+        BigInteger a = BigInteger.ONE.shiftLeft(bit).add(BigInteger.valueOf(delta)).mod(p);
+        for (BigInteger b : new BigInteger[]{BigInteger.ZERO, BigInteger.ONE,
+            p.subtract(BigInteger.ONE), p.subtract(a).mod(p), a}) {
+          montgomeryCase(a, b, inverseR);
+        }
+      }
+    }
+  }
+
+  private void montgomeryCase(BigInteger a, BigInteger b, BigInteger inverseR) {
+    int[] x = limbs(a);
+    int[] y = limbs(b);
+    int[] product = FpMontgomery.multiply(x, y);
+    int[] square = FpMontgomery.multiply(x, x);
+    equal(8, product.length);
+    equal(8, square.length);
+    equal(a.multiply(b).multiply(inverseR).mod(Params.P), fromLimbs(product));
+    equal(a.multiply(a).multiply(inverseR).mod(Params.P), fromLimbs(square));
+    equal(a, fromLimbs(x));
+    equal(b, fromLimbs(y));
+  }
+
+  private static int[] limbs(BigInteger value) {
+    int[] words = new int[8];
+    for (int i = 0; i < words.length; i++) {
+      words[i] = value.shiftRight(32 * i).intValue();
+    }
+    return words;
+  }
+
+  private static BigInteger fromLimbs(int[] words) {
+    BigInteger value = BigInteger.ZERO;
+    for (int i = words.length - 1; i >= 0; i--) {
+      value = value.shiftLeft(32).add(BigInteger.valueOf(words[i] & 0xffffffffL));
+    }
+    return value;
   }
 
   private void signedDigits() {
