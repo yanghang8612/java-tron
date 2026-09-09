@@ -397,6 +397,10 @@ public class ProposalService extends ProposalUtil {
           manager.getDynamicPropertiesStore().saveAllowTvmOsaka(entry.getValue());
           break;
         }
+        case ALLOW_OPTIMIZE_TVM: {
+          manager.getDynamicPropertiesStore().saveAllowOptimizeTvm(entry.getValue());
+          break;
+        }
         case ALLOW_TVM_PRAGUE: {
           manager.getDynamicPropertiesStore().saveAllowTvmPrague(entry.getValue());
           HistoryBlockHashUtil.deploy(manager);

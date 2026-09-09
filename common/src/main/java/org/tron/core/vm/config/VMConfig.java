@@ -45,6 +45,7 @@ public class VMConfig {
     public boolean allowTvmBlob;
     public boolean allowTvmSelfdestructRestriction;
     public boolean allowTvmOsaka;
+    public boolean allowOptimizeTvm;
     public boolean allowHardenResourceCalculation;
   }
 
@@ -200,6 +201,10 @@ public class VMConfig {
     globalSnapshot.allowTvmOsaka = allow == 1;
   }
 
+  public static void initAllowOptimizeTvm(long allow) {
+    globalSnapshot.allowOptimizeTvm = allow == 1;
+  }
+
   public static void initAllowHardenResourceCalculation(long allow) {
     globalSnapshot.allowHardenResourceCalculation = allow == 1;
   }
@@ -306,6 +311,10 @@ public class VMConfig {
 
   public static boolean allowTvmOsaka() {
     return current().allowTvmOsaka;
+  }
+
+  public static boolean allowOptimizeTvm() {
+    return current().allowOptimizeTvm;
   }
 
   public static boolean allowHardenResourceCalculation() {

@@ -49,6 +49,7 @@ public class ConfigLoader {
         snapshot.allowTvmBlob = ds.getAllowTvmBlob() == 1;
         snapshot.allowTvmSelfdestructRestriction = ds.getAllowTvmSelfdestructRestriction() == 1;
         snapshot.allowTvmOsaka = ds.getAllowTvmOsaka() == 1;
+        snapshot.allowOptimizeTvm = ds.getAllowOptimizeTvm() == 1;
         snapshot.allowHardenResourceCalculation = ds.getAllowHardenResourceCalculation() == 1;
         if (isolate) {
           VMConfig.setLocalSnapshot(snapshot);

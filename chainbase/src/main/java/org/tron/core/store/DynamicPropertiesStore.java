@@ -240,6 +240,9 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
 
   private static final byte[] ALLOW_TVM_OSAKA = "ALLOW_TVM_OSAKA".getBytes();
 
+  private static final byte[] ALLOW_OPTIMIZE_TVM =
+      "ALLOW_OPTIMIZE_TVM".getBytes();
+
   private static final byte[] ALLOW_TVM_PRAGUE = "ALLOW_TVM_PRAGUE".getBytes();
 
   // TIP-2935 install marker — flipped to 1 inside HistoryBlockHashUtil.deploy()
@@ -3009,6 +3012,19 @@ public class DynamicPropertiesStore extends TronStoreWithRevoking<BytesCapsule> 
 
   public void saveAllowTvmOsaka(long value) {
     this.put(ALLOW_TVM_OSAKA, new BytesCapsule(ByteArray.fromLong(value)));
+  }
+
+  public long getAllowOptimizeTvm() {
+    // Missing in pre-activation stores/snapshots: always use the original implementation.
+    // Deliberately no node-local configuration fallback for this consensus switch.
+    return Optional.ofNullable(getUnchecked(ALLOW_OPTIMIZE_TVM))
+        .map(BytesCapsule::getData)
+        .map(ByteArray::toLong)
+        .orElse(0L);
+  }
+
+  public void saveAllowOptimizeTvm(long value) {
+    this.put(ALLOW_OPTIMIZE_TVM, new BytesCapsule(ByteArray.fromLong(value)));
   }
 
   public long getAllowTvmPrague() {

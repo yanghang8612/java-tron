@@ -858,6 +858,9 @@ public class PrecompiledContracts {
 
     @Override
     public Pair<Boolean, byte[]> execute(byte[] data) {
+      if (VMConfig.allowOptimizeTvm()) {
+        return OptimizedBN128.add(data);
+      }
 
       if (data == null) {
         data = EMPTY_BYTE_ARRAY;
@@ -912,6 +915,9 @@ public class PrecompiledContracts {
 
     @Override
     public Pair<Boolean, byte[]> execute(byte[] data) {
+      if (VMConfig.allowOptimizeTvm()) {
+        return OptimizedBN128.multiply(data, getVmShouldEndInUs());
+      }
 
       if (data == null) {
         data = EMPTY_BYTE_ARRAY;
@@ -971,6 +977,9 @@ public class PrecompiledContracts {
 
     @Override
     public Pair<Boolean, byte[]> execute(byte[] data) {
+      if (VMConfig.allowOptimizeTvm()) {
+        return OptimizedBN128.pairing(data, getVmShouldEndInUs());
+      }
 
       if (data == null) {
         data = EMPTY_BYTE_ARRAY;

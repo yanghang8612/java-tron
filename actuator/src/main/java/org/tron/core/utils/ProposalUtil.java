@@ -886,6 +886,22 @@ public class ProposalUtil {
         }
         break;
       }
+      case ALLOW_OPTIMIZE_TVM: {
+        // Development gate: confirm the parameter code and release-version gate before rollout.
+        if (!forkController.pass(ForkBlockVersionEnum.VERSION_4_8_2_2)) {
+          throw new ContractValidateException(
+              "Bad chain parameter id [ALLOW_OPTIMIZE_TVM]");
+        }
+        if (dynamicPropertiesStore.getAllowOptimizeTvm() == 1) {
+          throw new ContractValidateException(
+              "[ALLOW_OPTIMIZE_TVM] has been valid, no need to propose again");
+        }
+        if (value != 1) {
+          throw new ContractValidateException(
+              "This value[ALLOW_OPTIMIZE_TVM] is only allowed to be 1");
+        }
+        break;
+      }
       case ALLOW_TVM_PRAGUE: {
         if (!forkController.pass(ForkBlockVersionEnum.VERSION_4_8_2)) {
           throw new ContractValidateException(
@@ -1029,7 +1045,8 @@ public class ProposalUtil {
     ALLOW_TVM_PRAGUE(95), // 0, 1
     ALLOW_TVM_OSAKA(96), // 0, 1
     ALLOW_HARDEN_RESOURCE_CALCULATION(97), // 0, 1
-    ALLOW_HARDEN_EXCHANGE_CALCULATION(98); // 0, 1
+    ALLOW_HARDEN_EXCHANGE_CALCULATION(98), // 0, 1
+    ALLOW_OPTIMIZE_TVM(99); // provisional code; default 0, proposal value 1 only
     private long code;
 
     ProposalType(long code) {

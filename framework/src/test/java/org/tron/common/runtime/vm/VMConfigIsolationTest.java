@@ -102,6 +102,7 @@ public class VMConfigIsolationTest {
     snapshot.allowTvmBlob = VMConfig.allowTvmBlob();
     snapshot.allowTvmSelfdestructRestriction = VMConfig.allowTvmSelfdestructRestriction();
     snapshot.allowTvmOsaka = VMConfig.allowTvmOsaka();
+    snapshot.allowOptimizeTvm = VMConfig.allowOptimizeTvm();
     snapshot.allowHardenResourceCalculation = VMConfig.allowHardenResourceCalculation();
     return snapshot;
   }

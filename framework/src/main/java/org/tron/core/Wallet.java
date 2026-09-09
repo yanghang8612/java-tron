@@ -1510,6 +1510,11 @@ public class Wallet {
         .build());
 
     builder.addChainParameter(Protocol.ChainParameters.ChainParameter.newBuilder()
+        .setKey("getAllowOptimizeTvm")
+        .setValue(dbManager.getDynamicPropertiesStore().getAllowOptimizeTvm())
+        .build());
+
+    builder.addChainParameter(Protocol.ChainParameters.ChainParameter.newBuilder()
         .setKey("getAllowTvmPrague")
         .setValue(dbManager.getDynamicPropertiesStore().getAllowTvmPrague())
         .build());

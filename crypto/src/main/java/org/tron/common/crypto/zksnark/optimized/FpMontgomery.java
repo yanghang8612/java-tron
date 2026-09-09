@@ -1,0 +1,169 @@
+package org.tron.common.crypto.zksnark.optimized;
+
+import java.math.BigInteger;
+
+/**
+ * Fixed-width Fp arithmetic, radix 2^32, R = 2^256. No native code or mutable shared scratch.
+ * All operands/results are canonical residues in [0,p), stored least-significant limb first.
+ * Arrays returned here are owned by their Fp and never subsequently modified.
+ */
+final class FpMontgomery {
+
+  // Defined here, independently of Params/Fp, to avoid cyclic field-constant initialization.
+  static final BigInteger P = new BigInteger(
+      "21888242871839275222246405745257275088696311157297823662689037894645226208583");
+  private static final long MASK = 0xffffffffL;
+  private static final int LIMBS = 8;
+  private static final int[] MODULUS = limbs(P);
+  private static final int[] R2 = limbs(BigInteger.ONE.shiftLeft(512).mod(P));
+  private static final int[] ONE = limbs(BigInteger.ONE);
+  // n0 = -p[0]^-1 mod 2^32, derived rather than hand-transcribed.
+  private static final long N0 = P.negate().modInverse(BigInteger.ONE.shiftLeft(32))
+      .longValue() & MASK;
+
+  private FpMontgomery() {
+  }
+
+  static int[] encode(BigInteger value) {
+    return multiply(limbs(value), R2);
+  }
+
+  static BigInteger decode(int[] value) {
+    int[] normal = multiply(value, ONE);
+    byte[] bytes = new byte[32];
+    for (int i = 0; i < LIMBS; i++) {
+      int word = normal[i];
+      for (int j = 0; j < 4; j++) {
+        bytes[31 - 4 * i - j] = (byte) (word >>> (8 * j));
+      }
+    }
+    return new BigInteger(1, bytes);
+  }
+
+  private static int[] limbs(BigInteger value) {
+    int[] result = new int[LIMBS];
+    for (int i = 0; i < LIMBS; i++) {
+      result[i] = value.intValue();
+      value = value.shiftRight(32);
+    }
+    return result;
+  }
+
+  static int[] add(int[] a, int[] b) {
+    int[] result = new int[LIMBS];
+    long carry = 0;
+    for (int i = 0; i < LIMBS; i++) {
+      carry += (a[i] & MASK) + (b[i] & MASK);
+      result[i] = (int) carry;
+      carry >>>= 32;
+    }
+    // a+b < 2p < 2^255, so no 256-bit overflow is possible.
+    if (atLeastModulus(result)) {
+      subtractModulus(result);
+    }
+    return result;
+  }
+
+  static int[] subtract(int[] a, int[] b) {
+    int[] result = new int[LIMBS];
+    long borrow = 0;
+    for (int i = 0; i < LIMBS; i++) {
+      borrow += (a[i] & MASK) - (b[i] & MASK);
+      result[i] = (int) borrow;
+      borrow >>= 32;
+    }
+    if (borrow != 0) {
+      addModulus(result); // The carry out cancels the borrow from the subtraction.
+    }
+    return result;
+  }
+
+  static int[] half(int[] a) {
+    int[] result = a.clone();
+    if ((result[0] & 1) != 0) {
+      addModulus(result); // a+p < 2p < 2^255; still fits in eight limbs.
+    }
+    int carry = 0;
+    for (int i = LIMBS - 1; i >= 0; i--) {
+      int word = result[i];
+      result[i] = (word >>> 1) | (carry << 31);
+      carry = word & 1;
+    }
+    return result;
+  }
+
+  static boolean isZero(int[] a) {
+    int bits = 0;
+    for (int word : a) {
+      bits |= word;
+    }
+    return bits == 0;
+  }
+
+  /**
+   * Coarsely integrated operand scanning: multiply one word, reduce, then shift one word.
+   * Each inner accumulation is at most (2^32-1)^2 + 2(2^32-1) = 2^64-1.
+   * Java long wraparound retains that unsigned 64-bit word; >>> extracts its carry.
+   * No signed comparison of a potentially overflowing multiplication is used.
+   *
+   * With B=2^32, each iteration maps T to (T + a[i]*b + m*p)/B. Starting at zero,
+   * T < 2p is invariant since a[i],m < B and b < p. Thus T < 2p < 2^255 always
+   * fits in eight words after the shift; only the temporary multiplication carry needs a
+   * ninth word. The output array is also the call-local accumulator, never an input array.
+   */
+  static int[] multiply(int[] a, int[] b) {
+    int[] t = new int[LIMBS];
+    for (int i = 0; i < LIMBS; i++) {
+      long carry = 0;
+      long ai = a[i] & MASK;
+      for (int j = 0; j < LIMBS; j++) {
+        long sum = ai * (b[j] & MASK) + (t[j] & MASK) + carry;
+        t[j] = (int) sum;
+        carry = sum >>> 32;
+      }
+      long high = carry;
+      long m = ((t[0] & MASK) * N0) & MASK;
+      // The low word cancels exactly, so omit it and store the remaining words shifted.
+      carry = (m * (MODULUS[0] & MASK) + (t[0] & MASK)) >>> 32;
+      for (int j = 1; j < LIMBS; j++) {
+        long sum = m * (MODULUS[j] & MASK) + (t[j] & MASK) + carry;
+        t[j - 1] = (int) sum;
+        carry = sum >>> 32;
+      }
+      // T < 2p < 2^255 proves high+carry fits in this final word without truncation.
+      t[LIMBS - 1] = (int) (high + carry);
+    }
+    if (atLeastModulus(t)) {
+      subtractModulus(t);
+    }
+    return t;
+  }
+
+  private static boolean atLeastModulus(int[] a) {
+    for (int i = LIMBS - 1; i >= 0; i--) {
+      long difference = (a[i] & MASK) - (MODULUS[i] & MASK);
+      if (difference != 0) {
+        return difference > 0;
+      }
+    }
+    return true;
+  }
+
+  private static void subtractModulus(int[] a) {
+    long borrow = 0;
+    for (int i = 0; i < LIMBS; i++) {
+      borrow += (a[i] & MASK) - (MODULUS[i] & MASK);
+      a[i] = (int) borrow;
+      borrow >>= 32;
+    }
+  }
+
+  private static void addModulus(int[] a) {
+    long carry = 0;
+    for (int i = 0; i < LIMBS; i++) {
+      carry += (a[i] & MASK) + (MODULUS[i] & MASK);
+      a[i] = (int) carry;
+      carry >>>= 32;
+    }
+  }
+}
