@@ -52,7 +52,7 @@ public class Fp implements Field<Fp> {
 
   @Override
   public Fp add(Fp o) {
-    return new Fp(this.v.add(o.v).mod(P));
+    return reduced(this.v.add(o.v));
   }
 
   @Override
@@ -62,7 +62,7 @@ public class Fp implements Field<Fp> {
 
   @Override
   public Fp sub(Fp o) {
-    return new Fp(this.v.subtract(o.v).mod(P));
+    return reduced(this.v.subtract(o.v));
   }
 
   @Override
@@ -72,7 +72,7 @@ public class Fp implements Field<Fp> {
 
   @Override
   public Fp dbl() {
-    return new Fp(v.add(v).mod(P));
+    return reduced(v.shiftLeft(1));
   }
 
   @Override
@@ -82,7 +82,27 @@ public class Fp implements Field<Fp> {
 
   @Override
   public Fp negate() {
-    return new Fp(v.negate().mod(P));
+    return reduced(v.negate());
+  }
+
+  /**
+   * A sum or difference of canonical field elements needs at most one correction.
+   * Keep the general reduction fallback: constructors also accept unreduced coordinates,
+   * which must not be silently accepted by the point decoders.
+   */
+  private static Fp reduced(BigInteger value) {
+    if (value.signum() < 0) {
+      value = value.add(P);
+      if (value.signum() < 0) {
+        value = value.mod(P);
+      }
+    } else if (value.compareTo(P) >= 0) {
+      value = value.subtract(P);
+      if (value.compareTo(P) >= 0) {
+        value = value.mod(P);
+      }
+    }
+    return new Fp(value);
   }
 
   @Override

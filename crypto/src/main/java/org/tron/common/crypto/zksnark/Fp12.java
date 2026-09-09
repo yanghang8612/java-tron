@@ -136,14 +136,14 @@ class Fp12 implements Field<Fp12> {
     // For z.a_.a_ = z0.
     s1 = z1.mul(x2);
     t3 = s1.add(d4);
-    t4 = Fp6.NON_RESIDUE.mul(t3).add(d0);
+    t4 = t3.mulByNonResidue().add(d0);
     z0 = t4;
 
     // For z.a_.b_ = z1
     t3 = z5.mul(x4);
     s1 = s1.add(t3);
     t3 = t3.add(d2);
-    t4 = Fp6.NON_RESIDUE.mul(t3);
+    t4 = t3.mulByNonResidue();
     t3 = z1.mul(x0);
     s1 = s1.add(t3);
     t4 = t4.add(t3);
@@ -161,7 +161,7 @@ class Fp12 implements Field<Fp12> {
     z2 = t3;
     t1 = x2.add(x4);
     t3 = t0.mul(t1).sub(d2).sub(d4);
-    t4 = Fp6.NON_RESIDUE.mul(t3);
+    t4 = t3.mulByNonResidue();
     t3 = z3.mul(x0);
     s1 = s1.add(t3);
     t4 = t4.add(t3);
@@ -170,7 +170,7 @@ class Fp12 implements Field<Fp12> {
     // For z.b_.b_ = z4
     t3 = z5.mul(x2);
     s1 = s1.add(t3);
-    t4 = Fp6.NON_RESIDUE.mul(t3);
+    t4 = t3.mulByNonResidue();
     t0 = x0.add(x4);
     t3 = t2.mul(t0).sub(d0).sub(d4);
     t4 = t4.add(t3);
@@ -259,15 +259,18 @@ class Fp12 implements Field<Fp12> {
 
     // t0 + t1*y = (z0 + z1*y)^2 = a^2
     tmp = z0.mul(z1);
-    t0 = z0.add(z1).mul(z0.add(Fp6.NON_RESIDUE.mul(z1))).sub(tmp).sub(Fp6.NON_RESIDUE.mul(tmp));
+    t0 = z0.add(z1).mul(z0.add(z1.mulByNonResidue())).sub(tmp)
+        .sub(tmp.mulByNonResidue());
     t1 = tmp.add(tmp);
     // t2 + t3*y = (z2 + z3*y)^2 = b^2
     tmp = z2.mul(z3);
-    t2 = z2.add(z3).mul(z2.add(Fp6.NON_RESIDUE.mul(z3))).sub(tmp).sub(Fp6.NON_RESIDUE.mul(tmp));
+    t2 = z2.add(z3).mul(z2.add(z3.mulByNonResidue())).sub(tmp)
+        .sub(tmp.mulByNonResidue());
     t3 = tmp.add(tmp);
     // t4 + t5*y = (z4 + z5*y)^2 = c^2
     tmp = z4.mul(z5);
-    t4 = z4.add(z5).mul(z4.add(Fp6.NON_RESIDUE.mul(z5))).sub(tmp).sub(Fp6.NON_RESIDUE.mul(tmp));
+    t4 = z4.add(z5).mul(z4.add(z5.mulByNonResidue())).sub(tmp)
+        .sub(tmp.mulByNonResidue());
     t5 = tmp.add(tmp);
 
     // for A
@@ -284,7 +287,7 @@ class Fp12 implements Field<Fp12> {
     // for B
 
     // z2 = 3 * (xi * t5) + 2 * z2
-    tmp = Fp6.NON_RESIDUE.mul(t5);
+    tmp = t5.mulByNonResidue();
     z2 = tmp.add(z2);
     z2 = z2.add(z2);
     z2 = z2.add(tmp);

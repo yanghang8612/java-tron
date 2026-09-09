@@ -43,3 +43,13 @@ jacocoTestReport {
         }
     }
 }
+
+// The comparison runner starts its own JVMs and selects baseline/candidate crypto classes
+// by classpath order. Do not run performance measurements under Gradle's JaCoCo agent.
+tasks.register('writeBn128BenchmarkClasspath') {
+    dependsOn testClasses
+    outputs.upToDateWhen { false }
+    doLast {
+        file("$buildDir/bn128-benchmark-classpath.txt").text = sourceSets.test.runtimeClasspath.asPath
+    }
+}

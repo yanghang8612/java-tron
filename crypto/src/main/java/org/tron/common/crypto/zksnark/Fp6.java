@@ -150,7 +150,7 @@ class Fp6 implements Field<Fp6> {
 
   Fp6 mulByNonResidue() {
 
-    Fp2 ra = NON_RESIDUE.mul(c);
+    Fp2 ra = c.mulByNonResidue();
     Fp2 rb = a;
     Fp2 rc = b;
 

@@ -75,13 +75,9 @@ class Fp2 implements Field<Fp2> {
   @Override
   public Fp2 squared() {
 
-    // using Complex squaring
-
+    // i^2 = -1: (a + bi)^2 = (a + b)(a - b) + 2ab i.
     Fp ab = a.mul(b);
-
-    Fp ra = a.add(b).mul(b.mul(Fp.NON_RESIDUE).add(a))
-        .sub(ab)
-        .sub(ab.mul(Fp.NON_RESIDUE)); // ra = (a + b)(a + NON_RESIDUE * b) - ab - NON_RESIDUE * b
+    Fp ra = a.add(b).mul(a.sub(b));
     Fp rb = ab.dbl();
 
     return new Fp2(ra, rb);
@@ -93,7 +89,7 @@ class Fp2 implements Field<Fp2> {
     Fp aa = a.mul(o.a);
     Fp bb = b.mul(o.b);
 
-    Fp ra = bb.mul(Fp.NON_RESIDUE).add(aa);    // ra = a1 * a2 + NON_RESIDUE * b1 * b2
+    Fp ra = aa.sub(bb); // i^2 = -1
     Fp rb = a.add(b).mul(o.a.add(o.b)).sub(aa)
         .sub(bb);     // rb = (a1 + b1)(a2 + b2) - a1 * a2 - b1 * b2
 
@@ -120,7 +116,7 @@ class Fp2 implements Field<Fp2> {
 
     Fp t0 = a.squared();
     Fp t1 = b.squared();
-    Fp t2 = t0.sub(Fp.NON_RESIDUE.mul(t1));
+    Fp t2 = t0.add(t1); // a^2 + b^2
     Fp t3 = t2.inverse();
 
     Fp ra = a.mul(t3);          // ra = a * t3
@@ -170,13 +166,16 @@ class Fp2 implements Field<Fp2> {
   Fp2 frobeniusMap(int power) {
 
     Fp ra = a;
-    Fp rb = FROBENIUS_COEFFS_B[power % 2].mul(b);
+    Fp rb = power % 2 == 0 ? b.add(Fp.ZERO) : b.negate();
 
     return new Fp2(ra, rb);
   }
 
   Fp2 mulByNonResidue() {
-    return NON_RESIDUE.mul(this);
+    // (a + bi)(9 + i) = (9a - b) + (a + 9b)i.
+    Fp a9 = a.dbl().dbl().dbl().add(a);
+    Fp b9 = b.dbl().dbl().dbl().add(b);
+    return new Fp2(a9.sub(b), a.add(b9));
   }
 
   @Override

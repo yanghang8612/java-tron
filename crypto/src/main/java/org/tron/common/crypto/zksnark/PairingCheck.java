@@ -19,7 +19,6 @@ package org.tron.common.crypto.zksnark;
 
 import static org.tron.common.crypto.zksnark.Params.B_Fp2;
 import static org.tron.common.crypto.zksnark.Params.PAIRING_FINAL_EXPONENT_Z;
-import static org.tron.common.crypto.zksnark.Params.TWIST;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -60,75 +59,57 @@ public class PairingCheck {
     return new PairingCheck();
   }
 
-  private static Fp12 millerLoop(BN128G1 g1, BN128G2 g2) {
-
-    // convert to affine coordinates
-    g1 = g1.toAffine();
-    g2 = g2.toAffine();
-
-    // calculate Ell coefficients
-    List<EllCoeffs> coeffs = calcEllCoeffs(g2);
-
-    Fp12 f = Fp12._1;
-    int idx = 0;
-
-    // for each bit except most significant one
-    for (int i = LOOP_COUNT.bitLength() - 2; i >= 0; i--) {
-
-      EllCoeffs c = coeffs.get(idx++);
-      f = f.squared();
-      f = f.mulBy024(c.ell0, g1.y.mul(c.ellVW), g1.x.mul(c.ellVV));
-
-      if (LOOP_COUNT.testBit(i)) {
-        c = coeffs.get(idx++);
-        f = f.mulBy024(c.ell0, g1.y.mul(c.ellVW), g1.x.mul(c.ellVV));
+  private Fp12 millerLoop() {
+    // Infinity contributes one, but input validation has already happened in the decoder.
+    List<Pair> active = new ArrayList<>(pairs.size());
+    for (Pair pair : pairs) {
+      if (!pair.g1.isZero() && !pair.g2.isZero()) {
+        active.add(Pair.of(pair.g1.toAffine(), pair.g2.toAffine()));
       }
-
+    }
+    if (active.isEmpty()) {
+      return Fp12._1;
+    }
+    BN128G2[] addends = new BN128G2[active.size()];
+    for (int k = 0; k < active.size(); k++) {
+      addends[k] = active.get(k).g2;
     }
 
-    EllCoeffs c = coeffs.get(idx++);
-    f = f.mulBy024(c.ell0, g1.y.mul(c.ellVW), g1.x.mul(c.ellVV));
-
-    c = coeffs.get(idx);
-    f = f.mulBy024(c.ell0, g1.y.mul(c.ellVW), g1.x.mul(c.ellVV));
-
+    // Product of Miller loops: (f1 * ... * fn)^2 = f1^2 * ... * fn^2.
+    // Share the Fp12 square across all pairs and consume each line immediately,
+    // retaining only O(number of pairs) state instead of a table of all lines.
+    Fp12 f = Fp12._1;
+    for (int i = LOOP_COUNT.bitLength() - 2; i >= 0; i--) {
+      if (i != LOOP_COUNT.bitLength() - 2) { // the first square would be 1^2
+        f = f.squared();
+      }
+      for (int k = 0; k < active.size(); k++) {
+        Pair pair = active.get(k);
+        Precomputed doubling = flippedMillerLoopDoubling(addends[k]);
+        addends[k] = doubling.g2;
+        f = multiplyLine(f, pair.g1, doubling.coeffs);
+        if (LOOP_COUNT.testBit(i)) {
+          Precomputed addition = flippedMillerLoopMixedAddition(pair.g2, addends[k]);
+          addends[k] = addition.g2;
+          f = multiplyLine(f, pair.g1, addition.coeffs);
+        }
+      }
+    }
+    for (int k = 0; k < active.size(); k++) {
+      Pair pair = active.get(k);
+      BN128G2 q1 = pair.g2.mulByP();
+      BN128G2 q2 = q1.mulByP();
+      q2 = new BN128G2(q2.x, q2.y.negate(), q2.z);
+      Precomputed addition = flippedMillerLoopMixedAddition(q1, addends[k]);
+      f = multiplyLine(f, pair.g1, addition.coeffs);
+      addition = flippedMillerLoopMixedAddition(q2, addition.g2);
+      f = multiplyLine(f, pair.g1, addition.coeffs);
+    }
     return f;
   }
 
-  private static List<EllCoeffs> calcEllCoeffs(BN128G2 base) {
-
-    List<EllCoeffs> coeffs = new ArrayList<>();
-
-    BN128G2 addend = base;
-
-    // for each bit except most significant one
-    for (int i = LOOP_COUNT.bitLength() - 2; i >= 0; i--) {
-
-      Precomputed doubling = flippedMillerLoopDoubling(addend);
-
-      addend = doubling.g2;
-      coeffs.add(doubling.coeffs);
-
-      if (LOOP_COUNT.testBit(i)) {
-        Precomputed addition = flippedMillerLoopMixedAddition(base, addend);
-        addend = addition.g2;
-        coeffs.add(addition.coeffs);
-      }
-    }
-
-    BN128G2 q1 = base.mulByP();
-    BN128G2 q2 = q1.mulByP();
-
-    q2 = new BN128G2(q2.x, q2.y.negate(), q2.z); // q2.y = -q2.y
-
-    Precomputed addition = flippedMillerLoopMixedAddition(q1, addend);
-    addend = addition.g2;
-    coeffs.add(addition.coeffs);
-
-    addition = flippedMillerLoopMixedAddition(q2, addend);
-    coeffs.add(addition.coeffs);
-
-    return coeffs;
+  private static Fp12 multiplyLine(Fp12 f, BN128G1 g1, EllCoeffs c) {
+    return f.mulBy024(c.ell0, g1.y.mul(c.ellVW), g1.x.mul(c.ellVV));
   }
 
   private static Precomputed flippedMillerLoopMixedAddition(BN128G2 base, BN128G2 addend) {
@@ -148,7 +129,7 @@ public class PairingCheck {
     Fp2 y3 = e.mul(i.sub(j)).sub(h.mul(y1));     // y3 = e * (i - j) - h * y1)
     Fp2 z3 = z1.mul(h);                          // z3 = Z1*H
 
-    Fp2 ell0 = TWIST.mul(e.mul(x2).sub(d.mul(y2)));     // ell_0 = TWIST * (e * x2 - d * y2)
+    Fp2 ell0 = e.mul(x2).sub(d.mul(y2)).mulByNonResidue();
     Fp2 ellVV = e.negate();                             // ell_VV = -e
     Fp2 ellVW = d;                                      // ell_VW = d
 
@@ -178,7 +159,7 @@ public class PairingCheck {
     Fp2 ry = g.squared().sub(e2.add(e2).add(e2));   // ry = g^2 - 3 * e^2
     Fp2 rz = b.mul(h);                              // rz = b * h
 
-    Fp2 ell0 = TWIST.mul(i);        // ell_0 = twist * i
+    Fp2 ell0 = i.mulByNonResidue(); // ell_0 = twist * i, where twist = 9 + sqrt(-1)
     Fp2 ellVW = h.negate();         // ell_VW = -h
     Fp2 ellVV = j.add(j).add(j);    // ell_VV = 3 * j
 
@@ -229,19 +210,13 @@ public class PairingCheck {
   }
 
   public void run() {
-
-    for (Pair pair : pairs) {
-
-      Fp12 miller = pair.millerLoop();
-
-      if (!miller.equals(Fp12._1))    // run mul code only if necessary
-      {
-        product = product.mul(miller);
-      }
+    Fp12 miller = millerLoop();
+    if (!miller.equals(Fp12._1)) {
+      product = product.mul(miller);
     }
-
-    // finalize
-    product = finalExponentiation(product);
+    if (!product.equals(Fp12._1)) {
+      product = finalExponentiation(product);
+    }
   }
 
   public int result() {
@@ -277,18 +252,6 @@ public class PairingCheck {
       return new Pair(g1, g2);
     }
 
-    Fp12 millerLoop() {
-
-      // miller loop result equals "1" if at least one of the points is zero
-      if (g1.isZero()) {
-        return Fp12._1;
-      }
-      if (g2.isZero()) {
-        return Fp12._1;
-      }
-
-      return PairingCheck.millerLoop(g1, g2);
-    }
   }
 
   static class EllCoeffs {

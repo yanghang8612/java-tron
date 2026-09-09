@@ -76,6 +76,11 @@ public abstract class BN128<T extends Field<T>> {
       return instance(zero.x, one(), zero.z); // (0; 1; 0)
     }
 
+    // Decoded precompile inputs are already affine. Avoid inverting one.
+    if (z.equals(one())) {
+      return instance(x, y, one());
+    }
+
     T zInv = z.inverse();
     T zInv2 = zInv.squared();
     T zInv3 = zInv2.mul(zInv);
@@ -149,8 +154,7 @@ public abstract class BN128<T extends Field<T>> {
     T j = h.mul(i);            // j = h * i
     T r = s2.sub(s1).dbl();    // r = 2 * (s2 - s1)
     T v = u1.mul(i);           // v = u1 * i
-    T zz = z1.add(z2).squared()
-        .sub(z1.squared()).sub(z2.squared());
+    T zz = z1.add(z2).squared().sub(z1z1).sub(z2z2);
 
     T x3 = r.squared().sub(j).sub(v.dbl());        // x3 = r^2 - j - 2 * v
     T y3 = v.sub(x3).mul(r).sub(s1.mul(j).dbl());  // y3 = r * (v - x3) - 2 * (s1 * j)
