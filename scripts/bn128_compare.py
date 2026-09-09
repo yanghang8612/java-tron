@@ -128,12 +128,21 @@ def main():
     parser.add_argument("--scenarios", default="distinct", help="distinct,repeated")
     parser.add_argument("--variants", default="baseline,optimized",
                         help="baseline,optimized,fields,affine,miller (last three are ablations)")
+    parser.add_argument("--reference", action="append", default=[], metavar="NAME=COMMIT",
+                        help="additional immutable implementation, e.g. previous=a05b19e9aa")
     parser.add_argument("--verify-only", action="store_true")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--jvm-arg", action="append", default=[])
     args = parser.parse_args()
     counts = sorted(set(int(x) for x in args.counts.split(",")))
     variants = args.variants.split(",")
+    references = {}
+    for entry in args.reference:
+        name, separator, ref = entry.partition("=")
+        if (not separator or not name.isidentifier() or name in
+                {"baseline", "optimized", "fields", "affine", "miller"} or name in references):
+            parser.error("reference must have a unique NAME=COMMIT")
+        references[name] = text_command(["git", "rev-parse", "--verify", ref + "^{commit}"])
     scenarios = args.scenarios.split(",")
     engines = (args.engines or ("direct,tvm" if args.tvm else "core")).split(",")
     if not counts or counts[0] < 1 or counts[-1] > 256:
@@ -141,7 +150,7 @@ def main():
     if min(args.samples, args.forks, args.warmup_seconds, args.minimum_warmup,
            args.timeout_ms) <= 0:
         parser.error("sample, fork, warmup and timeout values must be positive")
-    if set(variants) - {"baseline", "optimized", "fields", "affine", "miller"}:
+    if set(variants) - ({"baseline", "optimized", "fields", "affine", "miller"} | set(references)):
         parser.error("unknown variant")
     if set(scenarios) - {"distinct", "repeated"} or set(engines) - {"core", "direct", "tvm"}:
         parser.error("unknown scenario or engine")
@@ -181,10 +190,15 @@ def main():
         candidate[path] = (ROOT / path).read_bytes()
         baseline_hash.update(frozen[path])
         sources_hash.update(candidate[path])
+    extra_sources = {str(p.relative_to(ROOT)): p.read_bytes()
+                     for p in sorted((ROOT / SOURCE).glob("*.java"))
+                     if str(p.relative_to(ROOT)) not in candidate}
+    for content in extra_sources.values():
+        sources_hash.update(content)
     manifest = dict(baseline=baseline, baselineSourcesSha256=baseline_hash.hexdigest(),
                     candidateHead=text_command(["git", "rev-parse", "HEAD"]),
                     candidateSourcesSha256=sources_hash.hexdigest(),
-                    machine=platform.platform(), arguments=vars(args),
+                    references=references, machine=platform.platform(), arguments=vars(args),
                     javaVersion=text_command([java, "-version"]),
                     jvmArgs=["-Xms1g", "-Xmx1g", "-XX:+UseParallelGC"] + args.jvm_arg)
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2, default=str) + "\n")
@@ -197,13 +211,25 @@ def main():
         dest = work / variant / "classes"
         src.mkdir(parents=True)
         dest.mkdir()
-        for path in paths:
+        variant_paths = paths
+        if variant in references:
+            variant_paths = text_command(["git", "ls-tree", "-r", "--name-only",
+                                          references[variant], "--", SOURCE]).splitlines()
+            variant_paths = [p for p in variant_paths if p.endswith(".java")]
+        for path in variant_paths:
             name = Path(path).name
+            if variant in references:
+                (src / name).write_bytes(run(["git", "show", references[variant] + ":" + path],
+                                             stdout=subprocess.PIPE).stdout)
+                continue
             use_candidate = (variant == "optimized"
                              or variant == "fields" and name in {"Fp.java", "Fp2.java", "Fp6.java", "Fp12.java"}
                              or variant == "affine" and name == "BN128.java"
-                             or variant == "miller" and name == "PairingCheck.java")
+                             or variant == "miller" and name in {"PairingCheck.java", "Fp.java", "Fp2.java"})
             (src / name).write_bytes(candidate[path] if use_candidate else frozen[path])
+        if variant not in references and variant != "baseline":
+            for path, content in extra_sources.items():
+                (src / Path(path).name).write_bytes(content)
         run([javac, "-source", "8", "-target", "8", "-encoding", "UTF-8", "-d", str(dest)]
             + [str(p) for p in sorted(src.glob("*.java"))] + [str(p) for p in harness])
         classes[variant] = str(dest)

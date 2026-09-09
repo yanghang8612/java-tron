@@ -111,6 +111,10 @@ class Fp2 implements Field<Fp2> {
     return this.add(this);
   }
 
+  Fp2 half() {
+    return new Fp2(a.half(), b.half());
+  }
+
   @Override
   public Fp2 inverse() {
 

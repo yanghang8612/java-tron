@@ -53,12 +53,12 @@ public final class Bn128TestSupport {
     p = p.toEthNotation();
     q = q.toEthNotation();
     byte[] result = new byte[PAIR_BYTES];
-    putWord(result, 0, p.x.v);
-    putWord(result, 1, p.y.v);
-    putWord(result, 2, q.x.b.v);
-    putWord(result, 3, q.x.a.v);
-    putWord(result, 4, q.y.b.v);
-    putWord(result, 5, q.y.a.v);
+    putWord(result, 0, value(p.x));
+    putWord(result, 1, value(p.y));
+    putWord(result, 2, value(q.x.b));
+    putWord(result, 3, value(q.x.a));
+    putWord(result, 4, value(q.y.b));
+    putWord(result, 5, value(q.y.a));
     return result;
   }
 
@@ -159,27 +159,31 @@ public final class Bn128TestSupport {
     }
   }
 
+  static BigInteger value(Fp value) {
+    return new BigInteger(value.bytes());
+  }
+
   private static Fp2 sqrt(Fp2 value) {
     if (value.b.isZero()) {
-      BigInteger root = sqrt(value.a.v);
+      BigInteger root = sqrt(value(value.a));
       if (root != null) {
         return new Fp2(new Fp(root), Fp.ZERO);
       }
-      root = sqrt(value.a.v.negate().mod(Params.P));
+      root = sqrt(value(value.a).negate().mod(Params.P));
       return root == null ? null : new Fp2(Fp.ZERO, new Fp(root));
     }
-    BigInteger norm = value.a.v.multiply(value.a.v)
-        .add(value.b.v.multiply(value.b.v)).mod(Params.P);
+    BigInteger norm = value(value.a).multiply(value(value.a))
+        .add(value(value.b).multiply(value(value.b))).mod(Params.P);
     BigInteger normRoot = sqrt(norm);
     if (normRoot == null) {
       return null;
     }
     BigInteger inverseTwo = BigInteger.valueOf(2).modInverse(Params.P);
     for (int sign = 0; sign < 2; sign++) {
-      BigInteger delta = value.a.v.add(normRoot).multiply(inverseTwo).mod(Params.P);
+      BigInteger delta = value(value.a).add(normRoot).multiply(inverseTwo).mod(Params.P);
       BigInteger x = sqrt(delta);
       if (x != null && x.signum() != 0) {
-        BigInteger y = value.b.v.multiply(x.shiftLeft(1).modInverse(Params.P)).mod(Params.P);
+        BigInteger y = value(value.b).multiply(x.shiftLeft(1).modInverse(Params.P)).mod(Params.P);
         Fp2 result = new Fp2(new Fp(x), new Fp(y));
         if (result.squared().equals(value)) {
           return result;

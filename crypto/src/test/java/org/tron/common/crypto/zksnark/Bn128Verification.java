@@ -53,17 +53,19 @@ public final class Bn128Verification {
       equal(new Fp(a.shiftLeft(1).mod(p)), x.dbl());
       equal(new Fp(a.negate().mod(p)), x.negate());
       equal(new Fp(a.multiply(b).mod(p)), x.mul(y));
-      record(x.add(y).v);
-      record(x.sub(y).v);
-      record(x.dbl().v);
-      record(x.negate().v);
+      record(Bn128TestSupport.value(x.add(y)));
+      record(Bn128TestSupport.value(x.sub(y)));
+      record(Bn128TestSupport.value(x.dbl()));
+      record(Bn128TestSupport.value(x.negate()));
     }
     for (int i = 0; i < 2000; i++) {
       Fp2 a = Bn128TestSupport.randomFp2(random);
       Fp2 b = Bn128TestSupport.randomFp2(random);
       Fp2 expected = new Fp2(
-          a.a.v.multiply(b.a.v).subtract(a.b.v.multiply(b.b.v)).mod(p),
-          a.a.v.multiply(b.b.v).add(a.b.v.multiply(b.a.v)).mod(p));
+          Bn128TestSupport.value(a.a).multiply(Bn128TestSupport.value(b.a))
+              .subtract(Bn128TestSupport.value(a.b).multiply(Bn128TestSupport.value(b.b))).mod(p),
+          Bn128TestSupport.value(a.a).multiply(Bn128TestSupport.value(b.b))
+              .add(Bn128TestSupport.value(a.b).multiply(Bn128TestSupport.value(b.a))).mod(p));
       equal(expected, a.mul(b));
       equal(a.mul(a), a.squared());
       equal(Fp2.NON_RESIDUE.mul(a), a.mulByNonResidue());
@@ -114,8 +116,8 @@ public final class Bn128Verification {
       equal(g2.mul(a.add(b)).toAffine(), q.add(g2.mul(a)).toAffine());
       equal(p.toAffine(), p.toAffine().toAffine());
       equal(q.toAffine(), q.toAffine().toAffine());
-      record(p.toAffine().x.v);
-      record(p.toAffine().y.v);
+      record(Bn128TestSupport.value(p.toAffine().x));
+      record(Bn128TestSupport.value(p.toAffine().y));
       record(q.toAffine().x);
       record(q.toAffine().y);
       // Non-unit Jacobian Z must still use the original inverse-based conversion.
@@ -219,8 +221,8 @@ public final class Bn128Verification {
   }
 
   private void record(Fp2 value) {
-    record(value.a.v);
-    record(value.b.v);
+    record(Bn128TestSupport.value(value.a));
+    record(Bn128TestSupport.value(value.b));
   }
 
   private void record(Fp12 value) {

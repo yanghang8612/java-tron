@@ -336,7 +336,25 @@ class Fp12 implements Field<Fp12> {
   }
 
   Fp12 negExp(BigInteger exp) {
+    if (exp.equals(Params.PAIRING_FINAL_EXPONENT_Z)) {
+      return cyclotomicExpBySeed().unitaryInverse();
+    }
     return this.cyclotomicExp(exp).unitaryInverse();
+  }
+
+  private static final byte[] SEED_NAF = FixedExponent.naf(Params.PAIRING_FINAL_EXPONENT_Z);
+
+  /** Only called on cyclotomic elements: conjugation is their multiplicative inverse. */
+  private Fp12 cyclotomicExpBySeed() {
+    Fp12 inverse = unitaryInverse();
+    Fp12 result = this;
+    for (int i = SEED_NAF.length - 2; i >= 0; i--) {
+      result = result.cyclotomicSquared();
+      if (SEED_NAF[i] != 0) {
+        result = result.mul(SEED_NAF[i] > 0 ? this : inverse);
+      }
+    }
+    return result;
   }
 
   @Override

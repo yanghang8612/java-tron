@@ -111,10 +111,9 @@ public abstract class BN128<T extends Field<T>> {
       return true;
     }
 
-    T z6 = z.squared().mul(z).squared();
-
     T left = y.squared();                          // y^2
-    T right = x.squared().mul(x).add(b().mul(z6));  // x^3 + b * z^6
+    T curveB = z.equals(one()) ? b() : b().mul(z.squared().mul(z).squared());
+    T right = x.squared().mul(x).add(curveB);       // x^3 + b * z^6
     return left.equals(right);
   }
 
@@ -125,6 +124,9 @@ public abstract class BN128<T extends Field<T>> {
     }
     if (o.isZero()) {
       return this; // P + 0 = P
+    }
+    if (o.z.equals(one())) {
+      return addAffine(o);
     }
 
     T x1 = this.x, y1 = this.y, z1 = this.z;
@@ -161,6 +163,38 @@ public abstract class BN128<T extends Field<T>> {
     T z3 = zz.mul(h); // z3 = ((z1+z2)^2 - z1^2 - z2^2) * h = zz * h
 
     return instance(x3, y3, z3);
+  }
+
+  /** The existing Jacobian addition formula with Z2 = 1 substituted throughout. */
+  private BN128<T> addAffine(BN128<T> o) {
+    T z1z1 = z.squared();
+    T u2 = o.x.mul(z1z1);
+    T s2 = o.y.mul(z.mul(z1z1));
+    if (x.equals(u2) && y.equals(s2)) {
+      return dbl();
+    }
+    T h = u2.sub(x);
+    T i = h.dbl().squared();
+    T j = h.mul(i);
+    T r = s2.sub(y).dbl();
+    T v = x.mul(i);
+    T x3 = r.squared().sub(j).sub(v.dbl());
+    T y3 = v.sub(x3).mul(r).sub(y.mul(j).dbl());
+    T z3 = z.dbl().mul(h); // ((Z1 + 1)^2 - Z1^2 - 1) * h = 2 Z1 h
+    return instance(x3, y3, z3);
+  }
+
+  /** Exact signed-digit multiplication; no reduction modulo a presumed group order. */
+  BN128<T> mulByNaf(byte[] digits) {
+    BN128<T> negative = instance(x, y.negate(), z);
+    BN128<T> result = this; // NAF of a positive integer has leading digit +1.
+    for (int i = digits.length - 2; i >= 0; i--) {
+      result = result.dbl();
+      if (digits[i] != 0) {
+        result = result.add(digits[i] > 0 ? this : negative);
+      }
+    }
+    return result;
   }
 
   public BN128<T> mul(BigInteger s) {

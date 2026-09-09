@@ -8,6 +8,11 @@ import org.junit.Test;
 public class Bn128OptimizationTest {
 
   @Test
+  public void secondRoundArithmeticAndExceptionalPoints() {
+    Bn128SecondRoundVerification.verify();
+  }
+
+  @Test
   public void arithmeticValidationAndPairingProperties() throws Exception {
     // Captured by running the same corpus against unmodified bd2450fe06 sources.
     assertEquals("VERIFY assertions=73875 sha256="

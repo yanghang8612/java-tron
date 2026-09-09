@@ -70,8 +70,11 @@ public class BN128G2 extends BN128Fp2 {
     return new BN128G2(p);
   }
 
+  private static final byte[] SUBGROUP_NAF = FixedExponent.naf(FR_NEG_ONE);
+
   private static boolean isGroupMember(BN128<Fp2> p) {
-    BN128<Fp2> left = p.mul(FR_NEG_ONE).add(p);
+    // Still compute [r - 1]P + P on the full twist, including non-subgroup points.
+    BN128<Fp2> left = p.mulByNaf(SUBGROUP_NAF).add(p);
     return left.isZero(); // should satisfy condition: -1 * p + p == 0, where -1 belongs to F_r
   }
 

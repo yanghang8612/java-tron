@@ -75,6 +75,12 @@ public class Fp implements Field<Fp> {
     return reduced(v.shiftLeft(1));
   }
 
+  /** Division by two in Fp; unlike multiplication by 2^-1 this needs no division. */
+  Fp half() {
+    BigInteger value = v.signum() < 0 || v.compareTo(P) >= 0 ? v.mod(P) : v;
+    return new Fp((value.testBit(0) ? value.add(P) : value).shiftRight(1));
+  }
+
   @Override
   public Fp inverse() {
     return new Fp(v.modInverse(P));
