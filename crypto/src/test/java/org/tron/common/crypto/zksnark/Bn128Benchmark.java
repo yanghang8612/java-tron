@@ -3,6 +3,7 @@ package org.tron.common.crypto.zksnark;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Method;
+import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.Locale;
@@ -36,9 +37,11 @@ public final class Bn128Benchmark {
     MessageDigest digest = MessageDigest.getInstance("SHA-256");
     for (int i = 0; i < counts.length; i++) {
       for (int j = 0; j < 8; j++) {
-        inputs[i][j] = Bn128TestSupport.input(fixtures, counts[i], j, scenario);
+        boolean addMul = "add".equals(engine) || "mul".equals(engine);
+        inputs[i][j] = addMul ? addMulInput(fixtures, j, "add".equals(engine))
+            : Bn128TestSupport.input(fixtures, counts[i], j, scenario);
         digest.update(inputs[i][j]);
-        expected[i][j] = Bn128TestSupport.execute(inputs[i][j]);
+        expected[i][j] = addMul ? 0 : Bn128TestSupport.execute(inputs[i][j]);
         if (expected[i][j] < 0) {
           throw new AssertionError("Invalid benchmark fixture");
         }
@@ -140,6 +143,32 @@ public final class Bn128Benchmark {
 
   private static long percentile(long[] values, double fraction) {
     return values[(int) Math.ceil(values.length * fraction) - 1];
+  }
+
+  /** Payload = precompile input followed by its independently generated 64-byte expected output. */
+  private static byte[] addMulInput(byte[][] fixtures, int index, boolean addition) {
+    byte[] first = fixtures[index];
+    byte[] second = fixtures[index + 1];
+    BN128<Fp> p = BN128Fp.create(Arrays.copyOfRange(first, 0, 32),
+        Arrays.copyOfRange(first, 32, 64));
+    BN128<Fp> result;
+    byte[] input;
+    if (addition) {
+      BN128<Fp> q = BN128Fp.create(Arrays.copyOfRange(second, 0, 32),
+          Arrays.copyOfRange(second, 32, 64));
+      result = p.add(q).toEthNotation();
+      input = Arrays.copyOf(first, 128);
+      System.arraycopy(second, 0, input, 64, 64);
+    } else {
+      byte[] scalar = Arrays.copyOfRange(second, 64, 96);
+      scalar[0] |= (byte) 0x80; // Full-width 256-bit scalars, including values greater than r.
+      result = p.mul(new BigInteger(1, scalar)).toEthNotation();
+      input = Arrays.copyOf(first, 96);
+      System.arraycopy(scalar, 0, input, 64, 32);
+    }
+    return Bn128TestSupport.concat(input,
+        Bn128TestSupport.word(Bn128TestSupport.value(result.x)),
+        Bn128TestSupport.word(Bn128TestSupport.value(result.y)));
   }
 
   private static com.sun.management.ThreadMXBean allocationBean() {

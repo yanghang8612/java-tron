@@ -118,7 +118,7 @@ def main():
     parser.add_argument("--java-home", default=os.environ.get("JAVA_HOME"))
     parser.add_argument("--tvm", action="store_true", help="build and measure actual direct/tvm paths")
     parser.add_argument("--classpath-file", type=Path, help="reuse a freshly built TVM classpath")
-    parser.add_argument("--engines", help="core, direct, tvm; default core or direct,tvm with --tvm")
+    parser.add_argument("--engines", help="core,direct,tvm,add,mul; add/mul require --counts 1")
     parser.add_argument("--counts", default="1,2,3,4,5,6,7,8,9,16,32")
     parser.add_argument("--samples", type=int, default=301)
     parser.add_argument("--forks", type=int, default=3)
@@ -127,7 +127,7 @@ def main():
     parser.add_argument("--timeout-ms", type=int, default=80)
     parser.add_argument("--scenarios", default="distinct", help="distinct,repeated")
     parser.add_argument("--variants", default="baseline,optimized",
-                        help="baseline,optimized,fields,affine,miller (last three are ablations)")
+                        help="baseline,optimized or named references; fields/affine/miller are legacy combinations")
     parser.add_argument("--reference", action="append", default=[], metavar="NAME=COMMIT",
                         help="additional immutable implementation, e.g. previous=a05b19e9aa")
     parser.add_argument("--verify-only", action="store_true")
@@ -152,8 +152,10 @@ def main():
         parser.error("sample, fork, warmup and timeout values must be positive")
     if set(variants) - ({"baseline", "optimized", "fields", "affine", "miller"} | set(references)):
         parser.error("unknown variant")
-    if set(scenarios) - {"distinct", "repeated"} or set(engines) - {"core", "direct", "tvm"}:
+    if set(scenarios) - {"distinct", "repeated"} or set(engines) - {"core", "direct", "tvm", "add", "mul"}:
         parser.error("unknown scenario or engine")
+    if set(engines) & {"add", "mul"} and counts != [1]:
+        parser.error("add/mul benchmarks require --counts 1 (one precompile invocation)")
     java = str(Path(args.java_home) / "bin/java") if args.java_home else shutil.which("java")
     javac = str(Path(args.java_home) / "bin/javac") if args.java_home else shutil.which("javac")
     if not java or not javac:
@@ -230,8 +232,9 @@ def main():
         if variant not in references and variant != "baseline":
             for path, content in extra_sources.items():
                 (src / Path(path).name).write_bytes(content)
+        additional = [TEST / "Bn128SecondRoundVerification.java"] if variant == "optimized" else []
         run([javac, "-source", "8", "-target", "8", "-encoding", "UTF-8", "-d", str(dest)]
-            + [str(p) for p in sorted(src.glob("*.java"))] + [str(p) for p in harness])
+            + [str(p) for p in sorted(src.glob("*.java"))] + [str(p) for p in harness + additional])
         classes[variant] = str(dest)
         print("VERIFY", variant, flush=True)
         command = [java] + manifest["jvmArgs"] + ["-cp", str(dest), PACKAGE + "Bn128Verification"]
@@ -242,6 +245,14 @@ def main():
             reference_digest = verification
         elif verification != reference_digest:
             raise RuntimeError("Baseline/candidate verification mismatch: " + variant)
+        if variant == "optimized":
+            command[-1] = PACKAGE + "Bn128SecondRoundVerification"
+            extra_verification = text_command(command)
+            print(extra_verification, flush=True)
+            for first_class in ["Fp", "Fp2", "Fp12", "Params", "BN128G2"]:
+                initialization = text_command(command + [first_class])
+                extra_verification += "\n" + initialization
+            (output / "optimized-additional-verification.txt").write_text(extra_verification + "\n")
     if args.verify_only:
         return
     runs = []
@@ -249,7 +260,9 @@ def main():
     for engine in engines:
         for scenario in scenarios:
             for fork in range(args.forks):
-                order = variants if fork % 2 == 0 else list(reversed(variants))
+                # Alternate two variants; rotate larger groups so each occupies each position.
+                order = (variants if fork % 2 == 0 else list(reversed(variants))) if len(variants) <= 2 \
+                    else variants[fork % len(variants):] + variants[:fork % len(variants)]
                 for variant in order:
                     label = "%s-%s-%s-fork%d" % (engine, scenario, variant, fork + 1)
                     print("\nRUN", label, flush=True)

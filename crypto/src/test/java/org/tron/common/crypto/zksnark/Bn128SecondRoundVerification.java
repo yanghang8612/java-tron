@@ -9,7 +9,18 @@ public final class Bn128SecondRoundVerification {
 
   private long assertions;
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws Exception {
+    if (args.length == 1) {
+      Class.forName("org.tron.common.crypto.zksnark." + args[0]);
+      if (!Fp._1.equals(new Fp(BigInteger.ONE)) || !Fp2.ZERO.isZero()
+          || !Fp12._1.equals(new Fp12(Fp6._1, Fp6.ZERO))
+          || !Params.B_Fp.equals(new Fp(BigInteger.valueOf(3)))
+          || !Params.B_Fp2.equals(Params.B_Fp.mul(Params.TWIST.inverse()))) {
+        throw new AssertionError("Cyclic constant initialization: " + args[0]);
+      }
+      System.out.println("INITIALIZATION OK " + args[0]);
+      return;
+    }
     System.out.println(verify());
   }
 
@@ -25,6 +36,7 @@ public final class Bn128SecondRoundVerification {
   private void fields() {
     BigInteger p = Params.P;
     BigInteger inverseTwo = BigInteger.valueOf(2).modInverse(p);
+    BigInteger inverseR = BigInteger.ONE.shiftLeft(256).modInverse(p);
     Random random = new Random(0x5611128L);
     // Exercise every limb boundary and long carry/borrow chains, not only random points.
     for (int bit = 0; bit <= 256; bit++) {
@@ -32,6 +44,11 @@ public final class Bn128SecondRoundVerification {
       for (int delta = -2; delta <= 2; delta++) {
         fieldCase(power.add(BigInteger.valueOf(delta)), p.subtract(power), inverseTwo);
         fieldCase(p.add(BigInteger.valueOf(delta)), power, inverseTwo);
+        // Also place the boundary patterns in the Montgomery limbs themselves.
+        fieldCase(power.add(BigInteger.valueOf(delta)).multiply(inverseR).mod(p),
+            p.subtract(power).multiply(inverseR).mod(p), inverseTwo);
+        fieldCase(p.add(BigInteger.valueOf(delta)).multiply(inverseR).mod(p),
+            power.multiply(inverseR).mod(p), inverseTwo);
       }
     }
     for (int i = 0; i < 100000; i++) {

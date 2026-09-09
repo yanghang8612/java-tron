@@ -17,9 +17,10 @@
  */
 package org.tron.common.crypto.zksnark;
 
-import static org.tron.common.crypto.zksnark.Params.P;
+import static org.tron.common.crypto.zksnark.FpMontgomery.P;
 
 import java.math.BigInteger;
+import java.util.Arrays;
 
 /**
  * Arithmetic in F_p, p = 21888242871839275222246405745257275088696311157297823662689037894645226208583
@@ -36,10 +37,28 @@ public class Fp implements Field<Fp> {
 
   static final Fp _2_INV = new Fp(BigInteger.valueOf(2).modInverse(P));
 
-  BigInteger v;
+  private final int[] montgomery;
+  // Keep unreduced constructor inputs verbatim. Decoding must reject x >= p, not reduce it.
+  // This also preserves the original package-private arithmetic on noncanonical integers.
+  private final BigInteger raw;
 
   Fp(BigInteger v) {
-    this.v = v;
+    if (v.signum() >= 0 && v.compareTo(P) < 0) {
+      montgomery = FpMontgomery.encode(v);
+      raw = null;
+    } else {
+      montgomery = null;
+      raw = v;
+    }
+  }
+
+  private Fp(int[] ownedMontgomery) {
+    montgomery = ownedMontgomery;
+    raw = null;
+  }
+
+  private BigInteger value() {
+    return raw == null ? FpMontgomery.decode(montgomery) : raw;
   }
 
   static Fp create(byte[] v) {
@@ -52,68 +71,64 @@ public class Fp implements Field<Fp> {
 
   @Override
   public Fp add(Fp o) {
-    return reduced(this.v.add(o.v));
+    return raw == null && o.raw == null
+        ? new Fp(FpMontgomery.add(montgomery, o.montgomery))
+        : reduced(value().add(o.value()));
   }
 
   @Override
   public Fp mul(Fp o) {
-    return new Fp(this.v.multiply(o.v).mod(P));
+    return raw == null && o.raw == null
+        ? new Fp(FpMontgomery.multiply(montgomery, o.montgomery))
+        : reduced(value().multiply(o.value()));
   }
 
   @Override
   public Fp sub(Fp o) {
-    return reduced(this.v.subtract(o.v));
+    return raw == null && o.raw == null
+        ? new Fp(FpMontgomery.subtract(montgomery, o.montgomery))
+        : reduced(value().subtract(o.value()));
   }
 
   @Override
   public Fp squared() {
-    return new Fp(v.multiply(v).mod(P));
+    return raw == null ? new Fp(FpMontgomery.multiply(montgomery, montgomery))
+        : reduced(raw.multiply(raw));
   }
 
   @Override
   public Fp dbl() {
-    return reduced(v.shiftLeft(1));
+    return add(this);
   }
 
   /** Division by two in Fp; unlike multiplication by 2^-1 this needs no division. */
   Fp half() {
-    BigInteger value = v.signum() < 0 || v.compareTo(P) >= 0 ? v.mod(P) : v;
-    return new Fp((value.testBit(0) ? value.add(P) : value).shiftRight(1));
+    if (raw == null) {
+      return new Fp(FpMontgomery.half(montgomery));
+    }
+    return reduced(raw).half();
   }
 
   @Override
   public Fp inverse() {
-    return new Fp(v.modInverse(P));
+    // Inversions are infrequent. Retain the JDK implementation and its zero exception.
+    return new Fp(value().modInverse(P));
   }
 
   @Override
   public Fp negate() {
-    return reduced(v.negate());
+    return raw == null ? new Fp(FpMontgomery.subtract(ZERO.montgomery, montgomery))
+        : reduced(raw.negate());
   }
 
-  /**
-   * A sum or difference of canonical field elements needs at most one correction.
-   * Keep the general reduction fallback: constructors also accept unreduced coordinates,
-   * which must not be silently accepted by the point decoders.
-   */
+  /** General reduction only for arithmetic on unreduced package-private constructor inputs. */
   private static Fp reduced(BigInteger value) {
-    if (value.signum() < 0) {
-      value = value.add(P);
-      if (value.signum() < 0) {
-        value = value.mod(P);
-      }
-    } else if (value.compareTo(P) >= 0) {
-      value = value.subtract(P);
-      if (value.compareTo(P) >= 0) {
-        value = value.mod(P);
-      }
-    }
-    return new Fp(value);
+    return new Fp(value.mod(P));
   }
 
   @Override
   public boolean isZero() {
-    return v.compareTo(BigInteger.ZERO) == 0;
+    return raw == null && FpMontgomery.isZero(montgomery);
   }
 
   /**
@@ -121,7 +136,7 @@ public class Fp implements Field<Fp> {
    */
   @Override
   public boolean isValid() {
-    return v.compareTo(P) < 0;
+    return raw == null || raw.compareTo(P) < 0;
   }
 
   Fp2 mul(Fp2 o) {
@@ -129,7 +144,7 @@ public class Fp implements Field<Fp> {
   }
 
   public byte[] bytes() {
-    return v.toByteArray();
+    return value().toByteArray();
   }
 
   @Override
@@ -143,16 +158,17 @@ public class Fp implements Field<Fp> {
 
     Fp fp = (Fp) o;
 
-    return !(v != null ? v.compareTo(fp.v) != 0 : fp.v != null);
+    return raw == null ? fp.raw == null && Arrays.equals(montgomery, fp.montgomery)
+        : raw.equals(fp.raw);
   }
 
   @Override
   public int hashCode() {
-    return v.hashCode();
+    return value().hashCode();
   }
 
   @Override
   public String toString() {
-    return v.toString();
+    return value().toString();
   }
 }

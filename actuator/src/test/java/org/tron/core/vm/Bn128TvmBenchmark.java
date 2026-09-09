@@ -19,12 +19,15 @@ import org.tron.protos.Protocol;
 public final class Bn128TvmBenchmark {
 
   private final boolean tvm;
+  private final PrecompiledContracts.PrecompiledContract addMul;
   private final PrecompiledContracts.BN128Pairing precompile =
       new PrecompiledContracts.BN128Pairing();
   private final JumpTable table;
 
   public Bn128TvmBenchmark(String engine) {
     tvm = "tvm".equals(engine);
+    addMul = "add".equals(engine) ? new PrecompiledContracts.BN128Addition()
+        : "mul".equals(engine) ? new PrecompiledContracts.BN128Multiplication() : null;
     VMConfig.initAllowTvmIstanbul(1);
     CommonParameter.getInstance().setDebug(false);
     ((Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)).setLevel(Level.ERROR);
@@ -33,6 +36,17 @@ public final class Bn128TvmBenchmark {
   }
 
   public long[] sample(byte[] input, int expected, long timeoutMs) throws Exception {
+    if (addMul != null) {
+      byte[] callInput = Arrays.copyOf(input, input.length - 64);
+      byte[] output = Arrays.copyOfRange(input, input.length - 64, input.length);
+      long start = System.nanoTime();
+      Pair<Boolean, byte[]> result = addMul.execute(callInput);
+      long nanos = System.nanoTime() - start;
+      if (!result.getLeft() || !Arrays.equals(output, result.getRight())) {
+        throw new AssertionError("Add/Mul result mismatch");
+      }
+      return new long[]{nanos, nanos <= timeoutMs * 1_000_000L ? 1 : 0, 0};
+    }
     if (!tvm) {
       long start = System.nanoTime();
       Pair<Boolean, byte[]> result = precompile.execute(input);

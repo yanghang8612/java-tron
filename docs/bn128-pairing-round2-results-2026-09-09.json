@@ -1,0 +1,629 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-09-09",
+  "branch": "perf/bn128-safe-java",
+  "environment": {
+    "cpu": "Apple M1 Max",
+    "cores": 10,
+    "memoryGiB": 32,
+    "os": "macOS 26.6.2",
+    "arch": "aarch64",
+    "java": "openjdk version \"17.0.19\" 2026-04-21 LTS\nOpenJDK Runtime Environment Corretto-17.0.19.10.1 (build 17.0.19+10-LTS)\nOpenJDK 64-Bit Server VM Corretto-17.0.19.10.1 (build 17.0.19+10-LTS, mixed mode, sharing)",
+    "jvmArgs": [
+      "-Xms1g",
+      "-Xmx1g",
+      "-XX:+UseParallelGC"
+    ],
+    "sharedWorkstation": true
+  },
+  "implementations": {
+    "previous": "a05b19e9aac62f6c856c2f626a90369d66cb973b",
+    "conservative": "13b6cf891bc3fa8d8ee7d981888dbfd602e12ecf",
+    "candidateSourcesSha256": "e8f0bd8e395fde208e684b4e2d47752f56dc43d8b67299c21cb6913898650e4b",
+    "sourceHashOrder": "baseline tree Java paths, then sorted new Java files"
+  },
+  "protocol": {
+    "main": {
+      "forks": 3,
+      "samplesPerFork": 201,
+      "warmupSeconds": 30,
+      "minimumWarmup": 300,
+      "engine": "tvm",
+      "counts": [
+        1,
+        4,
+        8,
+        16,
+        32
+      ]
+    },
+    "boundary": {
+      "forks": 3,
+      "samplesPerFork": 201,
+      "warmupSeconds": 30,
+      "minimumWarmup": 300,
+      "engine": "tvm",
+      "counts": [
+        4,
+        24,
+        28,
+        30,
+        31,
+        32,
+        34
+      ]
+    },
+    "addMul": {
+      "forks": 2,
+      "samplesPerFork": 2001,
+      "warmupSeconds": 20,
+      "minimumWarmup": 10000,
+      "engines": [
+        "add",
+        "mul"
+      ]
+    },
+    "deadlineMs": 80,
+    "outliersRemoved": false
+  },
+  "main": [
+    {
+      "engine": "tvm",
+      "scenario": "distinct",
+      "variant": "baseline",
+      "pairs": 1,
+      "samples": 603,
+      "meanMs": 15.843761444444445,
+      "p50Ms": 15.6805,
+      "p95Ms": 16.716167,
+      "p99Ms": 17.973958,
+      "maxMs": 33.867417,
+      "overDeadline": 0,
+      "timeouts": 0,
+      "forkP50Ms": [
+        15.792208,
+        15.586375,
+        15.624333
+      ],
+      "p50Speedup": 1
+    },
+    {
+      "engine": "tvm",
+      "scenario": "distinct",
+      "variant": "baseline",
+      "pairs": 4,
+      "samples": 603,
+      "meanMs": 41.016217369817575,
+      "p50Ms": 40.596,
+      "p95Ms": 43.032291,
+      "p99Ms": 47.470958,
+      "maxMs": 100.563875,
+      "overDeadline": 1,
+      "timeouts": 1,
+      "forkP50Ms": [
+        40.887042,
+        40.283334,
+        40.286458
+      ],
+      "p50Speedup": 1
+    },
+    {
+      "engine": "tvm",
+      "scenario": "distinct",
+      "variant": "baseline",
+      "pairs": 8,
+      "samples": 603,
+      "meanMs": 74.21597548258707,
+      "p50Ms": 73.811916,
+      "p95Ms": 77.677708,
+      "p99Ms": 80.97425,
+      "maxMs": 89.145625,
+      "overDeadline": 9,
+      "timeouts": 9,
+      "forkP50Ms": [
+        74.44925,
+        73.366417,
+        73.329541
+      ],
+      "p50Speedup": 1
+    },
+    {
+      "engine": "tvm",
+      "scenario": "distinct",
+      "variant": "baseline",
+      "pairs": 16,
+      "samples": 603,
+      "meanMs": 141.8586715522388,
+      "p50Ms": 140.309292,
+      "p95Ms": 148.246875,
+      "p99Ms": 159.735625,
+      "maxMs": 359.28675,
+      "overDeadline": 603,
+      "timeouts": 603,
+      "forkP50Ms": [
+        141.583958,
+        139.194167,
+        139.280583
+      ],
+      "p50Speedup": 1
+    },
+    {
+      "engine": "tvm",
+      "scenario": "distinct",
+      "variant": "baseline",
+      "pairs": 32,
+      "samples": 603,
+      "meanMs": 275.16119269485904,
+      "p50Ms": 273.513916,
+      "p95Ms": 286.847834,
+      "p99Ms": 309.688208,
+      "maxMs": 393.306916,
+      "overDeadline": 603,
+      "timeouts": 603,
+      "forkP50Ms": [
+        275.996833,
+        271.32125,
+        271.545875
+      ],
+      "p50Speedup": 1
+    },
+    {
+      "engine": "tvm",
+      "scenario": "distinct",
+      "variant": "conservative",
+      "pairs": 1,
+      "samples": 603,
+      "meanMs": 14.994966270315093,
+      "p50Ms": 14.909709,
+      "p95Ms": 15.726708,
+      "p99Ms": 16.498458,
+      "maxMs": 21.06825,
+      "overDeadline": 0,
+      "timeouts": 0,
+      "forkP50Ms": [
+        15.009083,
+        14.943416,
+        14.71025
+      ],
+      "p50Speedup": 1.0516972531120494
+    },
+    {
+      "engine": "tvm",
+      "scenario": "distinct",
+      "variant": "conservative",
+      "pairs": 4,
+      "samples": 603,
+      "meanMs": 38.43608845439469,
+      "p50Ms": 38.291167,
+      "p95Ms": 39.643,
+      "p99Ms": 42.398834,
+      "maxMs": 61.104208,
+      "overDeadline": 0,
+      "timeouts": 0,
+      "forkP50Ms": [
+        38.547875,
+        38.438667,
+        37.779666
+      ],
+      "p50Speedup": 1.0601922892556395
+    },
+    {
+      "engine": "tvm",
+      "scenario": "distinct",
+      "variant": "conservative",
+      "pairs": 8,
+      "samples": 603,
+      "meanMs": 69.80288863018241,
+      "p50Ms": 69.377209,
+      "p95Ms": 72.412333,
+      "p99Ms": 80.978,
+      "maxMs": 108.210417,
+      "overDeadline": 7,
+      "timeouts": 7,
+      "forkP50Ms": [
+        69.851,
+        69.69175,
+        68.52525
+      ],
+      "p50Speedup": 1.0639216691464195
+    },
+    {
+      "engine": "tvm",
+      "scenario": "distinct",
+      "variant": "conservative",
+      "pairs": 16,
+      "samples": 603,
+      "meanMs": 132.56278208126037,
+      "p50Ms": 131.524167,
+      "p95Ms": 136.59275,
+      "p99Ms": 155.054291,
+      "maxMs": 241.806667,
+      "overDeadline": 603,
+      "timeouts": 603,
+      "forkP50Ms": [
+        132.267791,
+        132.3625,
+        130.104708
+      ],
+      "p50Speedup": 1.0667947587153317
+    },
+    {
+      "engine": "tvm",
+      "scenario": "distinct",
+      "variant": "conservative",
+      "pairs": 32,
+      "samples": 603,
+      "meanMs": 258.0391378474295,
+      "p50Ms": 256.313625,
+      "p95Ms": 266.098417,
+      "p99Ms": 288.637875,
+      "maxMs": 391.01225,
+      "overDeadline": 603,
+      "timeouts": 603,
+      "forkP50Ms": [
+        257.942792,
+        257.678208,
+        253.128792
+      ],
+      "p50Speedup": 1.0671064247950144
+    },
+    {
+      "engine": "tvm",
+      "scenario": "distinct",
+      "variant": "optimized",
+      "pairs": 1,
+      "samples": 603,
+      "meanMs": 4.842545333333333,
+      "p50Ms": 4.807167,
+      "p95Ms": 5.11575,
+      "p99Ms": 5.443667,
+      "maxMs": 6.05875,
+      "overDeadline": 0,
+      "timeouts": 0,
+      "forkP50Ms": [
+        4.786667,
+        4.877833,
+        4.779708
+      ],
+      "p50Speedup": 3.2619004082862113
+    },
+    {
+      "engine": "tvm",
+      "scenario": "distinct",
+      "variant": "optimized",
+      "pairs": 4,
+      "samples": 603,
+      "meanMs": 12.121475406301824,
+      "p50Ms": 12.057416,
+      "p95Ms": 12.678334,
+      "p99Ms": 13.06425,
+      "maxMs": 23.787958,
+      "overDeadline": 0,
+      "timeouts": 0,
+      "forkP50Ms": [
+        11.921375,
+        12.16025,
+        12.005708
+      ],
+      "p50Speedup": 3.366890551010266
+    },
+    {
+      "engine": "tvm",
+      "scenario": "distinct",
+      "variant": "optimized",
+      "pairs": 8,
+      "samples": 603,
+      "meanMs": 21.825006157545605,
+      "p50Ms": 21.69025,
+      "p95Ms": 22.765917,
+      "p99Ms": 24.919375,
+      "maxMs": 31.913792,
+      "overDeadline": 0,
+      "timeouts": 0,
+      "forkP50Ms": [
+        21.501334,
+        21.950333,
+        21.579917
+      ],
+      "p50Speedup": 3.4029997810075954
+    },
+    {
+      "engine": "tvm",
+      "scenario": "distinct",
+      "variant": "optimized",
+      "pairs": 16,
+      "samples": 603,
+      "meanMs": 41.08987365174129,
+      "p50Ms": 40.937459,
+      "p95Ms": 42.563083,
+      "p99Ms": 45.204375,
+      "maxMs": 50.077209,
+      "overDeadline": 0,
+      "timeouts": 0,
+      "forkP50Ms": [
+        40.465792,
+        41.381125,
+        40.749833
+      ],
+      "p50Speedup": 3.427405985310422
+    },
+    {
+      "engine": "tvm",
+      "scenario": "distinct",
+      "variant": "optimized",
+      "pairs": 32,
+      "samples": 603,
+      "meanMs": 79.7848812371476,
+      "p50Ms": 79.560334,
+      "p95Ms": 82.670625,
+      "p99Ms": 86.467792,
+      "maxMs": 96.150542,
+      "overDeadline": 221,
+      "timeouts": 220,
+      "forkP50Ms": [
+        78.618458,
+        80.397042,
+        79.2265
+      ],
+      "p50Speedup": 3.437817593877874
+    }
+  ],
+  "boundary": [
+    {
+      "engine": "tvm",
+      "scenario": "distinct",
+      "variant": "optimized",
+      "pairs": 4,
+      "samples": 603,
+      "meanMs": 12.363772303482586,
+      "p50Ms": 12.127167,
+      "p95Ms": 13.179833,
+      "p99Ms": 17.728083,
+      "maxMs": 32.493708,
+      "overDeadline": 0,
+      "timeouts": 0,
+      "forkP50Ms": [
+        12.056167,
+        12.145166,
+        12.166042
+      ],
+      "p50Speedup": null
+    },
+    {
+      "engine": "tvm",
+      "scenario": "distinct",
+      "variant": "optimized",
+      "pairs": 24,
+      "samples": 603,
+      "meanMs": 61.19437284577114,
+      "p50Ms": 60.591625,
+      "p95Ms": 64.266916,
+      "p99Ms": 73.122041,
+      "maxMs": 133.1695,
+      "overDeadline": 2,
+      "timeouts": 2,
+      "forkP50Ms": [
+        60.321208,
+        60.698917,
+        60.756291
+      ],
+      "p50Speedup": null
+    },
+    {
+      "engine": "tvm",
+      "scenario": "distinct",
+      "variant": "optimized",
+      "pairs": 28,
+      "samples": 603,
+      "meanMs": 71.10035306135987,
+      "p50Ms": 70.221458,
+      "p95Ms": 74.235,
+      "p99Ms": 95.604375,
+      "maxMs": 121.586791,
+      "overDeadline": 14,
+      "timeouts": 14,
+      "forkP50Ms": [
+        69.987209,
+        70.54975,
+        70.196709
+      ],
+      "p50Speedup": null
+    },
+    {
+      "engine": "tvm",
+      "scenario": "distinct",
+      "variant": "optimized",
+      "pairs": 30,
+      "samples": 603,
+      "meanMs": 75.5972158092869,
+      "p50Ms": 75.046417,
+      "p95Ms": 78.5845,
+      "p99Ms": 85.474708,
+      "maxMs": 118.9725,
+      "overDeadline": 17,
+      "timeouts": 17,
+      "forkP50Ms": [
+        74.728666,
+        75.22175,
+        75.11225
+      ],
+      "p50Speedup": null
+    },
+    {
+      "engine": "tvm",
+      "scenario": "distinct",
+      "variant": "optimized",
+      "pairs": 31,
+      "samples": 603,
+      "meanMs": 78.55615311276948,
+      "p50Ms": 77.514166,
+      "p95Ms": 81.611291,
+      "p99Ms": 112.728833,
+      "maxMs": 161.139792,
+      "overDeadline": 49,
+      "timeouts": 49,
+      "forkP50Ms": [
+        77.270125,
+        77.6285,
+        77.568417
+      ],
+      "p50Speedup": null
+    },
+    {
+      "engine": "tvm",
+      "scenario": "distinct",
+      "variant": "optimized",
+      "pairs": 32,
+      "samples": 603,
+      "meanMs": 81.00896488391378,
+      "p50Ms": 79.895584,
+      "p95Ms": 83.830333,
+      "p99Ms": 99.108167,
+      "maxMs": 313.740292,
+      "overDeadline": 285,
+      "timeouts": 284,
+      "forkP50Ms": [
+        79.619166,
+        80.172917,
+        80.068167
+      ],
+      "p50Speedup": null
+    },
+    {
+      "engine": "tvm",
+      "scenario": "distinct",
+      "variant": "optimized",
+      "pairs": 34,
+      "samples": 603,
+      "meanMs": 85.63503648922055,
+      "p50Ms": 84.878083,
+      "p95Ms": 89.143375,
+      "p99Ms": 102.248916,
+      "maxMs": 145.542583,
+      "overDeadline": 603,
+      "timeouts": 603,
+      "forkP50Ms": [
+        84.547625,
+        85.067333,
+        84.871291
+      ],
+      "p50Speedup": null
+    }
+  ],
+  "addMul": [
+    {
+      "engine": "add",
+      "scenario": "distinct",
+      "variant": "baseline",
+      "pairs": 1,
+      "samples": 4002,
+      "meanMs": 0.01465019340329835,
+      "p50Ms": 0.014208,
+      "p95Ms": 0.017208,
+      "p99Ms": 0.023417,
+      "maxMs": 0.057458,
+      "overDeadline": 0,
+      "timeouts": 0,
+      "forkP50Ms": [
+        0.014333,
+        0.014083
+      ],
+      "p50Speedup": 1
+    },
+    {
+      "engine": "add",
+      "scenario": "distinct",
+      "variant": "optimized",
+      "pairs": 1,
+      "samples": 4002,
+      "meanMs": 0.010162763868065968,
+      "p50Ms": 0.009917,
+      "p95Ms": 0.011166,
+      "p99Ms": 0.015375,
+      "maxMs": 0.057042,
+      "overDeadline": 0,
+      "timeouts": 0,
+      "forkP50Ms": [
+        0.010042,
+        0.00975
+      ],
+      "p50Speedup": 1.432691338106282
+    },
+    {
+      "engine": "mul",
+      "scenario": "distinct",
+      "variant": "baseline",
+      "pairs": 1,
+      "samples": 4002,
+      "meanMs": 1.6327011176911543,
+      "p50Ms": 1.616208,
+      "p95Ms": 1.762667,
+      "p99Ms": 1.981291,
+      "maxMs": 13.513083,
+      "overDeadline": 0,
+      "timeouts": 0,
+      "forkP50Ms": [
+        1.583208,
+        1.644
+      ],
+      "p50Speedup": 1
+    },
+    {
+      "engine": "mul",
+      "scenario": "distinct",
+      "variant": "optimized",
+      "pairs": 1,
+      "samples": 4002,
+      "meanMs": 0.5394829625187407,
+      "p50Ms": 0.52875,
+      "p95Ms": 0.586833,
+      "p99Ms": 0.718417,
+      "maxMs": 2.997875,
+      "overDeadline": 0,
+      "timeouts": 0,
+      "forkP50Ms": [
+        0.526583,
+        0.531666
+      ],
+      "p50Speedup": 3.0566581560283685
+    }
+  ],
+  "mainMeanAllocatedBytes": {
+    "conservative:1": 29745769.333333332,
+    "conservative:4": 71606778,
+    "conservative:8": 127443000.66666667,
+    "conservative:16": 239097499.33333334,
+    "conservative:32": 462449743.3333333,
+    "optimized:1": 11156882.333333334,
+    "optimized:4": 26246309.666666668,
+    "optimized:8": 46366433.666666664,
+    "optimized:16": 86605988.66666667,
+    "optimized:32": 167086327,
+    "baseline:1": 32202314,
+    "baseline:4": 78293108.33333333,
+    "baseline:8": 139798443.66666666,
+    "baseline:16": 262728983,
+    "baseline:32": 508636741.3333333
+  },
+  "verification": {
+    "baselineAssertions": 73875,
+    "additionalAssertions": 1791732,
+    "sha256": "d57360f3621d7c4b6b52f5e66b3d349e187e5234786457f489123a486d4358f5",
+    "junitTests": 10,
+    "goEthereumVectors": 49,
+    "initializationOrders": 5,
+    "independentSecurityAudit": false,
+    "x86Runtime": "Corretto 8u442 on Rosetta (correctness only)"
+  },
+  "rawArtifacts": [
+    "build/bn128-round2-tvm-full/",
+    "build/bn128-round2-tvm-boundary/",
+    "build/bn128-round2-add-mul/"
+  ],
+  "limitations": [
+    "Not native Linux server performance",
+    "No guaranteed safe pair count",
+    "24 pairs met P99 <= 80 ms but 2 of 603 calls timed out",
+    "No multiplication of historical 1.90x and current speedup as measured evidence"
+  ]
+}

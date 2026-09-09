@@ -30,8 +30,7 @@ class Params {
   /**
    * "p" field parameter of F_p, F_p2, F_p6 and F_p12
    */
-  static final BigInteger P = new BigInteger(
-      "21888242871839275222246405745257275088696311157297823662689037894645226208583");
+  static final BigInteger P = FpMontgomery.P;
 
   /**
    * "r" order of {@link BN128G2} cyclic subgroup

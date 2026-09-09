@@ -5,6 +5,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.InputStream;
 import java.math.BigInteger;
 import java.util.Arrays;
 import org.apache.commons.lang3.tuple.Pair;
@@ -13,6 +16,49 @@ import org.tron.common.runtime.vm.DataWord;
 import org.tron.core.vm.config.VMConfig;
 
 public class Bn128PrecompileRegressionTest {
+
+  @Test
+  public void goEthereumKnownAnswerVectors() throws Exception {
+    String[] files = {"bn256Add", "bn256ScalarMul", "bn256Pairing"};
+    PrecompiledContracts.PrecompiledContract[] contracts = {
+        new PrecompiledContracts.BN128Addition(), new PrecompiledContracts.BN128Multiplication(),
+        new PrecompiledContracts.BN128Pairing()
+    };
+    for (int i = 0; i < files.length; i++) {
+      try (InputStream input = getClass().getResourceAsStream("/bn128/" + files[i] + ".json")) {
+        for (JsonNode vector : new ObjectMapper().readTree(input)) {
+          Pair<Boolean, byte[]> result = contracts[i].execute(hex(vector.get("Input").asText()));
+          assertTrue(vector.get("Name").asText(), result.getLeft());
+          assertArrayEquals(vector.get("Name").asText(),
+              hex(vector.get("Expected").asText()), result.getRight());
+        }
+      }
+    }
+  }
+
+  @Test
+  public void multiplicationAcceptsFullWidthScalars() {
+    BigInteger order = new BigInteger(
+        "21888242871839275222246405745257275088548364400416034343698204186575808495617");
+    PrecompiledContracts.BN128Multiplication mul = new PrecompiledContracts.BN128Multiplication();
+    byte[] input = Arrays.copyOf(generator(), 96);
+    for (BigInteger scalar : new BigInteger[]{order, order.add(BigInteger.ONE),
+        BigInteger.ONE.shiftLeft(256).subtract(BigInteger.ONE)}) {
+      put(input, 2, scalar);
+      Pair<Boolean, byte[]> full = mul.execute(input);
+      assertTrue(full.getLeft());
+      put(input, 2, scalar.mod(order));
+      assertArrayEquals(mul.execute(input).getRight(), full.getRight());
+    }
+  }
+
+  private static byte[] hex(String value) {
+    byte[] result = new byte[value.length() / 2];
+    for (int i = 0; i < result.length; i++) {
+      result[i] = (byte) Integer.parseInt(value.substring(2 * i, 2 * i + 2), 16);
+    }
+    return result;
+  }
 
   private static final BigInteger P = new BigInteger(
       "21888242871839275222246405745257275088696311157297823662689037894645226208583");

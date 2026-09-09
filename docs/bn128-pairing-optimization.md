@@ -1,5 +1,10 @@
 # BN128 Pairing 保守优化与复现
 
+> 本文记录第一轮提交 `a05b19e9aa` 的实现和结果。当前分支的第二轮（包括
+> Montgomery 后端）见 [第二轮说明](bn128-pairing-round2.md)；下面的算术保留范围
+> 仅指第一轮。脚本的 `optimized` 始终使用当前工作树，复测第一轮应使用
+> `--reference previous=a05b19e9aa --variants baseline,previous`。
+
 这组改动优化 TVM BN128 Pairing 的纯 Java 算术和 Miller loop。
 对照版本固定为 `bd2450fe06`，不依赖基准测试时的 `master` 指向。
 生产改动保留原有 G1/G2 解码、坐标范围检查、曲线上检查、完整 G2 子群检查、
