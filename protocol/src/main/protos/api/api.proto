@@ -837,6 +837,9 @@ message TransactionExtention {
   repeated TransactionInfo.Log logs = 6;
   repeated InternalTransaction internal_transactions = 7;
   int64 energy_penalty = 8;
+  // Constant-call VM execution wall time in microseconds, including failed execution.
+  // Excludes validation, HTTP/gRPC transport and response serialization.
+  optional int64 execution_time_us = 9;
 }
 
 message EstimateEnergyMessage {

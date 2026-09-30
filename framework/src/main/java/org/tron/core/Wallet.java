@@ -3160,7 +3160,12 @@ public class Wallet {
 
     try {
       vmActuator.validate(context);
-      vmActuator.execute(context);
+      long executionStartNs = System.nanoTime();
+      try {
+        vmActuator.execute(context);
+      } finally {
+        builder.setExecutionTimeUs((System.nanoTime() - executionStartNs) / 1_000L);
+      }
     } finally {
       // constant call runs on a pooled RPC worker; drop its thread-local VM config view so it
       // can never leak into a later (block/broadcast) execution on the same thread.
