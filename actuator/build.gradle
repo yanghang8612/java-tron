@@ -29,6 +29,18 @@ test {
     if (System.getenv("CI") == null) {
         maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
     }
+
+    // 100 full 3 MiB JUMPDEST analyses retain about 16 GiB. Keep that off the
+    // default 1200m test heap. ./gradlew :actuator:test --tests
+    // org.tron.core.vm.program.JumpDestCacheHeapTest -PjumpDestHeapMeasure
+    if (project.hasProperty("jumpDestHeapMeasure")) {
+        minHeapSize = "20g"
+        maxHeapSize = "20g"
+        maxParallelForks = 1
+        jvmArgs "-XX:+UseSerialGC"
+        systemProperty "jumpdest.heap.measure", "true"
+        testLogging.showStandardStreams = true
+    }
 }
 
 jacocoTestReport {
