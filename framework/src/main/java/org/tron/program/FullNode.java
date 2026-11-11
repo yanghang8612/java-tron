@@ -1,5 +1,7 @@
 package org.tron.program;
 
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
@@ -11,6 +13,7 @@ import org.tron.common.exit.ExitManager;
 import org.tron.common.log.LogService;
 import org.tron.common.parameter.CommonParameter;
 import org.tron.common.prometheus.Metrics;
+import org.tron.common.utils.FastSyncStorage;
 import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
 import org.tron.core.exception.TronError;
@@ -28,6 +31,11 @@ public class FullNode {
     checkJdkVersion();
     Args.setParam(args, "config.conf");
     CommonParameter parameter = Args.getInstance();
+    if (Files.exists(Paths.get(parameter.getOutputDirectory(),
+        parameter.getStorage().getDbDirectory(), FastSyncStorage.MIGRATION_PENDING_FILE))) {
+      throw new IllegalStateException("Header-only migration is incomplete; restore its backup "
+          + "before starting the node");
+    }
 
     LogService.load(parameter.getLogbackPath());
 

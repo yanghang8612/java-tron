@@ -11,6 +11,7 @@ import picocli.CommandLine;
         DbArchive.class,
         DbConvert.class,
         DbLite.class,
+        DbHeadersOnly.class,
         DbCopy.class,
         DbRoot.class
     },

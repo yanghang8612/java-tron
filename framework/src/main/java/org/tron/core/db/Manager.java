@@ -78,6 +78,7 @@ import org.tron.common.prometheus.MetricLabels;
 import org.tron.common.prometheus.Metrics;
 import org.tron.common.runtime.RuntimeImpl;
 import org.tron.common.utils.ByteArray;
+import org.tron.common.utils.FastSyncStorage;
 import org.tron.common.utils.JsonUtil;
 import org.tron.common.utils.Pair;
 import org.tron.common.utils.SessionOptional;
@@ -630,7 +631,12 @@ public class Manager {
     chainBaseManager.initGenesis();
     BlockCapsule genesisBlock = chainBaseManager.getGenesisBlock();
 
-    if (chainBaseManager.containBlock(genesisBlock.getBlockId())) {
+    boolean hasGenesis = chainBaseManager.getBlockStore().has(genesisBlock.getBlockId().getBytes());
+    if (FAST_SYNC_STATS_MODE && !hasGenesis) {
+      hasGenesis = Arrays.equals(trackerStore.getHeaderOnlyGenesisId(),
+          genesisBlock.getBlockId().getBytes());
+    }
+    if (hasGenesis) {
       Args.getInstance().setChainId(genesisBlock.getBlockId().toString());
     } else {
       if (chainBaseManager.hasBlocks()) {
@@ -641,7 +647,9 @@ public class Manager {
         logger.info("Create genesis block.");
         Args.getInstance().setChainId(genesisBlock.getBlockId().toString());
 
-        chainBaseManager.getBlockStore().put(genesisBlock.getBlockId().getBytes(), genesisBlock);
+        BlockCapsule storedGenesis = FAST_SYNC_STATS_MODE
+            ? headerOnly(genesisBlock) : genesisBlock;
+        chainBaseManager.getBlockStore().put(genesisBlock.getBlockId().getBytes(), storedGenesis);
         chainBaseManager.getBlockIndexStore().put(genesisBlock.getBlockId());
 
         logger.info(SAVE_BLOCK, genesisBlock);
@@ -657,6 +665,9 @@ public class Manager {
         this.updateRecentBlock(genesisBlock);
         initAccountHistoryBalance();
       }
+    }
+    if (FAST_SYNC_STATS_MODE) {
+      trackerStore.saveHeaderOnlyGenesisId(genesisBlock.getBlockId().getBytes());
     }
   }
 
@@ -1060,10 +1071,12 @@ public class Manager {
       khaosDb.pop();
       revokingStore.fastPop();
       logger.info("End to erase block: {}.", oldHeadBlock);
-      oldHeadBlock.getTransactions().forEach(tc ->
-          poppedTransactions.add(new TransactionCapsule(tc.getInstance())));
-      Metrics.gaugeInc(MetricKeys.Gauge.MANAGER_QUEUE, oldHeadBlock.getTransactions().size(),
-          MetricLabels.Gauge.QUEUE_POPPED);
+      if (!FAST_SYNC_STATS_MODE) {
+        oldHeadBlock.getTransactions().forEach(tc ->
+            poppedTransactions.add(new TransactionCapsule(tc.getInstance())));
+        Metrics.gaugeInc(MetricKeys.Gauge.MANAGER_QUEUE, oldHeadBlock.getTransactions().size(),
+            MetricLabels.Gauge.QUEUE_POPPED);
+      }
 
     } catch (ItemNotFoundException | BadItemException e) {
       logger.warn(e.getMessage(), e);
@@ -1086,15 +1099,16 @@ public class Manager {
       ValidateScheduleException, ReceiptCheckErrException, VMIllegalException,
       TooBigTransactionResultException, ZksnarkException, BadBlockException, EventBloomException {
     processBlock(block, txs);
-    // fast-sync-stats: 保留完整区块体(近窗口可查交易体);窗口外旧块由 pruneOldTransactions 清理
-    chainBaseManager.getBlockStore().put(block.getBlockId().getBytes(), block);
-    chainBaseManager.getBlockIndexStore().put(block.getBlockId());
-    if (block.getTransactions().size() != 0) {
-      chainBaseManager.getTransactionRetStore()
-          .put(ByteArray.fromLong(block.getNum()), block.getResult());
+    if (FAST_SYNC_STATS_MODE) {
+      saveBlockHeader(block);
+    } else {
+      chainBaseManager.getBlockStore().put(block.getBlockId().getBytes(), block);
+      chainBaseManager.getBlockIndexStore().put(block.getBlockId());
+      if (!block.getTransactions().isEmpty()) {
+        chainBaseManager.getTransactionRetStore()
+            .put(ByteArray.fromLong(block.getNum()), block.getResult());
+      }
     }
-    // fast-sync-stats: 交易体与收据滚动保留最近约1个月,裁剪窗口外的旧块
-    pruneOldTransactions(block.getNum());
 
     updateFork(block);
     if (System.currentTimeMillis() - block.getTimeStamp() >= 60_000) {
@@ -1114,75 +1128,28 @@ public class Manager {
     }
   }
 
-  // ===== fast-sync-stats: 交易体与收据滚动保留(约30天,3s/块)=====
-  private static final long TX_RETENTION_BLOCKS = 864_000L;
-  // 批量裁剪:每 PRUNE_BATCH_SIZE 个新块触发一次,一次裁掉累积的 N 个旧块,
-  // 把单块 ~1-2ms 的 I/O 摊薄到 0.01-0.02ms/块。游标持久化在 tracker DB 的 LAST_PRUNED_BLOCK_NUM
-  // 里(随当前区块 session 一起 flush,回滚天然安全)。
-  private static final long PRUNE_BATCH_SIZE = 100L;
-  // 仅首次真正裁剪时打一条 info 日志,便于运维区分"裁剪进行中"与"卡住"
-  private volatile boolean txPruneStarted = false;
+  static final long HEADER_RETENTION_BLOCKS = FastSyncStorage.HEADER_RETENTION_BLOCKS;
 
-  /**
-   * 滚动保留最近 TX_RETENTION_BLOCKS 个区块的交易体与收据。每 PRUNE_BATCH_SIZE 个新块
-   * 触发一次,游标 LAST_PRUNED_BLOCK_NUM 推进到当前 target = currentBlockNum - WINDOW,
-   * 期间累积的 100 个旧块在一次调用内全部清理(清交易体 + 删 tx 索引/收据)。
-   * 首次启动游标缺失时初始化为 target - 1(跳过快照里的历史块,只裁本 build 处理过的)。
-   */
-  private void pruneOldTransactions(long currentBlockNum) {
-    long target = currentBlockNum - TX_RETENTION_BLOCKS;
-    if (target <= 0) {
-      return;
-    }
-    // 仅在每 PRUNE_BATCH_SIZE 个区块触发一次,其余区块快速返回
-    if (currentBlockNum % PRUNE_BATCH_SIZE != 0) {
-      return;
-    }
-
-    long lastPruned = trackerStore.getLastPrunedBlockNum();
-    if (lastPruned < 0) {
-      // 首次启动/快照启动:跳过历史块,游标对齐到 target - 1
-      lastPruned = target - 1;
-    }
-    if (lastPruned >= target) {
-      return;
-    }
-
-    long batchStart = lastPruned + 1;
-    long batchEnd = target;
-    if (!txPruneStarted) {
-      txPruneStarted = true;
-      logger.info("fast-sync-stats: start pruning tx & receipts in batches of {}, first batch {}..{}",
-          PRUNE_BATCH_SIZE, batchStart, batchEnd);
-    }
-    for (long n = batchStart; n <= batchEnd; n++) {
-      pruneOneBlock(n);
-    }
-    trackerStore.saveLastPrunedBlockNum(batchEnd);
+  static BlockCapsule headerOnly(BlockCapsule block) {
+    return new BlockCapsule(Protocol.Block.newBuilder()
+        .setBlockHeader(block.getInstance().getBlockHeader()).build());
   }
 
-  /**
-   * 裁掉单个旧块:清交易索引、删收据、保留区块头并重存。
-   * 仅捕获 getBlockByNum 阶段(任何 mutation 之前)的 ItemNotFoundException/BadItemException;
-   * 其它异常向上抛,使本区块 session 回滚,避免提交"半裁剪"的中间状态。
-   */
-  private void pruneOneBlock(long oldNum) {
+  // These writes belong to the caller's block session, including the expired header deletion.
+  void saveBlockHeader(BlockCapsule block) {
+    chainBaseManager.getBlockStore().put(block.getBlockId().getBytes(), headerOnly(block));
+    chainBaseManager.getBlockIndexStore().put(block.getBlockId());
+    long expired = block.getNum() - HEADER_RETENTION_BLOCKS;
+    if (expired < 0) {
+      return;
+    }
     try {
-      BlockCapsule oldBlock = chainBaseManager.getBlockByNum(oldNum);
-      if (oldBlock.getTransactions().isEmpty()) {
-        return; // 已裁剪过或本就是空块
-      }
-      for (TransactionCapsule tx : oldBlock.getTransactions()) {
-        chainBaseManager.getTransactionStore().delete(tx.getTransactionId().getBytes());
-      }
-      chainBaseManager.getTransactionRetStore().delete(ByteArray.fromLong(oldNum));
-      BlockCapsule cleared = new BlockCapsule(
-          oldBlock.getInstance().toBuilder().clearTransactions().build());
-      chainBaseManager.getBlockStore().put(cleared.getBlockId().getBytes(), cleared);
+      BlockId expiredId = chainBaseManager.getBlockIndexStore().get(expired);
+      chainBaseManager.getBlockStore().delete(expiredId.getBytes());
+      chainBaseManager.getBlockIndexStore().delete(ByteArray.fromLong(expired));
     } catch (ItemNotFoundException e) {
-      logger.debug("fast-sync-stats: prune skip, block {} index not found", oldNum);
-    } catch (BadItemException e) {
-      logger.warn("fast-sync-stats: prune skip, block {} bad item: {}", oldNum, e.getMessage());
+      // The offline migration may already have removed this height.
+      logger.debug("Header {} is already absent", expired);
     }
   }
 
@@ -1721,7 +1688,9 @@ public class Manager {
     if (getDynamicPropertiesStore().supportVM()) {
       trxCap.setResult(trace.getTransactionContext());
     }
-    chainBaseManager.getTransactionStore().put(trxCap.getTransactionId().getBytes(), trxCap);
+    if (!FAST_SYNC_STATS_MODE) {
+      chainBaseManager.getTransactionStore().put(trxCap.getTransactionId().getBytes(), trxCap);
+    }
 
     if (!FAST_SYNC_STATS_MODE) {
       Optional.ofNullable(transactionCache)

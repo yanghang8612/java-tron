@@ -222,7 +222,12 @@ public class TronNetDelegate {
     try {
       switch (type) {
         case BLOCK:
-          return new BlockMessage(chainBaseManager.getBlockById(hash));
+          BlockCapsule block = chainBaseManager.getBlockById(hash);
+          if (FAST_SYNC_STATS_MODE && block.getTransactions().isEmpty()
+              && !block.getMerkleRoot().equals(Sha256Hash.ZERO_HASH)) {
+            throw new StoreException("Only the block header is retained");
+          }
+          return new BlockMessage(block);
         case TRX:
           TransactionCapsule tx = chainBaseManager.getTransactionStore().get(hash.getBytes());
           if (tx != null) {

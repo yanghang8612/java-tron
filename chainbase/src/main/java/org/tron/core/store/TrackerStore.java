@@ -1,5 +1,6 @@
 package org.tron.core.store;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
@@ -7,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.tron.common.utils.ByteArray;
+import org.tron.common.utils.FastSyncStorage;
 import org.tron.core.capsule.BytesCapsule;
 import org.tron.core.db.TronStoreWithRevoking;
 
@@ -93,6 +95,15 @@ public class TrackerStore extends TronStoreWithRevoking<BytesCapsule> {
         ByteArray.toLong(Arrays.copyOfRange(data, 16, 24)),
         ByteArray.toLong(Arrays.copyOfRange(data, 24, 32))
     };
+  }
+
+  public byte[] getHeaderOnlyGenesisId() {
+    return getData(FastSyncStorage.GENESIS_ID_KEY.getBytes(StandardCharsets.UTF_8));
+  }
+
+  public void saveHeaderOnlyGenesisId(byte[] id) {
+    put(FastSyncStorage.GENESIS_ID_KEY.getBytes(StandardCharsets.UTF_8),
+        new BytesCapsule(id));
   }
 
   public long getLastPrunedBlockNum() {

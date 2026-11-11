@@ -12,6 +12,7 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.tron.common.storage.metric.DbStatService;
+import org.tron.common.utils.FastSyncStorage;
 import org.tron.common.utils.ForkController;
 import org.tron.common.utils.Sha256Hash;
 import org.tron.common.zksnark.MerkleContainer;
@@ -414,6 +415,15 @@ public class ChainBaseManager {
 
   public void shutdown() {
     dbStatService.shutdown();
+  }
+
+  public long getLowestBlockNum() {
+    long firstRetained = getHeadBlockNum() - FastSyncStorage.HEADER_RETENTION_BLOCKS + 1;
+    return firstRetained > lowestBlockNum ? firstRetained : lowestBlockNum;
+  }
+
+  public NodeType getNodeType() {
+    return getLowestBlockNum() > 1 ? NodeType.LITE : nodeType;
   }
 
   public boolean isLiteNode() {
