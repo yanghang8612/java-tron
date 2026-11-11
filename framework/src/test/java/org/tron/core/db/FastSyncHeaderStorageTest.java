@@ -48,6 +48,9 @@ public class FastSyncHeaderStorageTest extends BaseMethodTest {
       Assert.assertFalse(dbManager.getBlockIndexStore().has(ByteArray.fromLong(10)));
       Assert.assertNotNull(dbManager.getBlockStore()
           .getUnchecked(boundary.getBlockId().getBytes()));
+      Assert.assertEquals(1, dbManager.getBlockStore().getBlockByLatestNum(1).size());
+      Assert.assertEquals(next.getNum(),
+          dbManager.getBlockStore().getBlockByLatestNum(1).get(0).getNum());
     }
     Assert.assertNotNull(dbManager.getBlockStore().getUnchecked(expired.getBlockId().getBytes()));
     Assert.assertTrue(dbManager.getBlockIndexStore().has(ByteArray.fromLong(10)));

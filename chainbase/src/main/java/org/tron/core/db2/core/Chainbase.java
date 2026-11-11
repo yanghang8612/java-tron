@@ -293,6 +293,7 @@ public class Chainbase implements IRevokingDB {
         --tmp;
         Streams.stream(((SnapshotImpl) snapshot).db)
             .map(Map.Entry::getValue)
+            .filter(value -> value.getOperator() != Operator.DELETE)
             .map(Value::getBytes)
             .forEach(result::add);
       }
