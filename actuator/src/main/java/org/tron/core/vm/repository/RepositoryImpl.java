@@ -921,6 +921,10 @@ public class RepositoryImpl implements Repository {
 
   @Override
   public BlockCapsule getBlockByNum(long num) {
+    // CHAINID still needs the genesis identity after its persisted header expires.
+    if (num == 0 && trackerStore.getHeaderOnlyGenesisId() != null) {
+      return storeFactory.getChainBaseManager().getGenesisBlock();
+    }
     try {
       Sha256Hash hash = getBlockIdByNum(num);
       BlockCapsule block = this.khaosDb.getBlock(hash);

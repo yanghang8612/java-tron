@@ -11,6 +11,8 @@ Each block's header insertion and expired-header deletion share the normal
 revoking session. The genesis identity is stored as `HEADER_ONLY_GENESIS_ID` in
 `tracker`, so startup does not require keeping an extra genesis header forever.
 This metadata must match the genesis block constructed from the node configuration.
+TVM uses that validated in-memory genesis for `CHAINID` after header zero expires;
+no extra genesis header is persisted outside the rolling window.
 Cycle end timestamps are retained with the statistics snapshots, so `/list_cycle`
 can still provide its 31-day date mapping after older block headers expire.
 

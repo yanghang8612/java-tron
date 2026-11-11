@@ -5,6 +5,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.tron.common.BaseMethodTest;
 import org.tron.common.crypto.ECKey;
+import org.tron.common.runtime.InternalTransaction;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Sha256Hash;
 import org.tron.core.ChainBaseManager.NodeType;
@@ -15,6 +16,9 @@ import org.tron.core.db2.ISession;
 import org.tron.core.exception.P2pException;
 import org.tron.core.exception.TronError;
 import org.tron.core.net.TronNetDelegate;
+import org.tron.core.store.StoreFactory;
+import org.tron.core.vm.program.Program;
+import org.tron.core.vm.program.invoke.ProgramInvokeMockImpl;
 import org.tron.protos.Protocol;
 import org.tron.protos.Protocol.Inventory.InventoryType;
 import org.tron.protos.Protocol.Transaction.Contract.ContractType;
@@ -65,6 +69,22 @@ public class FastSyncHeaderStorageTest extends BaseMethodTest {
     Assert.assertEquals(next.getBlockId(), stored.getBlockId());
     Assert.assertEquals(1, next.getTransactions().size());
     Assert.assertFalse(dbManager.getBlockIndexStore().has(ByteArray.fromLong(10)));
+  }
+
+  @Test
+  public void chainIdSurvivesGenesisHeaderExpiration() throws Exception {
+    byte[] empty = new byte[0];
+    Program program = new Program(empty, empty,
+        new ProgramInvokeMockImpl(StoreFactory.getInstance(), empty, empty),
+        new InternalTransaction(Protocol.Transaction.getDefaultInstance(),
+            InternalTransaction.TrxType.TRX_UNKNOWN_TYPE));
+    byte[] original = program.getChainId().getData();
+    byte[] genesis = chainBaseManager.getGenesisBlockId().getBytes();
+    dbManager.getBlockStore().delete(genesis);
+    dbManager.getBlockIndexStore().delete(ByteArray.fromLong(0));
+    Assert.assertArrayEquals(original, program.getChainId().getData());
+    Assert.assertFalse(dbManager.getBlockStore().has(genesis));
+    Assert.assertFalse(dbManager.getBlockIndexStore().has(ByteArray.fromLong(0)));
   }
 
   @Test
