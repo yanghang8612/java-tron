@@ -98,6 +98,8 @@ public class DbHeadersOnlyTest {
       db(source, name).put(bytes("old-transaction"), bytes("payload"));
     }
     db(source, "account").put(bytes("sentinel"), bytes("unchanged-state"));
+    db(source, "tracker").put(bytes("CYCLE_END_7"), Longs.toByteArray(2));
+    db(source, "tracker").put(bytes("CYCLE_END_8"), Longs.toByteArray(6));
     DbTool.close();
     return source;
   }
@@ -122,6 +124,8 @@ public class DbHeadersOnlyTest {
     }
     Assert.assertArrayEquals(genesis,
         db(source, "tracker").get(bytes(FastSyncStorage.GENESIS_ID_KEY)));
+    Assert.assertEquals(6000,
+        Longs.fromByteArray(db(source, "tracker").get(bytes("CYCLE_TIME_7"))));
     Assert.assertArrayEquals(bytes("unchanged-state"),
         db(source, "account").get(bytes("sentinel")));
     Assert.assertFalse(Files.exists(source.resolve(FastSyncStorage.MIGRATION_PENDING_FILE)));
@@ -162,10 +166,13 @@ public class DbHeadersOnlyTest {
     checkpointPut(checkpoint, "transactionRetStore", bytes("old-ret"), bytes("receipt"));
     checkpointPut(checkpoint, "trans", bytes("old-tx"), bytes("body"));
     checkpointPut(checkpoint, "account", bytes("sentinel"), bytes("recovered-state"));
+    checkpointPut(checkpoint, "tracker", bytes("CYCLE_END_9"), Longs.toByteArray(9));
     DbTool.close();
 
     DbHeadersOnly.migrate(source, 4);
     Assert.assertArrayEquals(id(next), db(source, "block-index").get(Longs.toByteArray(9)));
+    Assert.assertEquals(27000,
+        Longs.fromByteArray(db(source, "tracker").get(bytes("CYCLE_TIME_9"))));
     Assert.assertEquals(0, Protocol.Block.parseFrom(db(source, "block").get(id(next)))
         .getTransactionsCount());
     checkpoint = db(checkpointParent, checkpointName);
@@ -202,6 +209,22 @@ public class DbHeadersOnlyTest {
     }
     Assert.assertFalse(Files.exists(source.resolve(".header-only-stage")));
     Assert.assertFalse(Files.exists(source.resolve(FastSyncStorage.MIGRATION_PENDING_FILE)));
+  }
+
+  @Test
+  public void backfillsPrunedCycleTimesFromTheMigrationBackup() throws Exception {
+    Path source = fixture();
+    DbHeadersOnly.migrate(source, 4);
+    db(source, "tracker").delete(bytes("CYCLE_TIME_7"));
+    db(source, "tracker").delete(bytes("CYCLE_TIME_8"));
+    DbTool.close();
+    DbHeadersOnly.backfillCycleTimes(source);
+    Assert.assertEquals(6000,
+        Longs.fromByteArray(db(source, "tracker").get(bytes("CYCLE_TIME_7"))));
+    Assert.assertEquals(18000,
+        Longs.fromByteArray(db(source, "tracker").get(bytes("CYCLE_TIME_8"))));
+    Assert.assertEquals(4, db(source, "block").size());
+    Assert.assertEquals(0, db(source, "transactionRetStore").size());
   }
 
   private static byte[] bytes(String value) {

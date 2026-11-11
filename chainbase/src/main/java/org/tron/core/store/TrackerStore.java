@@ -72,6 +72,14 @@ public class TrackerStore extends TronStoreWithRevoking<BytesCapsule> {
     put(cycleEndKey(cycle), new BytesCapsule(ByteArray.fromLong(number)));
   }
 
+  public long getCycleEndTimestamp(long cycle) {
+    return getLong(cycleTimestampKey(cycle), -1L);
+  }
+
+  public void saveCycleEndTimestamp(long cycle, long timestamp) {
+    put(cycleTimestampKey(cycle), new BytesCapsule(ByteArray.fromLong(timestamp)));
+  }
+
   public void saveCycleStakeWeights(long cycle, long net2, long energy2,
       long totalNet, long totalEnergy) {
     byte[] data = new byte[32];
@@ -116,6 +124,7 @@ public class TrackerStore extends TronStoreWithRevoking<BytesCapsule> {
 
   public void pruneCycle(long cycle) {
     delete(cycleEndKey(cycle));
+    delete(cycleTimestampKey(cycle));
     delete(stakeWeightKey(cycle));
   }
 
@@ -132,6 +141,10 @@ public class TrackerStore extends TronStoreWithRevoking<BytesCapsule> {
 
   private byte[] cycleEndKey(long cycle) {
     return ("CYCLE_END_" + cycle).getBytes();
+  }
+
+  private byte[] cycleTimestampKey(long cycle) {
+    return ("CYCLE_TIME_" + cycle).getBytes(StandardCharsets.UTF_8);
   }
 
   private byte[] stakeWeightKey(long cycle) {

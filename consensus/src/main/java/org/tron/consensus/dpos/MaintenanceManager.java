@@ -75,6 +75,10 @@ public class MaintenanceManager {
         updateWitnessValue(beforeWitness);
         beforeMaintenanceTime = nextMaintenanceTime;
         doMaintenance();
+        DynamicPropertiesStore properties = consensusDelegate.getDynamicPropertiesStore();
+        if (properties.allowChangeDelegation()) {
+          trackerStore.saveCycleEndTimestamp(properties.getCurrentCycleNumber() - 1, blockTime);
+        }
         updateWitnessValue(currentWitness);
       }
       consensusDelegate.updateNextMaintenanceTime(blockTime);

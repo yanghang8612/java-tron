@@ -31,9 +31,12 @@ public class ListCycleServlet extends RateLimiterServlet {
 
       SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
       for (int i = 0; i < 31; i++) {
-        long cycleStartTime = ChainBaseManager.getInstance()
-                .getBlockByNum(trackerStore.getCycleEndBlockNumber(startCycleNumberInDay - 1))
-                .getTimeStamp();
+        long cycle = startCycleNumberInDay - 1;
+        long cycleStartTime = trackerStore.getCycleEndTimestamp(cycle);
+        if (cycleStartTime < 0) {
+          cycleStartTime = ChainBaseManager.getInstance()
+              .getBlockByNum(trackerStore.getCycleEndBlockNumber(cycle)).getTimeStamp();
+        }
         resObj.put(sdf.format(new Date(cycleStartTime)), startCycleNumberInDay);
         startCycleNumberInDay -= 4;
       }

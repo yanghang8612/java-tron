@@ -44,12 +44,20 @@ public class DbHeadersOnly implements Callable<Integer> {
       description = "Apply the conversion; retain original stores in .header-only-backup.")
   private boolean execute;
 
+  @CommandLine.Option(names = "--backfill-cycle-times",
+      description = "Only backfill cycle timestamps from the retained migration backup.")
+  private boolean backfillCycleTimes;
+
   @Override
   public Integer call() throws Exception {
     if (!execute) {
       throw new IllegalArgumentException("--execute is required");
     }
-    migrate(database, FastSyncStorage.HEADER_RETENTION_BLOCKS);
+    if (backfillCycleTimes) {
+      backfillCycleTimes(database);
+    } else {
+      migrate(database, FastSyncStorage.HEADER_RETENTION_BLOCKS);
+    }
     return 0;
   }
 
@@ -101,6 +109,7 @@ public class DbHeadersOnly implements Callable<Integer> {
       }
       DBInterface index = DbTool.getDB(source.toString(), "block-index");
       DBInterface blocks = DbTool.getDB(source.toString(), "block");
+      Map<Long, Long> cycleTimes = readCycleTimes(source, overlay, null);
       byte[] genesis = lookup(index, overlay, "block-index", Longs.toByteArray(0));
       if (genesis == null) {
         genesis = lookup(tracker, overlay, "tracker", GENESIS_ID);
@@ -159,6 +168,7 @@ public class DbHeadersOnly implements Callable<Integer> {
         clearHistoryCheckpoint(checkpoint);
       }
       DbTool.getDB(source.toString(), "tracker").put(GENESIS_ID, genesis);
+      writeCycleTimes(source, cycleTimes);
       DbTool.close();
       for (String name : STORES) {
         if (Files.isDirectory(source.resolve(name))) {
@@ -174,6 +184,86 @@ public class DbHeadersOnly implements Callable<Integer> {
           + ", headers=" + (head - first + 1) + ", backup=" + backup);
     } finally {
       DbTool.close();
+    }
+  }
+
+  static void backfillCycleTimes(Path directory) throws Exception {
+    Path source = directory.toRealPath();
+    Path backup = source.resolve(".header-only-backup");
+    if (!Files.isRegularFile(backup.resolve("block").resolve("CURRENT"))
+        || Files.exists(source.resolve(FastSyncStorage.MIGRATION_PENDING_FILE))) {
+      throw new IllegalStateException("A completed migration backup is required");
+    }
+    try {
+      DbTool.getDB(source.toString(), "block");
+      Map<String, Map<ByteString, byte[]>> overlay = new HashMap<>();
+      for (Path checkpoint : activeCheckpoints(checkpoints(source))) {
+        collectCheckpoint(checkpoint, overlay);
+      }
+      Map<Long, Long> cycleTimes = readCycleTimes(source, overlay, backup);
+      writeCycleTimes(source, cycleTimes);
+      System.out.println("Cycle timestamps backfilled: " + cycleTimes.size());
+    } finally {
+      DbTool.close();
+    }
+  }
+
+  private static Map<Long, Long> readCycleTimes(Path source,
+      Map<String, Map<ByteString, byte[]>> overlay, Path backup) throws Exception {
+    DBInterface tracker = DbTool.getDB(source.toString(), "tracker");
+    Map<ByteString, byte[]> cycleEnds = new HashMap<>();
+    try (DBIterator iterator = tracker.iterator()) {
+      for (iterator.seekToFirst(); iterator.hasNext(); iterator.next()) {
+        if (new String(iterator.getKey(), StandardCharsets.UTF_8).startsWith("CYCLE_END_")) {
+          cycleEnds.put(ByteString.copyFrom(iterator.getKey()),
+              Arrays.copyOf(iterator.getValue(), iterator.getValue().length));
+        }
+      }
+    }
+    Map<ByteString, byte[]> pending = overlay.get("tracker");
+    if (pending != null) {
+      pending.forEach((key, value) -> {
+        if (key.toStringUtf8().startsWith("CYCLE_END_")) {
+          if (value == null) {
+            cycleEnds.remove(key);
+          } else {
+            cycleEnds.put(key, value);
+          }
+        }
+      });
+    }
+    DBInterface index = DbTool.getDB(source.toString(), "block-index");
+    DBInterface blocks = DbTool.getDB(source.toString(), "block");
+    Map<Long, Long> result = new HashMap<>();
+    for (Map.Entry<ByteString, byte[]> entry : cycleEnds.entrySet()) {
+      long cycle = Long.parseLong(entry.getKey().toStringUtf8().substring("CYCLE_END_".length()));
+      byte[] cached = lookup(tracker, overlay, "tracker", bytes("CYCLE_TIME_" + cycle));
+      if (cached != null && cached.length == Long.BYTES) {
+        result.put(cycle, Longs.fromByteArray(cached));
+        continue;
+      }
+      byte[] key = entry.getValue();
+      long number = Longs.fromByteArray(key);
+      byte[] blockId = lookup(index, overlay, "block-index", key);
+      byte[] value = blockId == null ? null : lookup(blocks, overlay, "block", blockId);
+      if (value == null && backup != null) {
+        blockId = DbTool.getDB(backup.toString(), "block-index").get(key);
+        value = blockId == null ? null : DbTool.getDB(backup.toString(), "block").get(blockId);
+      }
+      if (value == null) {
+        throw new IllegalStateException("Missing cycle " + cycle + " header at " + number);
+      }
+      Protocol.Block block = Protocol.Block.parseFrom(value);
+      validateHeader(block, number, blockId);
+      result.put(cycle, block.getBlockHeader().getRawData().getTimestamp());
+    }
+    return result;
+  }
+
+  private static void writeCycleTimes(Path source, Map<Long, Long> cycleTimes) throws Exception {
+    DBInterface tracker = DbTool.getDB(source.toString(), "tracker");
+    for (Map.Entry<Long, Long> entry : cycleTimes.entrySet()) {
+      tracker.put(bytes("CYCLE_TIME_" + entry.getKey()), Longs.toByteArray(entry.getValue()));
     }
   }
 

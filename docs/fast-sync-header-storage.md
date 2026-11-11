@@ -11,6 +11,8 @@ Each block's header insertion and expired-header deletion share the normal
 revoking session. The genesis identity is stored as `HEADER_ONLY_GENESIS_ID` in
 `tracker`, so startup does not require keeping an extra genesis header forever.
 This metadata must match the genesis block constructed from the node configuration.
+Cycle end timestamps are retained with the statistics snapshots, so `/list_cycle`
+can still provide its 31-day date mapping after older block headers expire.
 
 ## Converting existing data
 
@@ -33,6 +35,10 @@ builds fresh databases. It replaces these stores only:
 - `trans`, `transactionRetStore`, `transactionHistoryStore`
 - `trans-cache`, `recent-transaction`
 
+The conversion also derives cycle end timestamps from the original headers and
+checkpoints before removing them. Maintenance blocks record these timestamps in
+`tracker` thereafter, with the same 160-cycle retention as the other statistics.
+
 Transaction and historical block entries are removed from **all** v1/v2
 checkpoints, while checkpoint entries for account, contract, dynamic properties,
 and other state remain available for normal startup recovery. The new databases
@@ -50,6 +56,15 @@ empty transaction/receipt queries. Then restart with the normal P2P settings and
 verify that the head advances. Delete `.header-only-backup` only after those checks
 to physically reclaim the old transaction data; renaming the stores alone does
 not release their disk space.
+
+If a previous header-only conversion has already replaced the stores but its
+backup is still available, stop the node and backfill the small cycle timestamp
+metadata before deleting the backup:
+
+```sh
+java -Xmx2g -jar Toolkit.jar db headers-only \
+  --database /data/fastnode/output-directory/database --execute --backfill-cycle-times
+```
 
 ## Restoring an interrupted conversion
 
