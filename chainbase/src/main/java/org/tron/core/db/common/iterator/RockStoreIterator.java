@@ -6,7 +6,6 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
 import org.rocksdb.ReadOptions;
-import org.rocksdb.RocksDBException;
 import org.rocksdb.RocksIterator;
 
 
@@ -135,13 +134,4 @@ public final class RockStoreIterator implements DBIterator {
     }
   }
 
-  /** Check native read status before closing an exhausted iterator. */
-  public void checkStatus() {
-    checkState();
-    try {
-      dbIterator.status();
-    } catch (RocksDBException e) {
-      throw new IllegalStateException("RocksDB iterator read failed", e);
-    }
-  }
 }

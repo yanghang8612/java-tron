@@ -2,7 +2,6 @@ package org.tron.program;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -13,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -26,7 +26,7 @@ import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
 import org.tron.core.exception.TronError;
 import org.tron.core.store.AccountStore;
-import org.tron.core.store.TrackerStore;
+import org.tron.p2p.base.Constant;
 
 public class AccountUsageStartupTest {
 
@@ -34,14 +34,10 @@ public class AccountUsageStartupTest {
   public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
   @Test
-  public void scanFailureExitsAndRestartCanRescanSameDatabase() throws Exception {
-    Path directory = temporaryFolder.newFolder().toPath();
-    String failure = runProbe(directory, "scan-failure", null, 1);
-    assertTrue(failure, failure.contains("ACCOUNT_USAGE_INIT(1)"));
-    assertTrue(failure, failure.contains("Cannot decode account during usage scan"));
-    String restart = runProbe(directory, "rescan", null, 0);
-    assertTrue(restart, restart.contains("USAGE_SCAN_RESTART_COMPLETED"));
-    assertFalse(restart, restart.contains("Account usage scan already completed"));
+  public void monitoringStartupDoesNotReadExistingAccountRows() throws Exception {
+    String output = runProbe(temporaryFolder.newFolder().toPath(), "monitor-no-scan", null, 0);
+    assertTrue(output, output.contains("USAGE_MONITOR_STARTED"));
+    assertFalse(output, output.contains("Account usage scan"));
   }
 
   @Test
@@ -100,31 +96,28 @@ public class AccountUsageStartupTest {
 
     public static void main(String[] args) {
       ExitManager.initExceptionHandler();
+      // External-IP discovery is unrelated to startup failure handling; keep children offline.
+      Collections.fill(Constant.ipV4Urls, "http://127.0.0.1:1");
+      Collections.fill(Constant.ipV6Urls, "http://127.0.0.1:1");
       Args.setParam(new String[] {"--output-directory", args[0], "--p2p-disable", "true"},
           TestConstants.TEST_CONF);
       Args.getInstance().getStorage().setCheckpointVersion(2);
       TronApplicationContext context = new TronApplicationContext(DefaultConfig.class);
       AccountStore accounts = context.getBean(AccountStore.class);
-      TrackerStore tracker = context.getBean(TrackerStore.class);
       byte[] key = new byte[21];
       key[0] = 0x41;
       key[20] = 0x7f;
-      if ("scan-failure".equals(args[1])) {
+      if ("monitor-no-scan".equals(args[1])) {
         accounts.getDb().put(key, new byte[] {(byte) 0x80});
-      } else if ("rescan".equals(args[1])) {
-        assertNull(tracker.getNegativeUsageScanResult());
-        accounts.getDb().remove(key);
       }
       // The real context is initialized and owns DB locks, but no API/P2P service is started.
       assertTrue(Thread.getAllStackTraces().keySet().stream().anyMatch(thread ->
           "checkpoint-prune".equals(thread.getName()) && !thread.isDaemon()));
       FullNode.startAccountUsage(context);
-      if ("rescan".equals(args[1])) {
-        assertTrue(tracker.getNegativeUsageScanResult() != null);
-        System.out.println("USAGE_SCAN_RESTART_COMPLETED");
-      }
-      context.close();
-      Args.clearParam();
+      System.out.println("USAGE_MONITOR_STARTED");
+      // Follow the node's shutdown-hook path. Natural JVM teardown on JDK 8 can race
+      // LevelDB 1.8's HawtJNI thread-local cleanup, even without an account scan.
+      System.exit(0);
     }
   }
 }

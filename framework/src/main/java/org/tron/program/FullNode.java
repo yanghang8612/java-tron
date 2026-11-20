@@ -100,6 +100,7 @@ public class FullNode {
     try {
       context.getBean(AccountUsageService.class).start();
     } catch (RuntimeException e) {
+      logger.error("Account usage initialization failed", e);
       TronError failure = new TronError("Account usage initialization failed", e,
           TronError.ErrCode.ACCOUNT_USAGE_INIT);
       try {

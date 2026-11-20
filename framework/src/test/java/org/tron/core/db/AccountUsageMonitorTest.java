@@ -174,6 +174,106 @@ public class AccountUsageMonitorTest extends BaseMethodTest {
   }
 
   @Test
+  public void undecodablePreviousAccountDoesNotPreventAnomalousWrites() {
+    ByteString address = ByteString.copyFrom(new ECKey().getAddress());
+    AccountStore store = dbManager.getAccountStore();
+    dbManager.getDynamicPropertiesStore().saveTotalNetLimit(100);
+    for (long usage : new long[] {-1, 101}) {
+      store.getRevokingDB().put(address.toByteArray(), new byte[] {(byte) 0x80});
+      Account after = Account.newBuilder().setAddress(address).setNetUsage(usage).build();
+      List<String> alerts = new ArrayList<>();
+      try (ISession session = dbManager.getRevokingStore().buildSession()) {
+        try (AccountUsageMonitor ignored = AccountUsageMonitor.trace(transfer(address, address, 1),
+            null, alerts::add)) {
+          store.put(address.toByteArray(), new AccountCapsule(after));
+        }
+        assertEquals(after, store.get(address.toByteArray()).getInstance());
+      }
+      // The normal account write still belongs to its enclosing revoking session.
+      assertEquals(null, store.get(address.toByteArray()).getInstance());
+      assertEquals(1, alerts.size());
+      assertTrue(alerts.get(0).contains("net_usage=unknown->" + usage + "(introduced=unknown)"));
+      String message = appender.list.get(appender.list.size() - 1).getFormattedMessage();
+      assertTrue(message.contains("previousExists=true, previousReadable=false"));
+    }
+    store.delete(address.toByteArray());
+  }
+
+  @Test
+  public void excessiveUsageUsesGlobalResourceTotalsAndPreservesWrites() {
+    ByteString address = ByteString.copyFrom(new ECKey().getAddress());
+    AccountStore store = dbManager.getAccountStore();
+    dbManager.getDynamicPropertiesStore().saveTotalNetLimit(100);
+    dbManager.getDynamicPropertiesStore().saveTotalEnergyCurrentLimit(200);
+    Account before = Account.newBuilder().setAddress(address).setNetUsage(100)
+        .setFreeNetUsage(100).setAccountResource(AccountResource.newBuilder().setEnergyUsage(200))
+        .putFreeAssetNetUsage("token", 100).putFreeAssetNetUsageV2("1000001", 100).build();
+    store.put(address.toByteArray(), new AccountCapsule(before));
+    assertTrue(appender.list.isEmpty());
+    Account[] excessive = {
+        before.toBuilder().setNetUsage(101).build(),
+        before.toBuilder().setFreeNetUsage(101).build(),
+        before.toBuilder().setAccountResource(before.getAccountResource().toBuilder()
+            .setEnergyUsage(201)).build(),
+        before.toBuilder().putFreeAssetNetUsage("token", 101).build(),
+        before.toBuilder().putFreeAssetNetUsageV2("1000001", 101).build()
+    };
+    List<String> alerts = new ArrayList<>();
+    try (AccountUsageMonitor ignored = AccountUsageMonitor.trace(transfer(address, address, 1),
+        null, alerts::add)) {
+      for (Account account : excessive) {
+        store.put(address.toByteArray(), new AccountCapsule(account));
+        assertEquals(account, store.get(address.toByteArray()).getInstance());
+      }
+    }
+    assertEquals(excessive.length, appender.list.size());
+    assertEquals(1, alerts.size());
+    assertTrue(alerts.get(0).contains("net_usage=100->101"));
+    assertTrue(alerts.get(0).contains("free_net_usage=100->101"));
+    assertTrue(alerts.get(0).contains("energy_usage=200->201"));
+    assertTrue(alerts.get(0).contains("free_asset_net_usage[token]=100->101"));
+    assertTrue(alerts.get(0).contains("free_asset_net_usageV2[1000001]=100->101"));
+    assertTrue(alerts.get(0).contains("reason=exceeds_total,totalLimit=100"));
+    assertTrue(alerts.get(0).contains("reason=exceeds_total,totalLimit=200"));
+  }
+
+  @Test
+  public void monitoringReadsUpdatedTotalsOnEachWrite() {
+    ByteString address = ByteString.copyFrom(new ECKey().getAddress());
+    AccountCapsule account = new AccountCapsule(Account.newBuilder().setAddress(address)
+        .setNetUsage(100).setAccountResource(AccountResource.newBuilder().setEnergyUsage(200))
+        .build());
+    AccountStore store = dbManager.getAccountStore();
+    dbManager.getDynamicPropertiesStore().saveTotalNetLimit(100);
+    dbManager.getDynamicPropertiesStore().saveTotalEnergyCurrentLimit(200);
+    store.put(address.toByteArray(), account);
+    assertTrue(appender.list.isEmpty());
+    dbManager.getDynamicPropertiesStore().saveTotalNetLimit(99);
+    dbManager.getDynamicPropertiesStore().saveTotalEnergyCurrentLimit(199);
+    store.put(address.toByteArray(), account);
+    assertEquals(1, appender.list.size());
+    String message = appender.list.get(0).getFormattedMessage();
+    assertTrue(message.contains("reason=exceeds_total,totalLimit=99"));
+    assertTrue(message.contains("reason=exceeds_total,totalLimit=199"));
+    dbManager.getDynamicPropertiesStore().saveTotalNetLimit(101);
+    dbManager.getDynamicPropertiesStore().saveTotalEnergyCurrentLimit(201);
+    store.put(address.toByteArray(), account);
+    assertEquals(1, appender.list.size());
+  }
+
+  @Test
+  public void limitComparisonsDoNotOverflowAtLongBoundaries() {
+    AccountCapsule account = new AccountCapsule(Account.newBuilder()
+        .setNetUsage(Long.MAX_VALUE)
+        .setAccountResource(AccountResource.newBuilder().setEnergyUsage(Long.MAX_VALUE)).build());
+    assertFalse(AccountUsageMonitor.hasAbnormalUsage(account, Long.MAX_VALUE, Long.MAX_VALUE));
+    assertTrue(AccountUsageMonitor.hasAbnormalUsage(account, Long.MAX_VALUE - 1, Long.MAX_VALUE));
+    assertTrue(AccountUsageMonitor.hasAbnormalUsage(account, Long.MAX_VALUE, Long.MAX_VALUE - 1));
+    account.setNetUsage(Long.MIN_VALUE);
+    assertTrue(AccountUsageMonitor.hasAbnormalUsage(account, Long.MAX_VALUE, Long.MAX_VALUE));
+  }
+
+  @Test
   public void revokedWritesRemainDiagnosticAndRestoreNestedContext() {
     ByteString address = ByteString.copyFrom(new ECKey().getAddress());
     AccountStore store = dbManager.getAccountStore();

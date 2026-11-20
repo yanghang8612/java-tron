@@ -2,6 +2,7 @@ package org.tron.core.store;
 
 import com.google.protobuf.ByteString;
 import com.typesafe.config.ConfigObject;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,6 +26,7 @@ import java.util.Map;
 import java.util.OptionalLong;
 
 @Component
+@Slf4j(topic = "account-usage")
 public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
 
   private static final boolean FAST_SYNC_STATS_MODE = true;
@@ -74,9 +76,18 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
 
   @Override
   public void put(byte[] key, AccountCapsule item) {
-    if (key != null && AccountUsageMonitor.hasNegativeUsage(item)) {
-      // Read the previous account only for anomalous writes on the fast-sync hot path.
-      AccountUsageMonitor.logNegativeUsage(key, getUnchecked(key), item);
+    try {
+      if (key != null && item != null) {
+        long netLimit = dynamicPropertiesStore.getTotalNetLimit();
+        long energyLimit = dynamicPropertiesStore.getTotalEnergyCurrentLimit();
+        if (AccountUsageMonitor.hasAbnormalUsage(item, netLimit, energyLimit)) {
+          // Read the previous account only for anomalous writes on the fast-sync hot path.
+          AccountUsageMonitor.logAbnormalUsage(key, getUnchecked(key), item, netLimit, energyLimit);
+        }
+      }
+    } catch (RuntimeException e) {
+      // Diagnostics must not change whether the enclosing revoking session accepts this write.
+      logger.warn("Unable to monitor account usage write: {}", e.getClass().getSimpleName());
     }
     AccountCapsule old = null;
     if (!FAST_SYNC_STATS_MODE && CommonParameter.getInstance().isHistoryBalanceLookup()) {

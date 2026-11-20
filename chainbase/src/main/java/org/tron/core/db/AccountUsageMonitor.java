@@ -41,90 +41,107 @@ public final class AccountUsageMonitor implements AutoCloseable {
     return new AccountUsageMonitor(transaction, block, alert);
   }
 
-  public static boolean hasNegativeUsage(AccountCapsule capsule) {
-    if (capsule == null) {
+  public static boolean hasAbnormalUsage(AccountCapsule capsule, long netLimit, long energyLimit) {
+    if (capsule == null || capsule.getInstance() == null) {
       return false;
     }
     Account account = capsule.getInstance();
-    return account.getNetUsage() < 0 || account.getFreeNetUsage() < 0
-        || account.getAccountResource().getEnergyUsage() < 0
+    return isAbnormal(account.getNetUsage(), netLimit)
+        || isAbnormal(account.getFreeNetUsage(), netLimit)
+        || isAbnormal(account.getAccountResource().getEnergyUsage(), energyLimit)
         || account.getAccountResource().getStorageUsage() < 0
-        || hasNegativeValue(account.getFreeAssetNetUsageMap())
-        || hasNegativeValue(account.getFreeAssetNetUsageV2Map());
+        || hasAbnormalValue(account.getFreeAssetNetUsageMap(), netLimit)
+        || hasAbnormalValue(account.getFreeAssetNetUsageV2Map(), netLimit);
   }
 
-  private static boolean hasNegativeValue(Map<String, Long> values) {
+  private static boolean isAbnormal(long value, long limit) {
+    return value < 0 || (limit >= 0 && value > limit);
+  }
+
+  private static boolean hasAbnormalValue(Map<String, Long> values, long limit) {
     for (long value : values.values()) {
-      if (value < 0) {
+      if (isAbnormal(value, limit)) {
         return true;
       }
     }
     return false;
   }
 
-  public static void logNegativeUsage(byte[] key, AccountCapsule before, AccountCapsule after) {
-    String usage = describeUsage(before, after, false);
+  public static void logAbnormalUsage(byte[] key, AccountCapsule before, AccountCapsule after,
+      long netLimit, long energyLimit) {
+    String usage = describeUsage(before, after, false, netLimit, energyLimit);
     AccountUsageMonitor context = CURRENT.get();
     TransactionCapsule trx = context == null ? null : context.transaction;
     BlockCapsule block = context == null ? null : context.block;
     String contractType = trx == null || trx.getContractCount() == 0 ? "none"
         : trx.getInstance().getRawData().getContract(0).getType().name();
     // A put can still be revoked by its enclosing transaction/block session.
-    logger.warn("Negative account usage write: account={}, txId={}, contractType={}, "
-            + "blockNum={}, blockHash={}, phase={}, previousExists={}, usage=[{}]",
+    logger.warn("Abnormal account usage write: account={}, txId={}, contractType={}, "
+            + "blockNum={}, blockHash={}, phase={}, previousExists={}, previousReadable={}, "
+            + "usage=[{}]",
         ByteArray.toHexString(key), trx == null ? "none" : trx.getTransactionId(), contractType,
         block == null ? "none" : block.getNum(), block == null ? "none" : block.getBlockId(),
         trx == null ? "outside-transaction" : block == null ? "pending"
-            : block.hasWitnessSignature() ? "apply" : "pack", before != null, usage);
+            : block.hasWitnessSignature() ? "apply" : "pack", before != null,
+        before == null || before.getInstance() != null, usage);
     if (context != null && trx != null && context.alert != null) {
-      String changed = describeUsage(before, after, true);
+      String changed = describeUsage(before, after, true, netLimit, energyLimit);
       if (!changed.isEmpty()) {
         context.recordChangedUsage(ByteArray.toHexString(key), changed);
       }
     }
   }
 
-  public static String describeNegativeUsage(AccountCapsule account) {
-    return describeUsage(account, account, false);
-  }
-
   private static String describeUsage(AccountCapsule before, AccountCapsule after,
-      boolean changedOnly) {
+      boolean changedOnly, long netLimit, long energyLimit) {
     Account old = before == null ? Account.getDefaultInstance() : before.getInstance();
     Account account = after.getInstance();
     StringBuilder usage = new StringBuilder();
-    appendUsage(usage, "net_usage", old.getNetUsage(), account.getNetUsage(), changedOnly);
-    appendUsage(usage, "free_net_usage", old.getFreeNetUsage(), account.getFreeNetUsage(),
-        changedOnly);
-    appendUsage(usage, "energy_usage", old.getAccountResource().getEnergyUsage(),
-        account.getAccountResource().getEnergyUsage(), changedOnly);
-    appendUsage(usage, "storage_usage", old.getAccountResource().getStorageUsage(),
-        account.getAccountResource().getStorageUsage(), changedOnly);
-    appendAssetUsage(usage, "free_asset_net_usage", old.getFreeAssetNetUsageMap(),
-        account.getFreeAssetNetUsageMap(), changedOnly);
-    appendAssetUsage(usage, "free_asset_net_usageV2", old.getFreeAssetNetUsageV2Map(),
-        account.getFreeAssetNetUsageV2Map(), changedOnly);
+    appendUsage(usage, "net_usage", old == null ? null : old.getNetUsage(), account.getNetUsage(),
+        changedOnly, netLimit);
+    appendUsage(usage, "free_net_usage", old == null ? null : old.getFreeNetUsage(),
+        account.getFreeNetUsage(), changedOnly, netLimit);
+    appendUsage(usage, "energy_usage",
+        old == null ? null : old.getAccountResource().getEnergyUsage(),
+        account.getAccountResource().getEnergyUsage(), changedOnly, energyLimit);
+    appendUsage(usage, "storage_usage",
+        old == null ? null : old.getAccountResource().getStorageUsage(),
+        account.getAccountResource().getStorageUsage(), changedOnly, -1);
+    appendAssetUsage(usage, "free_asset_net_usage",
+        old == null ? null : old.getFreeAssetNetUsageMap(),
+        account.getFreeAssetNetUsageMap(), changedOnly, netLimit);
+    appendAssetUsage(usage, "free_asset_net_usageV2",
+        old == null ? null : old.getFreeAssetNetUsageV2Map(),
+        account.getFreeAssetNetUsageV2Map(), changedOnly, netLimit);
     return usage.toString();
   }
 
   private static void appendAssetUsage(StringBuilder usage, String field,
-      Map<String, Long> before, Map<String, Long> after, boolean changedOnly) {
+      Map<String, Long> before, Map<String, Long> after, boolean changedOnly, long limit) {
     for (Map.Entry<String, Long> entry : after.entrySet()) {
-      if (entry.getValue() < 0) {
+      if (isAbnormal(entry.getValue(), limit)) {
         appendUsage(usage, field + "[" + entry.getKey() + "]",
-            before.getOrDefault(entry.getKey(), 0L), entry.getValue(), changedOnly);
+            before == null ? null : before.getOrDefault(entry.getKey(), 0L), entry.getValue(),
+            changedOnly, limit);
       }
     }
   }
 
-  private static void appendUsage(StringBuilder usage, String field, long before, long after,
-      boolean changedOnly) {
-    if (after < 0 && (!changedOnly || before != after)) {
+  private static void appendUsage(StringBuilder usage, String field, Long before, long after,
+      boolean changedOnly, long limit) {
+    if (isAbnormal(after, limit) && (!changedOnly || before == null || before != after)) {
       if (usage.length() > 0) {
         usage.append(", ");
       }
-      usage.append(field).append('=').append(before).append("->").append(after)
-          .append("(introduced=").append(before >= 0).append(')');
+      usage.append(field).append('=').append(before == null ? "unknown" : before).append("->")
+          .append(after).append("(introduced=")
+          .append(before == null ? "unknown" : after < 0 ? before >= 0 : before <= limit)
+          .append(')');
+      if (after < 0) {
+        usage.append("[reason=negative]");
+      } else {
+        usage.append("[reason=exceeds_total,totalLimit=").append(limit).append(']');
+      }
     }
   }
 
@@ -150,10 +167,11 @@ public final class AccountUsageMonitor implements AutoCloseable {
       CURRENT.set(previous);
     }
     if (changedAccounts != null) {
-      StringBuilder message = new StringBuilder("Negative account usage write attempts\n")
+      StringBuilder message = new StringBuilder("Abnormal account usage write attempts\n")
           .append("txId=").append(transaction.getTransactionId())
           .append(" contractType=")
-          .append(transaction.getInstance().getRawData().getContract(0).getType().name())
+          .append(transaction.getContractCount() == 0 ? "none"
+              : transaction.getInstance().getRawData().getContract(0).getType().name())
           .append(" blockNum=").append(block == null ? "none" : block.getNum())
           .append(" blockHash=").append(block == null ? "none" : block.getBlockId())
           .append(" phase=").append(block == null ? "pending"
