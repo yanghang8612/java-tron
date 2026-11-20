@@ -10,6 +10,7 @@ import org.tron.common.parameter.CommonParameter;
 import org.tron.common.utils.Commons;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.BlockCapsule;
+import org.tron.core.db.AccountUsageMonitor;
 import org.tron.core.db.EnergyProcessor;
 import org.tron.core.db.TronStoreWithRevoking;
 import org.tron.core.db.accountstate.AccountStateCallBackUtils;
@@ -73,6 +74,10 @@ public class AccountStore extends TronStoreWithRevoking<AccountCapsule> {
 
   @Override
   public void put(byte[] key, AccountCapsule item) {
+    if (key != null && AccountUsageMonitor.hasNegativeUsage(item)) {
+      // Read the previous account only for anomalous writes on the fast-sync hot path.
+      AccountUsageMonitor.logNegativeUsage(key, getUnchecked(key), item);
+    }
     AccountCapsule old = null;
     if (!FAST_SYNC_STATS_MODE && CommonParameter.getInstance().isHistoryBalanceLookup()) {
       old = super.getUnchecked(key);

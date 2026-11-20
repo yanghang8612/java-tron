@@ -250,6 +250,8 @@ public class Manager {
   @Autowired
   private org.tron.core.service.TopDelegatorService topDelegatorService;
   @Autowired
+  private org.tron.core.service.AccountUsageService accountUsageService;
+  @Autowired
   private TrackerStore trackerStore;
   // transactions cache
   private BlockingQueue<TransactionCapsule> pendingTransactions;
@@ -1607,6 +1609,18 @@ public class Manager {
    * Process transaction.
    */
   public TransactionInfo processTransaction(final TransactionCapsule trxCap, BlockCapsule blockCap)
+      throws ValidateSignatureException, ContractValidateException, ContractExeException,
+      AccountResourceInsufficientException, TransactionExpirationException,
+      TooBigTransactionException, TooBigTransactionResultException,
+      DupTransactionException, TaposException, ReceiptCheckErrException, VMIllegalException {
+    try (AccountUsageMonitor ignored = AccountUsageMonitor.trace(trxCap, blockCap,
+        accountUsageService::alert)) {
+      return processTransactionInternal(trxCap, blockCap);
+    }
+  }
+
+  private TransactionInfo processTransactionInternal(final TransactionCapsule trxCap,
+      BlockCapsule blockCap)
       throws ValidateSignatureException, ContractValidateException, ContractExeException,
       AccountResourceInsufficientException, TransactionExpirationException,
       TooBigTransactionException, TooBigTransactionResultException,

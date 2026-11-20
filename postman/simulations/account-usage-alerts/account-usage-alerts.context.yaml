@@ -1,0 +1,121 @@
+# Simulation context — account-usage-alerts
+#
+# Generated 2026-11-20.
+#
+# What is believed to be true about the services this simulation stands in for,
+# and what each belief rests on. A `null` is something nobody has established
+# yet.
+#
+# Written from a fixed template and never recreated. How to read it, and how to
+# write a run back into it, is in the api-simulation skill
+# (skills/api-simulation/reference/context_file.md).
+
+simulation: "account-usage-alerts"
+generated: "2026-11-20"
+
+# What this simulation stands in for and what work it unblocks. Both need
+# hindsight, so they are the last thing to write. The members it serves, their
+# route keys and the hosts they answer for are in the .sim.yaml beside this file.
+purpose:
+  stands_in_for: >-
+    Slack incoming webhooks using a local mock built from Slack's published contract.
+    Published mock discovery was skipped because the CLI is signed out.
+  unblocks: >-
+    Exercise the real Java SlackUsageAlert client's JSON POST and 429 retry without
+    a real webhook credential or messages to a real Slack channel.
+
+# What the code relies on about a dependency's behaviour — one claim per entry,
+# each { id, status, claim, reason, verification, source, updated_at }.
+#
+#   status        supported     evidence supports it, within a stated scope
+#                 contradicted  evidence gives a counterexample
+#                 unknown       available evidence cannot establish or reject it
+#                 conflicting   applicable sources disagree
+#
+#   reason        why the evidence adds up to that status
+#   verification  what was checked and what it showed — a contract read, a
+#                 request made and its response, a handler inspected. Name what
+#                 is still planned or blocked, and what has gone stale and why.
+#   source        where to go to re-check it: a file and line range, a run, a
+#                 published contract. A claim with nothing to point at is
+#                 `unknown`.
+#   updated_at    the day this entry was last written, YYYY-MM-DD. Set it when
+#                 you add a claim and again whenever you change one, so a claim
+#                 nobody has touched in months is visible as such.
+#
+# A claim is about the dependency, not about the simulation — what the caller
+# is taken to be, which plan or permission is assumed, the order calls go in,
+# what gets retried, the shape of the data.
+#
+#   - id: charges-idempotent-for-24h
+#     status: supported
+#     claim: Payments treats a repeated Idempotency-Key as the same charge for
+#       24 hours. Beyond that it is a new charge.
+#     reason: The contract guarantees it for that window, and a run inside the
+#       window agreed. The 24-hour boundary itself is untested.
+#     verification: Read the provider's API reference for POST /charges, then
+#       sent the same key twice 10 minutes apart and got the first charge id
+#       back both times.
+#     source: the provider's API reference for POST /charges; runs/idempotency-001
+#     updated_at: "2026-11-20"
+assumptions:
+  - id: incoming-webhook-json
+    status: supported
+    claim: Slack incoming webhooks accept a JSON object containing a text string.
+    reason: >-
+      Slack documents this request shape. The local simulation independently
+      validates Content-Type and text and observed the Java client sending valid
+      requests; this does not establish production authorization or routing.
+    verification: >-
+      On 2026-11-20, read Slack's incoming-webhook documentation. Ran
+      SlackUsageAlertTest.postmanSimulationReceivesRealClientAndRateLimitRetry against
+      the local simulation: POST /services/ok returned 200; /_state reported ok=1,
+      rate=2, invalid=0. The test passed. No real Slack webhook was called.
+    source: >-
+      https://docs.slack.dev/messaging/sending-messages-using-incoming-webhooks/;
+      framework/src/test/java/org/tron/core/service/SlackUsageAlertTest.java;
+      postman/mocks/slack-usage/default.js
+    updated_at: "2026-11-20"
+  - id: rate-limit-retry
+    status: supported
+    claim: A Slack 429 response specifies a retry delay in seconds in Retry-After.
+    reason: >-
+      Slack's rate-limit documentation specifies this behavior. The stand-in models
+      one 429 with Retry-After=1, and the real client waited at least that delay
+      before retrying successfully.
+    verification: >-
+      On 2026-11-20 the simulation request log recorded POST /services/rate returning
+      429 at 08:01:19.967 UTC and a second POST returning 200 at 08:01:20.987 UTC.
+      The test asserted exactly two requests to that path and no invalid payloads.
+      The local HTTP tests also exercised permanent rejection, redirects and 503 retry.
+      After review fixes on the same date, finalRateLimitDelaysNextQueuedAlert
+      exercised two queued messages and asserted that the next message waited at
+      least one second after the preceding message's third and final 429 response.
+    source: >-
+      https://docs.slack.dev/apis/web-api/rate-limits/;
+      framework/src/test/java/org/tron/core/service/SlackUsageAlertTest.java;
+      chainbase/src/main/java/org/tron/core/service/SlackUsageAlert.java
+    updated_at: "2026-11-20"
+  - id: production-channel-delivery
+    status: unknown
+    claim: The deployment's webhook can deliver into the intended Slack channel.
+    reason: No production webhook or channel has been supplied or exercised.
+    verification: >-
+      Only localhost stand-ins were used on 2026-11-20. Set
+      ACCOUNT_USAGE_SLACK_WEBHOOK_URL in the production process environment and
+      observe an authorized real alert to settle delivery and channel routing.
+    source: >-
+      docs/fast-sync-header-storage.md;
+      https://docs.slack.dev/messaging/sending-messages-using-incoming-webhooks/
+    updated_at: "2026-11-20"
+
+# What the claims above were written against: { id, date, commit, cli }, from
+# `git rev-parse HEAD` and `postman --version`. Append an entry when either
+# differs, and say so when the tree is dirty — a sha alone reads as a clean
+# checkout. A claim carried over from an older fingerprint is one nothing has
+# re-checked since.
+fingerprints:
+  - id: local-20261120
+    date: "2026-11-20"
+    commit: "3e55b4d61f (dirty: account usage scan and Slack changes)"
+    cli: "1.82.0"

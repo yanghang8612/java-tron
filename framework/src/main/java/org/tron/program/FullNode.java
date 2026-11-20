@@ -17,6 +17,7 @@ import org.tron.common.utils.FastSyncStorage;
 import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
 import org.tron.core.exception.TronError;
+import org.tron.core.service.AccountUsageService;
 
 @Slf4j(topic = "app")
 public class FullNode {
@@ -84,12 +85,30 @@ public class FullNode {
           trackerStore.getTotalNetWeight2(), trackerStore.getTotalEnergyWeight2());
     }
 
+    if (FAST_SYNC_STATS_MODE) {
+      startAccountUsage(context);
+    }
     appT.startup();
     if (parameter.isSolidityNode()) {
       SolidityNode node = context.getBean(SolidityNode.class);
       node.run();
     }
     appT.blockUntilShutdown();
+  }
+
+  static void startAccountUsage(TronApplicationContext context) {
+    try {
+      context.getBean(AccountUsageService.class).start();
+    } catch (RuntimeException e) {
+      TronError failure = new TronError("Account usage initialization failed", e,
+          TronError.ErrCode.ACCOUNT_USAGE_INIT);
+      try {
+        context.close();
+      } catch (RuntimeException closeError) {
+        failure.addSuppressed(closeError);
+      }
+      throw failure;
+    }
   }
 
   private static void checkJdkVersion() {

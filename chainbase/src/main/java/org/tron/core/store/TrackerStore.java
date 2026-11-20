@@ -1,5 +1,6 @@
 package org.tron.core.store;
 
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Optional;
@@ -19,6 +20,8 @@ public class TrackerStore extends TronStoreWithRevoking<BytesCapsule> {
   private static final byte[] TOTAL_NET_WEIGHT2 = "TOTAL_NET_WEIGHT2".getBytes();
   private static final byte[] TOTAL_ENERGY_WEIGHT2 = "TOTAL_ENERGY_WEIGHT2".getBytes();
   private static final byte[] LAST_PRUNED_BLOCK_NUM = "LAST_PRUNED_BLOCK_NUM".getBytes();
+  private static final byte[] NEGATIVE_USAGE_SCAN =
+      "NEGATIVE_USAGE_SCAN_V1".getBytes(StandardCharsets.UTF_8);
 
   @Autowired
   private TrackerStore(@Value("tracker") String dbName) {
@@ -120,6 +123,21 @@ public class TrackerStore extends TronStoreWithRevoking<BytesCapsule> {
 
   public void saveLastPrunedBlockNum(long n) {
     put(LAST_PRUNED_BLOCK_NUM, new BytesCapsule(ByteArray.fromLong(n)));
+  }
+
+  public long[] getNegativeUsageScanResult() {
+    byte[] data = getData(NEGATIVE_USAGE_SCAN);
+    if (data == null || data.length != 32) {
+      return null;
+    }
+    ByteBuffer result = ByteBuffer.wrap(data);
+    return new long[] {result.getLong(), result.getLong(), result.getLong(), result.getLong()};
+  }
+
+  public void saveNegativeUsageScanResult(long accounts, long negatives, long blockNum,
+      long completedAt) {
+    put(NEGATIVE_USAGE_SCAN, new BytesCapsule(ByteBuffer.allocate(32)
+        .putLong(accounts).putLong(negatives).putLong(blockNum).putLong(completedAt).array()));
   }
 
   public void pruneCycle(long cycle) {

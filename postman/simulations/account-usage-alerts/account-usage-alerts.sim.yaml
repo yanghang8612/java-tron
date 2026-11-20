@@ -1,0 +1,7 @@
+simulation: account-usage-alerts
+routing: path
+mocks:
+  - name: slack-usage
+    routeKey: slack
+    origin: hooks.slack.com
+    path: postman/mocks/slack-usage
